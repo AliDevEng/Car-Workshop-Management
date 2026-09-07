@@ -1,0 +1,91 @@
+# One .gitignore for the whole monorepo — shared/, backend/, frontend/, infra/.
+# Scaffolding tools (create-next-app, prisma init) generate their own; delete
+# those and add the entries here instead.
+#
+# Committed on purpose — do NOT add these later:
+#   pnpm-lock.yaml              dependencies are pinned by the lockfile (§5.4)
+#   backend/prisma/migrations/  committed SQL; db push is never used (§8.2)
+#   backend/src/pdf/fonts/*.ttf container system fonts break å ä ö (§8.3)
+#   frontend/src/fonts/*        self-hosted via next/font/local (§9.3)
+#   .env.example                the template; only real .env files are ignored
+
+# ---------------------------------------------------------------- dependencies
+node_modules/
+.pnpm-store/
+*.tgz
+
+# ----------------------------------------------------------------- environment
+# Real secrets never leave the machine. The app refuses to boot without them,
+# which is the intended way to find out one is missing.
+.env
+.env.*
+!.env.example
+*.local
+
+# ---------------------------------------------------------------------- output
+dist/
+build/
+*.tsbuildinfo
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+.vercel/
+
+# Prisma generates its client to an explicit path in v7
+backend/prisma/generated/
+backend/src/generated/
+
+# ------------------------------------------------------------- tests, coverage
+coverage/
+*.lcov
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# --------------------------------------------------------- runtime and backups
+# Generated PDFs (STORAGE_PATH) and database dumps hold customer personal data.
+# They are backed up off-site (§8.6), never committed.
+storage/
+infra/backups/
+pgdata/
+*.sql
+*.sql.gz
+*.dump
+!backend/prisma/migrations/**/*.sql
+
+# ------------------------------------------------------------------------ logs
+*.log
+logs/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --------------------------------------------------------------------- secrets
+# Caddy issues certificates at runtime; keys are never repository content.
+*.pem
+*.key
+*.crt
+*.p12
+.sentryclirc
+
+# --------------------------------------------------------------------- caches
+.eslintcache
+.cache/
+.turbo/
+
+# ------------------------------------------------------- editors and machines
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.claude/settings.local.json
+
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,26 @@
+packages:
+  - shared
+  - backend
+  - frontend
+
+# pnpm blocks lifecycle scripts by default. Each entry below is a deliberate
+# decision, not a blanket allow: true only where the package cannot work
+# without its build step.
+allowBuilds:
+  # Prisma downloads and generates its query engine — required.
+  '@prisma/engines': true
+  prisma: true
+  # esbuild installs its platform binary — required by tsup and vitest.
+  esbuild: true
+  # Native resolver used by the ESLint TypeScript config — required.
+  unrs-resolver: true
+  # The three below arrive under testcontainers (ssh2 → docker-modem) and are
+  # test-only. Each falls back to a working pure-JS path, so no build is run.
+  cpu-features: false
+  protobufjs: false
+  ssh2: false
+
+# pnpm 12 holds back packages published very recently as a supply-chain
+# precaution. This release was allowed through on 2026-09-07.
+minimumReleaseAgeExclude:
+  - lucide-react@1.42.0
