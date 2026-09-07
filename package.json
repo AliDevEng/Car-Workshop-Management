@@ -5,11 +5,12 @@
   "type": "module",
   "packageManager": "pnpm@12.3.4",
   "engines": {
-    "node": ">=22.11.0 <23.0.0",
+    "node": ">=22.22.0 <23.0.0",
     "pnpm": ">=12.0.0"
   },
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
+    "prepare": "pnpm --filter shared build && pnpm --filter backend prisma:generate",
+    "dev": "pnpm --filter shared build && pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . --max-warnings 0",
@@ -31,5 +32,14 @@
     "type-coverage": "2.30.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0"
+  },
+  "typeCoverage": {
+    "atLeast": 99.5,
+    "ignoreFiles": [
+      "backend/src/generated/**",
+      "**/dist/**",
+      "**/.next/**",
+      "**/coverage/**"
+    ]
   }
 }

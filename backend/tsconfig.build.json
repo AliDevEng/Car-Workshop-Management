@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  // `src/generated` (the Prisma client) is deliberately included here but not
+  // in the typecheck config: it is generated code we compile into dist, and
+  // linting/typechecking it would fail rules it was never written against.
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/**/*.test.tsx"]
+}

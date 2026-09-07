@@ -4,10 +4,16 @@
 #
 # Committed on purpose — do NOT add these later:
 #   pnpm-lock.yaml              dependencies are pinned by the lockfile (§5.4)
-#   backend/prisma/migrations/  committed SQL; db push is never used (§8.2)
+#   backend/prisma/schema.prisma        the schema itself
+#   backend/prisma/migrations/          committed SQL; db push is never used (§8.2)
+#   backend/prisma/migrations/migration_lock.toml
+#                               names the connector; migrate diff fails without it
+#   backend/prisma.config.ts    Prisma 7 CLI configuration, not generated output
 #   backend/src/pdf/fonts/*.ttf container system fonts break å ä ö (§8.3)
 #   frontend/src/fonts/*        self-hosted via next/font/local (§9.3)
 #   .env.example                the template; only real .env files are ignored
+#   infra/docker-compose*.yml   the dev and production stacks
+#   .github/workflows/          CI is part of the definition of done (§10)
 
 # ---------------------------------------------------------------- dependencies
 node_modules/
@@ -22,10 +28,17 @@ node_modules/
 !.env.example
 *.local
 
+# A local compose override is a developer's own machine, never the project's.
+infra/docker-compose.override.yml
+
 # ---------------------------------------------------------------------- output
 dist/
 build/
 *.tsbuildinfo
+
+# Vite (and therefore Vitest) writes this beside a TypeScript config while it
+# loads it. A crashed run leaves one behind.
+*.timestamp-*.mjs
 
 # Next.js
 .next/
@@ -33,7 +46,9 @@ out/
 next-env.d.ts
 .vercel/
 
-# Prisma generates its client to an explicit path in v7
+# Prisma 7 generates its client to an explicit path, set in schema.prisma.
+# `backend/prisma/generated/` is kept as a guard in case that output path is
+# ever moved back under prisma/.
 backend/prisma/generated/
 backend/src/generated/
 
@@ -84,6 +99,8 @@ yarn-error.log*
 .idea/
 *.swp
 *.swo
+*.orig
+*.rej
 .claude/settings.local.json
 
 .DS_Store

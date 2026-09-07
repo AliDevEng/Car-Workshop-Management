@@ -1,0 +1,31 @@
+// Verkstadssystem — database schema.
+//
+// Models are added by the iteration that owns them (PROJECT_SPEC.md §4):
+// B2 User/Session, B3 Customer/Vehicle/OdometerReading, B4 Article/
+// StockMovement, and so on. B0 establishes only the connection, the generated
+// client and the extension migration everything later depends on.
+
+generator client {
+  provider = "prisma-client"
+
+  // Explicit output, inside src/ so the backend build compiles it (B0.4.3).
+  // Prisma 7 has no default location; leaving it out is an error, not a
+  // fallback to node_modules.
+  output = "../src/generated/prisma"
+
+  runtime      = "nodejs"
+  moduleFormat = "esm"
+
+  // ESM on NodeNext resolves relative imports by their runtime path, so the
+  // generated .ts files must import each other with a .js extension.
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+  // No `url` here: Prisma 7 removed it from the schema. Migrate and the other
+  // CLI commands read the connection string from prisma.config.ts, and the
+  // application supplies it through the driver adapter passed to
+  // `new PrismaClient({ adapter })` (B0.4.4, B0.4.5).
+}

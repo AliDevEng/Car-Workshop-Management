@@ -8,37 +8,38 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "tsx prisma/seed.ts"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "prisma:seed": "prisma db seed"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.2",
     "@fastify/helmet": "13.1.1",
     "@fastify/rate-limit": "11.2.0",
     "@node-rs/argon2": "2.2.0",
+    "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@react-pdf/renderer": "4.9.0",
     "date-fns": "4.4.0",
     "date-fns-tz": "3.2.0",
     "decimal.js": "10.6.0",
     "fastify": "5.12.3",
+    "fastify-plugin": "6.0.0",
     "fastify-type-provider-zod": "7.0.0",
     "node-cron": "4.6.0",
+    "pg": "8.23.0",
     "pino": "10.3.1",
     "react": "19.2.8",
     "shared": "workspace:*",
     "zod": "4.5.4"
   },
   "devDependencies": {
+    "@types/pg": "8.23.1",
     "@types/react": "19.2.18",
     "@types/supertest": "7.2.1",
     "@vitest/coverage-v8": "5.0.0",

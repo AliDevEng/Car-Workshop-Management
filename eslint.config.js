@@ -42,10 +42,7 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: [
-            '*.config.{js,mjs,ts}',
-            'eslint.config.js',
-          ],
+          allowDefaultProject: ['*.config.{js,mjs,ts}', 'eslint.config.js'],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -65,6 +62,36 @@ export default tseslint.config(
         { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' },
       ],
     },
+  },
+  {
+    // Two repository rules that are cheaper to enforce than to remember.
+    // Tests are exempt from both: a test bootstrap legitimately assembles an
+    // environment, and a failing assertion is allowed to print.
+    files: ['backend/src/**/*.{ts,tsx}', 'backend/prisma/**/*.ts'],
+    ignores: ['backend/src/**/*.test.ts'],
+    rules: {
+      // CLAUDE.md: no console.log in the backend. A line without the request
+      // id cannot be correlated with the `requestId` a user reads off an error
+      // screen, which is the whole point of PROJECT_SPEC.md §8.5.
+      'no-console': 'error',
+      // PROJECT_SPEC.md §5.4 and B0.6.4: configuration is validated once, at
+      // boot, by config/env.ts. A `process.env` read anywhere else is an
+      // unvalidated string that fails at 02:00 rather than at startup.
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'process',
+          property: 'env',
+          message:
+            'Read configuration from config/env.ts, which validates it at ' +
+            'boot. Only that file and config/dotenv.ts may touch process.env.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['backend/src/config/env.ts', 'backend/src/config/dotenv.ts'],
+    rules: { 'no-restricted-properties': 'off' },
   },
   ...scopedNextConfig,
   eslintConfigPrettier,

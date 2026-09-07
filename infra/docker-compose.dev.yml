@@ -1,0 +1,51 @@
+# Development dependencies only — the applications run on the host via
+# `pnpm dev`. The production stack (backend, frontend, Caddy) is defined in
+# docker-compose.yml and built in B12.
+#
+# No `TZ` variable anywhere, deliberately: containers run UTC and every
+# conversion is explicit in code (PROJECT_SPEC.md §2.1, §3.6). A container that
+# happens to sit in Europe/Stockholm hides timezone bugs until it moves.
+
+name: verkstad-dev
+
+services:
+  postgres:
+    # Debian-based, not Alpine. The repository-wide rule is glibc images
+    # (argon2 and Prisma ship glibc binaries); keeping the database on the same
+    # libc also keeps its collation behaviour identical to production.
+    image: postgres:16
+    container_name: verkstad-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-verkstad}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-verkstad}
+      POSTGRES_DB: ${POSTGRES_DB:-verkstad}
+      # Deterministic collation. Left to the host locale, an index built on one
+      # machine sorts differently on another, and `ORDER BY name` quietly
+      # disagrees between a developer laptop and the VPS.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    ports:
+      # Bound to loopback: this database holds customer personal data and must
+      # never be reachable from the network the laptop happens to be on.
+      #
+      # 5433 by default because a native PostgreSQL install commonly holds
+      # 5432, and the resulting bind failure names the port, not the cause.
+      - '127.0.0.1:${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # `-d` is required: without it pg_isready probes the `postgres` database
+      # and reports healthy before POSTGRES_DB has been created.
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-verkstad} -d ${POSTGRES_DB:-verkstad}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:
+    name: verkstad-postgres-data-dev

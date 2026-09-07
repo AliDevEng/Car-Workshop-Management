@@ -163,7 +163,8 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete.
+is complete. **11/92 backend milestones are complete as of 2026-09-08**: B1.1
+and B1.3, plus nine of B0's ten.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion
@@ -190,7 +191,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
 | Backend | Title | Phase | Status |
 |---|---|---|---|
-| B0 | Workspace and tooling | 0 | ⬜ |
+| B0 | Workspace and tooling | 0 | 🟨 (9/10 milestones; everything but B0.9 — CI has not yet run on a PR and branch protection needs a repository owner) |
 | B1 | Shared domain primitives | 0 | 🟨 (money, units, regnr and core schemas done; work-order state machine and full schema set remain) |
 | B2 | Authentication and users | 1 | ⬜ |
 | B3 | Customers and vehicles | 1 | ⬜ |
@@ -250,6 +251,17 @@ past row.
 | 2026-09-07 | Frontend fonts are the full (unsubsetted) variable `.ttf` files, not Latin-Extended subsets | Google Fonts' canonical repo no longer ships static per-weight files for Archivo or Source Serif 4, only variable ones, and no font-subsetting tool (`fonttools`/`pyftsubset`) was available to cut them to `latin-ext`. Functionally correct (glyph coverage confirmed) but larger than necessary; revisit before F2.6's Lighthouse budget |
 | 2026-09-07 | `shared/tsconfig.json` sets `ignoreDeprecations: "6.0"`, scoped to that package only | `tsup`'s dts bundler (`rollup-plugin-dts`) injects a `baseUrl` into the program it builds for declaration bundling; TS 6 deprecates the flag ahead of TS 7 removal. Affects only that generated program, not an actual relaxation of strictness |
 | 2026-09-07 | Frontend depends on `date-fns`/`date-fns-tz` directly, not only via `shared` | F0.6's `formatDate`/`formatDateTime`/`formatRelative` need them directly; both are already approved in §2.2 for `shared`, so this extends an existing choice rather than introducing a new one |
+| 2026-09-08 | **B0.10.1 — PDF regeneration IS byte-identical.** B7.4.6 takes its strict branch | Two renders of one fixture with `creationDate`/`modificationDate` pinned and a fixed producer/creator gave the same SHA-256; the same document without pinned dates did not. The stored file remains authoritative (§8.3) — determinism is a bonus, not the guarantee |
+| 2026-09-08 | **B0.10.2 — Needs an §8.3 correction: variable fonts and `.woff2` both work.** A static `.ttf` is not required, and the file extension is not a safety net | `@react-pdf/renderer` 4.9.0 registered the committed variable `Archivo-Variable.ttf` and a `.woff2`; both embedded a subset, and `ÅÄÖ åäö` all appear in the `ToUnicode` CMap. §8.3 predicted both would fail. This is load-bearing in both directions: Google Fonts no longer ships static instances of Archivo or Source Serif 4, so §8.3 was unsatisfiable as written — and the assumed "a `.woff2` fails loudly" guard does not exist, so B7.1.3's glyph assertion is the only real protection |
+| 2026-09-08 | **B0.10.3 — B5.4.5 must map on SQLSTATE `23P01`, not on a Prisma code** | The same exclusion-constraint violation surfaces as `P2039` from `prisma.booking.create()` and `P2010` from a raw insert. Both nest `meta.driverAdapterError.cause.code === '23P01'`. Keying off a Prisma code — `P2002` being the obvious guess — gives a handler that never fires and a `500` in production |
+| 2026-09-08 | **B0.10.4 — the `tsup` watch build reaches both consumers live.** §2.1's two-part arrangement is confirmed | Editing a file in `shared` restarted the backend's `tsx watch` on the rebuilt output and was picked up by Next through `transpilePackages` without a restart. `tsup` clears `dist` before rebuilding, so the root `dev` and `prepare` scripts build `shared` first to keep a cold start clean |
+| 2026-09-08 | `@prisma/adapter-pg`, `pg` and `@types/pg` added to the backend | Required by Prisma 7, which no longer connects without a driver adapter, and named by B0.4.4. `@types/pg` is not optional: the adapter's constructor is typed `pg.Pool \| pg.PoolConfig`, which degrades to `any` without them and trips the `no-unsafe-*` rules |
+| 2026-09-08 | `fastify-plugin` added to the backend | The supported way to stop a Fastify plugin being encapsulated in a child scope. Without it the error handler and the request-id hook apply to nothing |
+| 2026-09-08 | `prisma.config.ts` declares its datasource **only when `DATABASE_URL` is set**, and reads `process.env` directly instead of Prisma's `env()` | `env()` throws while the config module is evaluated, so every Prisma command — `generate` included — failed on a machine without a `.env`. That broke a fresh clone and the CI step that generates the client before any database exists |
+| 2026-09-08 | The development database publishes **5433**, not 5432 | A developer machine frequently already runs a native PostgreSQL on the default port; the container then fails to bind with an error that names the port rather than the cause. Found on the first `docker compose up` |
+| 2026-09-08 | Project references are **not** used between packages, contrary to backend README B0.2.2 | `PROJECT_SPEC.md` §2.1 builds `shared` with `tsup`, and the spec wins over a README. A reference requires `composite: true`, which makes `tsup`'s declaration bundler fail with `TS6307`; and `tsc -b` could never produce `shared/dist` anyway, so a reference would encode a build graph that does not exist. §3.1 never asked for references |
+| 2026-09-08 | Node pinned to **22.23.2**; engines raised to `>=22.22.0 <23.0.0` | `testcontainers@12.1.0` requires `>=22.22`, and Prisma 7 and Vitest 5 exclude the old 22.11.0 floor. The suite in fact passes on 22.21.1, but the declared floor and the runtime should agree |
+| 2026-09-08 | `ServiceUnavailableError` (503) added to the §3.7 error hierarchy | A readiness probe reports an expected, transient state that a load balancer acts on. Folding it into a 500 tells an operator to investigate a bug that is not there |
 
 ---
 
@@ -257,31 +269,47 @@ past row.
 
 ### Prerequisites
 
-Node.js 22 LTS (at least 22.22.0 for the installed Testcontainers version),
-pnpm 12.3.4, Docker and Docker Compose. The current `.nvmrc` still pins 22.21.1;
-backend B0.1 tracks aligning that pin, root engines, CI and containers before
-running the test stack. B0.4 tracks the missing Prisma 7 driver/configuration.
+Node.js 22 LTS — `.nvmrc` pins **22.23.2**, and `engines` requires at least
+22.22.0 because that is what Testcontainers 12.1.0 asks for. pnpm 12.3.4,
+Docker and Docker Compose.
 
 ### First run
 
 ```bash
-cp .env.example .env          # fill in the values; the app refuses to start otherwise
-pnpm install
-docker compose -f infra/docker-compose.dev.yml up -d   # Postgres
-pnpm --filter backend prisma:migrate
+cp .env.example .env          # fill in the secrets; the app refuses to start otherwise
+pnpm install                  # `prepare` builds shared/ and generates the Prisma client
+
+# Postgres on 127.0.0.1:5433 (not 5432 — see the decision log).
+# --env-file is required: compose reads the credentials from .env.
+docker compose -f infra/docker-compose.dev.yml --env-file .env up -d
+
+pnpm --filter backend prisma:migrate                   # apply migrations
 pnpm --filter backend prisma:generate                  # explicit with Prisma 7
-pnpm --filter backend exec prisma db seed              # demo data, incl. two users
+pnpm --filter backend exec prisma db seed              # demo data; no rows until B2
 pnpm dev                                               # backend :3001, frontend :3000
 ```
 
-Seeded logins are printed by the seed script. They are development-only and the
-seed refuses to run when `NODE_ENV=production`.
+Generate each secret separately, for example
+`node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+The template's placeholder values are accepted in development and **rejected in
+production**, so a deployment cannot inherit them by accident.
+
+Seeded logins will be printed by the seed script once B2 creates users. Seeding
+is development-only and refuses to run when `NODE_ENV=production`.
+
+Check that it worked:
+
+```bash
+curl http://127.0.0.1:3001/api/health        # {"status":"ok","version":…,"uptime":…}
+curl http://127.0.0.1:3001/api/health/ready  # {"status":"ok","database":"up"}
+```
 
 ### Commands
 
 | Command | Effect |
 |---|---|
-| `pnpm dev` | Backend and frontend in watch mode |
+| `pnpm dev` | Builds `shared`, then runs all three packages in watch mode |
+| `pnpm prepare` | Builds `shared` and generates the Prisma client. Runs automatically on `pnpm install` |
 | `pnpm build` | Build all packages |
 | `pnpm typecheck` | `tsc --noEmit` across the workspace |
 | `pnpm lint` | ESLint, zero warnings tolerated |
@@ -298,8 +326,12 @@ the process immediately with a readable message.
 
 | Variable | Example | Notes |
 |---|---|---|
-| `NODE_ENV` | `development` | |
-| `DATABASE_URL` | `postgresql://...` | |
+| `NODE_ENV` | `development` | `development` \| `test` \| `production` |
+| `HOST` | `127.0.0.1` | Backend listen address. `0.0.0.0` inside a container |
+| `PORT` | `3001` | Backend listen port |
+| `DATABASE_URL` | `postgresql://verkstad:verkstad@127.0.0.1:5433/verkstad?schema=public` | Port 5433 in development, so the container does not collide with a native PostgreSQL on 5432 |
+| `POSTGRES_USER` / `_PASSWORD` / `_DB` / `_PORT` | `verkstad` … `5433` | Read by `infra/docker-compose.dev.yml` only, never by the application. Must agree with `DATABASE_URL` |
+| `SHADOW_DATABASE_URL` | *(unset)* | Only for `prisma migrate diff --from-migrations`, which the CI drift check runs. `migrate dev` creates its own shadow database |
 | `SESSION_COOKIE_SECRET` | 64 hex chars | Rotating it logs everyone out |
 | `IP_HASH_SALT` | 32+ chars | Salts stored IP hashes (GDPR). Rotating it resets rate-limit history |
 | `FORM_TOKEN_SECRET` | 32+ chars | HMAC key for the booking-form and vehicle-lookup tokens. Separate from the session secret so it can be rotated without logging everyone out |
@@ -310,7 +342,7 @@ the process immediately with a readable message.
 | `VEHICLE_DATA_DAILY_LIMIT_PUBLIC` | `100` | Separate ceiling for the public hero. Separate on purpose: a shared ceiling lets an attacker exhaust the staff budget and stop the workshop working |
 | `STORAGE_PATH` | `./storage` | PDF output; must be a mounted volume |
 | `LOG_LEVEL` | `info` | |
-| `TZ` | *(unset)* | Deliberately not set. Containers run in UTC and every conversion is explicit in code. A container that happens to sit in the right timezone hides timezone bugs until it moves |
+| `TZ` | *(unset)* | Deliberately not set. Containers run in UTC and every conversion is explicit in code. A container that happens to sit in the right timezone hides timezone bugs until it moves. The boot schema **rejects any value other than `UTC`**, so this is enforced rather than remembered |
 | `INTERNAL_API_URL` | `http://backend:3001` | **Frontend only.** Server components call the backend directly over the Docker network; they cannot use the relative `/api` path that browser code uses. Never exposed to the client. |
 
 Browser-side code uses the relative path `/api`, because frontend and backend
@@ -342,10 +374,10 @@ is how a project accidentally ends up cross-origin and loses its session cookie.
 | Double stock deduction on retry | `Idempotency-Key` plus a `stockDeducted` flag per line |
 | Public form is spammed | Honeypot, time trap, rate limits, heuristic flagging |
 | Partner site redesign breaks links | Links stored as data, editable in the admin panel |
-| Swedish characters break in PDFs | Fonts committed to the repo and registered explicitly |
+| Swedish characters break in PDFs | Fonts committed to the repo and registered explicitly. **B0.10.2 found that the file format is not a guard** — a `.woff2` registers silently rather than failing — so B7.1.3's glyph assertion is the real protection |
 | Backup exists but does not restore | Restore is tested in B12 and the result recorded here |
 | Service advice is wrong and blamed on the system | Human approval required; rule snapshot and source stored |
 | Bot burns the vehicle-data budget from rotating IPs | Form token required, cache consulted first, separate public ceiling |
 | A `Decimal` reaches JSON as `[object Object]` | Explicit conversion in every repository; a test asserts no `Decimal` escapes |
 | Cursor pagination breaks when a column is sorted | Composite cursors, or capped offset; sortable columns are declared by the API |
-| PDF library will not produce byte-identical output | Resolved by the B0.10 spike before B7 depends on it; stored file is authoritative |
+| PDF library will not produce byte-identical output | **Resolved 2026-09-08.** B0.10.1 confirmed byte-identical output with pinned dates, so B7.4.6 takes its strict branch. The stored file is still the authoritative record |

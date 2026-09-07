@@ -67,7 +67,9 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
     }
   }
 
-  const cache: RequestCache = isServer ? 'no-store' : (options.cache ?? 'default');
+  const cache: RequestCache = isServer
+    ? 'no-store'
+    : (options.cache ?? 'default');
 
   let response: Response;
   try {

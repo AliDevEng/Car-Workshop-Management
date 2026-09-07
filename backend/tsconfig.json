@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // NodeNext everywhere on the backend (PROJECT_SPEC.md §2.1): the backend
+    // imports `shared`'s *built* ESM output, and NodeNext is what actually
+    // models Node's resolution of it. A bundler resolution mode here would
+    // typecheck imports that fail at runtime.
+    "lib": ["ES2023"],
+    "types": ["node"],
+    // PDF templates in src/pdf/templates are .tsx (PROJECT_SPEC.md §8.3).
+    "jsx": "react-jsx",
+    "noEmit": true
+  },
+  "include": ["src", "tests", "prisma", "*.config.ts"],
+  "exclude": ["node_modules", "dist", "src/generated"]
+}

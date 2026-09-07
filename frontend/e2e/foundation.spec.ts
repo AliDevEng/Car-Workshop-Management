@@ -11,9 +11,13 @@ test('the home page renders in Swedish and shows a connectivity state', async ({
   await page.goto('/');
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'sv');
-  await expect(page.getByRole('heading', { name: 'Verkstadssystem' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Verkstadssystem' }),
+  ).toBeVisible();
 
   // Either the backend answered (a status list) or it didn't (an alert) —
   // both are valid, explicitly-handled outcomes for this stage.
-  await expect(page.getByRole('alert').or(page.getByText('Status'))).toBeVisible();
+  await expect(
+    page.getByRole('alert').or(page.getByText('Status')),
+  ).toBeVisible();
 });

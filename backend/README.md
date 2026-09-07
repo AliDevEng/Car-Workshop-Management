@@ -33,11 +33,11 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 2/92 milestones complete; 0/14 iterations Done.**
+**Overall: 11/92 milestones complete; 0/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
-| [1](#b0)   | B0        | 0       | 0/10            | Not started |
+| [1](#b0)   | B0        | 0       | 9/10            | In progress |
 | [2](#b1)   | B1        | 0       | 2/6             | In progress |
 | [3](#b2)   | B2        | 1       | 0/7             | Not started |
 | [4](#b3)   | B3        | 1       | 0/6             | Not started |
@@ -52,32 +52,39 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [13](#b12) | B12       | 7       | 0/6             | Not started |
 | [14](#b13) | B13       | 8       | 0/6             | Not started |
 
-No application milestone is marked complete merely because dependencies were
-installed. Entry points, schema, migrations and test configuration are still to
-be implemented.
+Entry points, schema, migrations and test configuration are implemented as of
+2026-09-08. B0.9 remains open because branch protection is a repository setting
+that cannot be applied from the working tree, and because the workflow has not
+yet run on a pull request.
 
 ## Package review
 
-**Reviewed: 2026-09-07.** Backend manifest versions match installed packages.
-The registry check reported two newer versions: Prisma 8.0.0-rc.13 and
-TypeScript 7.0.2. Keep Prisma 7.10.0 because the reported Prisma release is a
-release candidate; keep TypeScript 6.0.3 because the installed
-`typescript-eslint@8.69.0` requires `>=4.8.4 <6.1.0`. Other backend direct
-packages were not reported outdated.
+**Reviewed: 2026-09-07, updated 2026-09-08.** Backend manifest versions match
+installed packages. The registry check reported two newer versions: Prisma
+8.0.0-rc.13 and TypeScript 7.0.2. Keep Prisma 7.10.0 because the reported
+Prisma release is a release candidate; keep TypeScript 6.0.3 because the
+installed `typescript-eslint@8.69.0` requires `>=4.8.4 <6.1.0`. Other backend
+direct packages were not reported outdated.
 
-**Two setup gaps must be resolved in Iteration 1:**
+**Both setup gaps are resolved (2026-09-08):**
 
-- Installed `testcontainers@12.1.0` requires Node `>=22.22`. The current
-  `.nvmrc` and local runtime are 22.21.1. Align the runtime, engine range, CI
-  and containers before testing. Prisma 7 and Vitest 5 also exclude the root
-  engine range's old 22.11.0 lower bound.
-- Prisma 7 needs its CLI configuration and a PostgreSQL driver adapter.
-  `@prisma/adapter-pg` and `pg` are not direct backend dependencies yet. B0.4
-  tracks their installation, explicit generation, seeding and environment
-  loading. The existing `package.json#prisma.seed` entry needs migration.
+- The runtime pin is aligned. `.nvmrc` is `22.23.2`, root engines require
+  `>=22.22.0 <23.0.0`, and CI reads the version from `.nvmrc`. No application
+  container exists yet; B12 inherits the same pin when it builds one.
+  Note that the machine this was verified on still runs Node **22.21.1**, one
+  patch below the declared floor. The whole suite, Testcontainers included,
+  passes there — but the local runtime should be switched to match the pin.
+- Prisma 7 is configured. `backend/prisma.config.ts` supplies the schema,
+  migrations and seed configuration; `@prisma/adapter-pg`, `pg` and `@types/pg`
+  are direct dependencies; `package.json#prisma.seed` is removed. Generation
+  and seeding are run explicitly.
 
-This is a dependency and documentation review, not evidence of a working
-application. Package versions remain unchanged by this README update.
+Three dependencies were added during B0 and are recorded in the root decision
+log: `@prisma/adapter-pg` and `pg` (required by Prisma 7, named in B0.4.4),
+`@types/pg` (the adapter's public types reference `pg.PoolConfig`; without them
+it degrades to `any` and trips the `no-unsafe-*` rules), and `fastify-plugin`
+(the standard way to keep a Fastify plugin's decorators and hooks in the parent
+scope rather than an encapsulated child).
 
 <details>
 <summary>Installed versions, implementation notes and commands</summary>
@@ -88,18 +95,22 @@ application. Package versions remain unchanged by this README update.
 | `@fastify/helmet`           | 13.1.1            |
 | `@fastify/rate-limit`       | 11.2.0            |
 | `@node-rs/argon2`           | 2.2.0             |
+| `@prisma/adapter-pg`        | 7.10.0            |
 | `@prisma/client`            | 7.10.0            |
 | `@react-pdf/renderer`       | 4.9.0             |
 | `date-fns`                  | 4.4.0             |
 | `date-fns-tz`               | 3.2.0             |
 | `decimal.js`                | 10.6.0            |
 | `fastify`                   | 5.12.3            |
+| `fastify-plugin`            | 6.0.0             |
 | `fastify-type-provider-zod` | 7.0.0             |
 | `node-cron`                 | 4.6.0             |
+| `pg`                        | 8.23.0            |
 | `pino`                      | 10.3.1            |
 | `react`                     | 19.2.8            |
 | `shared`                    | workspace package |
 | `zod`                       | 4.5.4             |
+| `@types/pg`                 | 8.23.1            |
 | `@types/react`              | 19.2.18           |
 | `@types/supertest`          | 7.2.1             |
 | `@vitest/coverage-v8`       | 5.0.0             |
@@ -158,18 +169,18 @@ test and integration results before describing the combination as working.
 
 ## Iteration 1: Creating the backend foundation
 
-- [ ] Creating the workspace (`B0.1`)
-- [ ] Configuring strict TypeScript (`B0.2`)
-- [ ] Connecting linting and formatting (`B0.3`)
-- [ ] Connecting PostgreSQL and Prisma 7 (`B0.4`)
-- [ ] Creating the Fastify server (`B0.5`)
-- [ ] Validating environment settings (`B0.6`)
-- [ ] Creating consistent API errors (`B0.7`)
-- [ ] Connecting the test database and test tools (`B0.8`)
+- [x] Creating the workspace (`B0.1`)
+- [x] Configuring strict TypeScript (`B0.2`)
+- [x] Connecting linting and formatting (`B0.3`)
+- [x] Connecting PostgreSQL and Prisma 7 (`B0.4`)
+- [x] Creating the Fastify server (`B0.5`)
+- [x] Validating environment settings (`B0.6`)
+- [x] Creating consistent API errors (`B0.7`)
+- [x] Connecting the test database and test tools (`B0.8`)
 - [ ] Creating the CI workflow (`B0.9`)
-- [ ] Testing the four technical unknowns (`B0.10`)
+- [x] Testing the four technical unknowns (`B0.10`)
 
-**Reference:** B0 · **Phase:** 0 · **Progress:** 0/10 · **Status:** Not started
+**Reference:** B0 · **Phase:** 0 · **Progress:** 9/10 · **Status:** In progress
 
 **Depends on:** None; complete runtime compatibility first.
 
@@ -191,27 +202,40 @@ handler and a typed response comes back.
 
 ### B0.1 Monorepo skeleton
 
-- [ ] **B0.1.1** `pnpm-workspace.yaml` listing `shared`, `backend`, `frontend`
-- [ ] **B0.1.2** Root `package.json` with `dev`, `build`, `typecheck`, `lint`,
+- [x] **B0.1.1** `pnpm-workspace.yaml` listing `shared`, `backend`, `frontend`
+- [x] **B0.1.2** Root `package.json` with `dev`, `build`, `typecheck`, `lint`,
       `test`, `check`
-- [ ] **B0.1.3** Verify `.gitignore` and `.editorconfig`. Update `.nvmrc`, root
+- [x] **B0.1.3** Verify `.gitignore` and `.editorconfig`. Update `.nvmrc`, root
       Node engines, CI and container runtime consistently to a supported Node 22
-      release at least 22.22.0 before using Testcontainers 12.1.0. The current
-      22.21.1 pin is below its engine requirement.
-- [ ] **B0.1.4** `README.md` links verified
+      release at least 22.22.0 before using Testcontainers 12.1.0.
+      `.nvmrc` is `22.23.2`; engines are `>=22.22.0 <23.0.0`; CI reads
+      `.nvmrc`. There is no application container yet — B12 inherits the pin.
+- [x] **B0.1.4** `README.md` links verified — every relative link and anchor in
+      the four project documents resolves.
 
 <a id="b0-2"></a>
 
 ### B0.2 TypeScript configuration
 
-- [ ] **B0.2.1** `tsconfig.base.json` with every flag from `PROJECT_SPEC.md`
+- [x] **B0.2.1** `tsconfig.base.json` with every flag from `PROJECT_SPEC.md`
       §3.1
-- [ ] **B0.2.2** Per-package `tsconfig.json` extending it, with project
-      references
-- [ ] **B0.2.3** `pnpm typecheck` passes on an empty workspace
-- [ ] **B0.2.4** Verify `noUncheckedIndexedAccess` is active by writing a
-      deliberate failure, confirming the error, then deleting it
-- [ ] **B0.2.5** Keep backend ESM/NodeNext settings and compile PDF `.tsx`
+- [x] **B0.2.2** Per-package `tsconfig.json` extending it.
+      **Corrected 2026-09-08:** this step previously also required TypeScript
+      *project references*. They are incompatible with `PROJECT_SPEC.md` §2.1,
+      which builds `shared` with `tsup`, and the spec wins. A reference
+      requires the referenced project to set `composite: true`; doing so makes
+      `tsup`'s declaration bundler fail outright — `TS6307: File
+      'shared/src/money.ts' is not listed within the file list of project ''`,
+      because `rollup-plugin-dts` compiles a synthetic program containing only
+      the entry file. A reference would also encode a build graph that does not
+      exist: `tsc -b` can never produce `shared/dist`, because `tsup` does.
+      Build ordering is handled by `pnpm -r build` and the root `prepare`
+      script instead. §3.1 does not ask for references; only this README did.
+- [x] **B0.2.3** `pnpm typecheck` passes across the workspace
+- [x] **B0.2.4** Verify `noUncheckedIndexedAccess` is active by writing a
+      deliberate failure, confirming the error, then deleting it —
+      `TS18048: 'first' is possibly 'undefined'` on `values[0]`.
+- [x] **B0.2.5** Keep backend ESM/NodeNext settings and compile PDF `.tsx`
       templates with the React JSX transform; allow frontend-specific bundler
       overrides as tracked in F0.1.
 
@@ -219,112 +243,209 @@ handler and a typed response comes back.
 
 ### B0.3 Linting and formatting
 
-- [ ] **B0.3.1** ESLint 9 flat config, `typescript-eslint` type-aware rules
+- [x] **B0.3.1** ESLint 9 flat config, `typescript-eslint` type-aware rules
       enabled
-- [ ] **B0.3.2** All rules from §3.1 set to `error`, including the `no-unsafe-*`
-      family
-- [ ] **B0.3.3** Prettier, with ESLint conflicts disabled
-- [ ] **B0.3.4** `type-coverage` configured at `--at-least 99.5`
-- [ ] **B0.3.5** Confirm a file containing `any` fails `pnpm lint`
+- [x] **B0.3.2** All rules from §3.1 set to `error`, including the `no-unsafe-*`
+      family. Two repository rules were added alongside them, both scoped to
+      `backend/src` and `backend/prisma`: `no-console` (CLAUDE.md) and
+      `no-restricted-properties` on `process.env`, which makes B0.6.4
+      enforceable rather than a convention. `config/env.ts` and
+      `config/dotenv.ts` are the only exemptions.
+- [x] **B0.3.3** Prettier, with ESLint conflicts disabled —
+      `pnpm format:check` is clean across the repository.
+- [x] **B0.3.4** `type-coverage` configured at `--at-least 99.5`. The root
+      `typeCoverage.ignoreFiles` excludes generated Prisma output and build
+      directories; everything hand-written in all three packages is measured,
+      and currently sits at 100%.
+- [x] **B0.3.5** Confirm a file containing `any` fails `pnpm lint` — verified
+      together with `!`, `as` on an object literal, and a `process.env` read;
+      all five rules reported errors, and the file was deleted.
 
 <a id="b0-4"></a>
 
 ### B0.4 Database
 
-- [ ] **B0.4.1** `infra/docker-compose.dev.yml` with Postgres 16, named volume,
-      healthcheck
-- [ ] **B0.4.2** Configure Prisma 7.10.0 with `backend/prisma.config.ts`: schema
-      path, migrations path, datasource URL and `migrations.seed`. Replace the
-      legacy `package.json#prisma.seed` configuration during implementation.
-- [ ] **B0.4.3** Use the `prisma-client` generator with an explicit output
+- [x] **B0.4.1** `infra/docker-compose.dev.yml` with Postgres 16, named volume,
+      healthcheck. Debian-based rather than Alpine, published on **5433** and
+      bound to loopback: a developer machine frequently already runs a native
+      PostgreSQL on 5432, and the resulting bind failure names the port rather
+      than the cause. `--locale=C` keeps index ordering identical everywhere.
+- [x] **B0.4.2** Configure Prisma 7.10.0 with `backend/prisma.config.ts`: schema
+      path, migrations path, datasource URL and `migrations.seed`. The legacy
+      `package.json#prisma.seed` entry is removed.
+      The datasource is declared **only when `DATABASE_URL` is set**. Prisma's
+      `env()` helper throws while the config module is being evaluated, which
+      makes every command — `generate` included — fail on a fresh clone and in
+      the CI step that generates the client before any database exists.
+      Commands that genuinely need a URL now fail with Prisma's own message.
+- [x] **B0.4.3** Use the `prisma-client` generator with an explicit output
       inside `backend/src/generated/` and ESM output. Import PrismaClient from
       that generated path and include generated code in the backend build.
-- [ ] **B0.4.4** Add and pin the Prisma 7 PostgreSQL driver adapter
-      (`@prisma/adapter-pg`, matching Prisma) and its `pg` driver; add driver
-      types if required. They are absent from the current backend manifest.
-      Instantiate PrismaClient with the adapter and explicit pool settings.
-- [ ] **B0.4.5** Load the intended environment explicitly for both the Prisma
-      CLI and application boot; Prisma 7 does not automatically load `.env`.
-      Keep validated application configuration centralised in B0.6.
-- [ ] **B0.4.6** Create and commit the initial SQL migration enabling `pg_trgm`
+      The generated files carry `@ts-nocheck` and `eslint-disable`, so they
+      compile into `dist` without relaxing anything for hand-written code.
+- [x] **B0.4.4** Add and pin the Prisma 7 PostgreSQL driver adapter
+      (`@prisma/adapter-pg` 7.10.0) and its `pg` driver (8.23.0), with
+      `@types/pg` — the adapter's constructor is typed as `pg.PoolConfig`, so
+      without them it degrades to `any`. PrismaClient is instantiated with the
+      adapter and explicit pool settings (max 10, 30 s idle, 5 s connect,
+      30 s statement timeout).
+- [x] **B0.4.5** Load the intended environment explicitly for both the Prisma
+      CLI (`prisma.config.ts`) and application boot (`config/dotenv.ts`), using
+      Node's own `process.loadEnvFile`. Verified that it does **not** overwrite
+      variables already present, which is what lets the test harness migrate a
+      template database without touching the developer's own.
+- [x] **B0.4.6** Create and commit the initial SQL migration enabling `pg_trgm`
       and `btree_gist` before later indexes or exclusion constraints depend on
-      them.
-- [ ] **B0.4.7** `pnpm db:studio` connects
-- [ ] **B0.4.8** Run client generation and seeding explicitly. Do not assume
+      them. `migration_lock.toml` is committed alongside it; a hand-written
+      migration directory does not get one, and without it
+      `prisma migrate diff --from-migrations` cannot determine the connector.
+- [x] **B0.4.7** `pnpm db:studio` connects — Studio served HTTP 200 against the
+      development database.
+- [x] **B0.4.8** Run client generation and seeding explicitly. Do not assume
       `prisma migrate dev` also generates the client or seeds the database in
-      Prisma 7.
+      Prisma 7. `prisma/seed.ts` exists, refuses to run when
+      `NODE_ENV=production`, and proves the adapter connection; it has no rows
+      to write until B2.
 
 <a id="b0-5"></a>
 
 ### B0.5 Fastify skeleton
 
-- [ ] **B0.5.1** `app.ts` builds the instance; `server.ts` starts it — separated
+- [x] **B0.5.1** `app.ts` builds the instance; `server.ts` starts it — separated
       so tests can build an app without binding a port
-- [ ] **B0.5.2** Pino logger with pretty output in development, JSON in
-      production
-- [ ] **B0.5.3** Request-id plugin: read `x-request-id` or generate, attach to
-      every log line
-- [ ] **B0.5.4** Graceful shutdown on `SIGTERM`/`SIGINT`, closing Prisma
-- [ ] **B0.5.5** `GET /api/health` and `GET /api/health/ready` (ready pings the
-      database)
-- [ ] **B0.5.6** Register `validatorCompiler` and `serializerCompiler` from
+- [x] **B0.5.2** Pino logger with pretty output in development, JSON in
+      production; authorization, cookie and set-cookie headers redacted
+- [x] **B0.5.3** Request-id plugin: read `x-request-id` or generate, attach to
+      every log line, and echo it back on the response. The inbound header is
+      **validated, not adopted verbatim** (`[A-Za-z0-9._-]{8,128}`): the value
+      reaches every log line and a response header, so an unbounded
+      caller-supplied string is a log-injection surface. Fastify's built-in
+      `requestIdHeader` takes it as given, so it is switched off.
+- [x] **B0.5.4** Graceful shutdown on `SIGTERM`/`SIGINT`, closing Prisma via an
+      `onClose` hook, so tests release the pool by the same path
+- [x] **B0.5.5** `GET /api/health` and `GET /api/health/ready` (ready pings the
+      database with `SELECT 1` and answers `503` in the §3.7 envelope when it
+      cannot). Both response shapes live in `shared/src/schemas/health.ts`.
+- [x] **B0.5.6** Register `validatorCompiler` and `serializerCompiler` from
       `fastify-type-provider-zod` and use `ZodTypeProvider` in route modules.
-      Verify a shared Zod 4 schema validates both a request and its response.
-- [ ] **B0.5.7** Use response schemas compatible with the installed adapter's
-      `z.output` typing and encoding. Return mapped DTOs with decimal strings;
-      test any response transformations rather than assuming all Zod transforms
-      serialize.
+      Verified in `tests/zod-contract.test.ts`: one shared schema validates a
+      request body and its response, and rejects a quantity sent as a number
+      and a price sent in kronor.
+- [x] **B0.5.7** Use response schemas compatible with the installed adapter's
+      `z.output` typing and encoding. Tested rather than assumed: a
+      repository-mapped `Decimal` serialises as `"4.25"`; an unmapped `Decimal`
+      handed to the serialiser produces a `500` and never the string
+      `[object Object]`; and a field the response schema does not declare
+      (`passwordHash`) is stripped.
 
 <a id="b0-6"></a>
 
 ### B0.6 Configuration
 
-- [ ] **B0.6.1** `config/env.ts` — Zod schema for every variable in the root
-      README table
-- [ ] **B0.6.2** Parsed once at boot; process exits with a readable message on
-      failure
-- [ ] **B0.6.3** `.env.example` complete and committed; `.env` git-ignored
-- [ ] **B0.6.4** Nothing anywhere else in the codebase reads `process.env`
+- [x] **B0.6.1** `config/env.ts` — Zod schema for every variable in the root
+      README table, plus `HOST` and `PORT`, which the table now lists.
+      `INTERNAL_API_URL` is optional here: it belongs to the same `.env` but is
+      read only by the frontend, and the backend must not refuse to start over
+      it. A blank value (`KEY=`) is treated as unset, which is what a `.env`
+      template means by it. `TZ` must be absent or exactly `UTC`, so §3.6 is
+      enforced by the boot sequence rather than by memory.
+- [x] **B0.6.2** Parsed once at boot; process exits with a readable message on
+      failure, one line per offending variable. The pure `parseEnv` /
+      `safeParseEnv` pair is what the 14 tests exercise.
+- [x] **B0.6.3** `.env.example` complete and committed; `.env` git-ignored
+      (verified with `git check-ignore`). In production the three secrets are
+      additionally rejected if they are still the template placeholders.
+- [x] **B0.6.4** Nothing anywhere else in the codebase reads `process.env` —
+      enforced by ESLint, not by convention (see B0.3.2). `prisma.config.ts` is
+      outside that scope by design: it is CLI configuration loaded before any
+      application code, and must not import the application's module graph.
 
 <a id="b0-7"></a>
 
 ### B0.7 Error handling
 
-- [ ] **B0.7.1** `DomainError` base plus `NotFoundError`, `ValidationError`,
-      `ConflictError`, `ForbiddenError`, `UnauthorizedError`, `RateLimitError`
-- [ ] **B0.7.2** `setErrorHandler` producing the §3.7 envelope with Swedish
-      messages
-- [ ] **B0.7.3** Zod errors mapped to `VALIDATION_FAILED` with field-level
-      `details`
-- [ ] **B0.7.4** Prisma `P2002` → `CONFLICT`, `P2025` → `NOT_FOUND`
-- [ ] **B0.7.5** Unexpected errors log the stack and return a generic message
-      plus `requestId`
-- [ ] **B0.7.6** Tests asserting the shape of each case
+- [x] **B0.7.1** `DomainError` base plus `NotFoundError`, `ValidationError`,
+      `ConflictError`, `ForbiddenError`, `UnauthorizedError`, `RateLimitError`.
+      `ServiceUnavailableError` (503) was added for the readiness probe: an
+      expected, transient state a load balancer acts on is not the same thing
+      as an unexpected 500.
+- [x] **B0.7.2** `setErrorHandler` producing the §3.7 envelope with Swedish
+      messages, plus a `setNotFoundHandler` — without it an unknown path
+      returns Fastify's own English JSON and bypasses the envelope entirely.
+      Fastify's own errors contribute their status code only; the English text
+      is always replaced.
+- [x] **B0.7.3** Zod errors mapped to `VALIDATION_FAILED` with field-level
+      `details`. The adapter reports JSON-pointer paths (`/email`, and for some
+      sections `/body/email`); both are normalised to the dotted field name a
+      form actually knows.
+- [x] **B0.7.4** Prisma `P2002` → `CONFLICT` (naming the offending columns in
+      `details`), `P2025` → `NOT_FOUND`. Recognised structurally rather than
+      with `instanceof`, so no module outside `lib/prisma.ts` has to import the
+      generated client; `tests/prisma-errors.test.ts` provokes a real failure
+      from a real client to prove the guard matches the actual object.
+- [x] **B0.7.5** Unexpected errors log the stack and return a generic message
+      plus `requestId`; a test asserts the thrown message and stack never reach
+      the client.
+- [x] **B0.7.6** Tests asserting the shape of each case — 10 status/code pairs
+      end to end, plus unit tests over the pure mapping.
+      One defect was found this way and fixed: the adapter's own type guards
+      use `in` without a `typeof` check and throw a `TypeError` on a primitive.
+      `throw 'a string'` therefore made the error handler itself throw, and
+      Fastify answered with a bare English 500 carrying no `requestId` — the
+      exact failure the envelope exists to prevent. `mapError` now rejects
+      non-objects first, and a route that throws a bare string is tested.
 
 <a id="b0-8"></a>
 
 ### B0.8 Test harness
 
-- [ ] **B0.8.1** Vitest configured with coverage
-- [ ] **B0.8.2** A helper that builds the app and gives each test file an
-      isolated database (Testcontainers, or a template database cloned per file)
-- [ ] **B0.8.3** Supertest wired; health-endpoint test green
-- [ ] **B0.8.4** `pnpm test` runs clean from a cold start
-- [ ] **B0.8.5** Keep Vitest and `@vitest/coverage-v8` on matching versions.
-      Remove `--passWithNoTests` when the first real suite exists; an empty
-      passing suite is not acceptance evidence.
-- [ ] **B0.8.6** Record Node and Docker versions, verify Testcontainers can
-      start and clean up the test database, and run the migrations from an empty
-      database.
+- [x] **B0.8.1** Vitest configured with coverage (80% line and statement floor
+      on `backend/src`, currently 90.3%)
+- [x] **B0.8.2** A helper that builds the app and gives each test file an
+      isolated database — **both** mechanisms, combined: one Testcontainers
+      PostgreSQL for the whole run, migrated once into `verkstad_template`,
+      which each test file then clones. Cloning is a file copy inside Postgres
+      and costs milliseconds; a container per file costs tens of seconds each,
+      and a suite that slow stops being run before every commit.
+      `createTestApp({ database: 'none' })` skips the database entirely for
+      tests that only exercise routing, validation or error mapping.
+- [x] **B0.8.3** Supertest wired; health-endpoint test green. Response bodies
+      go through a `jsonBody` helper returning `unknown`, because Supertest
+      types `.body` as `any` — a test could otherwise assert against a field
+      the API does not return and still pass. Every assertion parses the body
+      with the schema that is supposed to describe it.
+- [x] **B0.8.4** `pnpm test` runs clean from a cold start — 70 backend, 35
+      shared, 18 frontend.
+- [x] **B0.8.5** Vitest and `@vitest/coverage-v8` are both 5.0.0.
+      `--passWithNoTests` is removed from `backend` and `shared`.
+- [x] **B0.8.6** Node, Docker and Postgres versions recorded under
+      **Verification** below. Testcontainers starts and stops the instance
+      within the run, per-file databases are dropped on close, and the
+      migrations are applied to an empty database on every run — that is how
+      the template is built. `TEST_DATABASE_URL` bypasses the container so CI
+      can use a service container instead.
 
 <a id="b0-9"></a>
 
 ### B0.9 CI
 
-- [ ] **B0.9.1** GitHub Actions: install, typecheck, lint, `type-coverage`,
-      test, build
-- [ ] **B0.9.2** A job asserting migrations apply cleanly to an empty database
-- [ ] **B0.9.3** Branch protection requiring the workflow
+- [x] **B0.9.1** GitHub Actions: install, typecheck, lint, `type-coverage`,
+      test, build — `.github/workflows/ci.yml`, three jobs (`quality`,
+      `migrations`, `audit`). `shared` is built and the Prisma client generated
+      before any typecheck, since neither is committed. `pnpm audit
+      --audit-level high` covers `PROJECT_SPEC.md` §5.4.
+- [x] **B0.9.2** A job asserting migrations apply cleanly to an empty database.
+      It also asserts that `schema.prisma` and the committed migrations have
+      not diverged, and that both extensions are present afterwards. The drift
+      check gets a shadow database of its own — `migrate diff` resets whatever
+      it is given, so pointing it at `DATABASE_URL` would drop the database the
+      previous step just verified. Both the pass and fail paths were exercised
+      locally (a probe model produced exit code 2).
+- [ ] **B0.9.3** Branch protection requiring the workflow.
+      **Blocked — needs a repository owner.** Branch protection is a GitHub
+      setting, not a file in the tree, and cannot be applied from here. The
+      workflow has also not yet run on a pull request, which B0's Definition of
+      Done requires.
 
 <a id="b0-10"></a>
 
@@ -335,29 +456,100 @@ be expensive to hit in the middle of a later iteration. They are resolved here,
 in throwaway branches, before anything depends on them. **Write the answer into
 the decision log in the root `README.md`, then delete the spike.**
 
-- [ ] **B0.10.1** **PDF determinism.** Render a fixture twice with
-      `@react-pdf/renderer`, with creation and modification dates pinned and a
-      fixed producer string. Compare the SHA-256 values. Record whether
-      byte-identical regeneration is achievable, and set B7's Definition of Done
-      accordingly (`PROJECT_SPEC.md` §8.3)
-- [ ] **B0.10.2** **PDF fonts.** Register a static `.ttf` and confirm `ÅÄÖ åäö`
-      render. Confirm that a variable font and a `.woff2` both fail, so nobody
-      later wastes an hour assuming the frontend's font files will work
-- [ ] **B0.10.3** **The booking exclusion constraint.** In a scratch database:
-      enable `btree_gist`, create the partial `EXCLUDE USING gist` constraint
-      from B5.4, insert an overlapping row, and confirm the error code Prisma
-      surfaces. That code is what B5.4 maps to `409`; guessing it produces a
-      handler that silently never matches and returns `500` in production
-- [ ] **B0.10.4** **`shared` consumption.** Confirm a `tsup` build in watch mode
-      is picked up by both the backend and Next.js `transpilePackages`, with hot
-      reload intact across the package boundary
+All four were run on 2026-09-08 with `@react-pdf/renderer` 4.9.0, Prisma 7.10.0
+and PostgreSQL 16.15. The spikes are deleted; the answers are below and in the
+root decision log.
+
+- [x] **B0.10.1** **PDF determinism — achievable. B7 gets the strict test.**
+      Two renders of the same fixture, with `creationDate` and
+      `modificationDate` pinned and a fixed producer and creator string, are
+      byte-identical:
+      `2f1e369d63b45c5a3e09b589ecd432fe702715c90eb452bb02517347359f7a79` both
+      times. The pinning is what does it — the same document rendered 1.2 s
+      apart **without** pinned dates produced different bytes. So B7.4.6 takes
+      its first branch: render the same fixture twice and assert matching
+      hashes. The stored file nonetheless remains the authoritative record
+      (§8.3); determinism is a bonus, not the guarantee.
+- [x] **B0.10.2** **PDF fonts — §8.3 is wrong on this, and needs correcting.**
+      The section says the PDF fonts must be static `.ttf` instances, and that
+      a variable font and a `.woff2` will both fail to register. Neither holds
+      for this version:
+      - The **variable** `Archivo-Variable.ttf` already committed for the
+        frontend registers and renders. The PDF embeds a font subset and its
+        `ToUnicode` CMap maps all six of `Å Ä Ö å ä ö` (`U+00C5`, `U+00C4`,
+        `U+00D6`, `U+00E5`, `U+00E4`, `U+00F6`).
+      - A **`.woff2`** also registers, renders, and embeds a subset — it does
+        not fail at all.
+      This matters in both directions. The good news is that no static
+      instances have to be produced: Google Fonts no longer publishes static
+      `.ttf` files for Archivo or Source Serif 4 (confirmed: the `static/`
+      directory is a 404, and Fontsource 5 ships `.woff2` only), so §8.3 as
+      written was unsatisfiable without a font-subsetting toolchain. The bad
+      news is that the file extension is **not** a guard: a `.woff2` failing
+      loudly was the assumed safety net, and it does not exist. The check that
+      actually protects a customer's copy is the glyph assertion, so B7.1.3 —
+      render `ÅÄÖ åäö` and assert the extracted text — is the load-bearing
+      test, not the file format. B7 will also need a PDF text extractor, which
+      `PROJECT_SPEC.md` does not name; `pdfjs-dist` is the candidate and needs
+      approval before B7 starts.
+- [x] **B0.10.3** **Booking exclusion constraint — match on SQLSTATE `23P01`,
+      never on the Prisma code.** The partial `EXCLUDE USING gist` from B5.4
+      was created and exercised in a scratch database: adjacent bookings are
+      allowed, a `CANCELLED` overlap is allowed, an unassigned overlap is
+      allowed, and a genuine overlap is rejected. The Prisma-level code
+      **depends on which path the insert took**:
+      - `prisma.booking.create()` → `P2039`
+      - `$executeRawUnsafe` / inside `$transaction` → `P2010`
+
+      Both nest the PostgreSQL error identically, at
+      `meta.driverAdapterError.cause.code === '23P01'` with the message
+      `conflicting key value violates exclusion constraint "..."`. B5.4.5 must
+      therefore key its `409` off `23P01`. Matching on a Prisma code — `P2002`
+      being the obvious guess — produces a handler that never fires and returns
+      `500` in production, which is precisely what this spike existed to
+      prevent.
+- [x] **B0.10.4** **`shared` consumption — works in both directions, live.**
+      With `tsup --watch` running, editing `shared/src/schemas/health.ts`
+      rebuilt `dist` and: the backend's `tsx watch` restarted on the changed
+      output and served the new build; the Next dev server picked the new value
+      up through `transpilePackages` and rendered it without a restart
+      (`b0-10-4-second-edit` → `b0-10-4-THIRD-edit` across two edits). Both
+      halves of the §2.1 arrangement are required and both work.
+      One rough edge: `tsup` cleans `dist` before rebuilding, so a cold
+      `pnpm dev` can start the backend before the output exists. `tsx watch`
+      recovers on its own, and the root `dev` and `prepare` scripts now build
+      `shared` first so the first run is clean.
 
 </details>
 
 - [ ] **Iteration 1 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-08, on Node 22.21.1, pnpm 12.3.4, Docker 28.5.1 with
+Compose 2.40.2, PostgreSQL 16.15 (Debian), Windows 11.
+
+| Command                                     | Result                                             |
+| ------------------------------------------- | -------------------------------------------------- |
+| `pnpm check`                                | Clean — typecheck, lint (0 warnings), 123 tests, type-coverage 100% |
+| `pnpm -r test`                              | backend 70, shared 35, frontend 18 — all passing    |
+| `pnpm --filter backend test:coverage`       | 90.32% statements, 83.65% branches (floor 80%)      |
+| `pnpm format:check`                         | Clean                                               |
+| `pnpm build`                                | backend `dist` runs and serves `/api/health`        |
+| `pnpm --filter backend prisma:migrate`      | Migration applied; `pg_trgm` 1.6 and `btree_gist` 1.7 present |
+| `pnpm --filter backend exec prisma db seed` | Seed connects and reports no models yet             |
+| `pnpm db:studio`                            | HTTP 200                                            |
+| `GET /api/health`                           | `{"status":"ok","version":"0.1.0","uptime":7.1}`    |
+| `GET /api/health/ready`                     | `{"status":"ok","database":"up"}`                   |
+| `GET /api/nope`                             | `404` in the §3.7 envelope with a `requestId`       |
+| `SIGTERM`                                   | Graceful shutdown, process exits                    |
+
+**Not yet met (B0.9.3):** the Definition of Done also requires CI to be green
+on a pull request, and branch protection to require the workflow. Both need a
+push and a repository owner. Everything else in B0's Definition of Done passes.
+
+**Note on the runtime:** the machine above runs Node 22.21.1, one patch below
+the `>=22.22.0` floor now declared in `engines` and `.nvmrc`. Testcontainers
+12.1.0 and the full suite work there regardless, but the local runtime should
+be moved to 22.23.2 to match the pin.
 
 ---
 
@@ -453,6 +645,8 @@ import from `shared` and typecheck.
       id) and `schemas/health.ts` exist; per B1's own instruction to "only
       define contracts for implemented areas as they become needed", the
       customer/vehicle/booking/etc. domain files are not created yet.
+      B0.5.5 added `healthReadyResponseSchema` to `schemas/health.ts` for the
+      readiness probe.
 - [x] **B1.5.2** Pagination, error envelope and id schemas
 - [x] **B1.5.3** Types derived with `z.infer` — no hand-written duplicates
 - [ ] **B1.5.4** `shared` builds to ESM with declaration files, consumable by
@@ -465,19 +659,26 @@ import from `shared` and typecheck.
 
 ### B1.6 Verifying shared package integration
 
-- [ ] **B1.6.1** Import the built schemas and helpers from both backend and
+- [x] **B1.6.1** Import the built schemas and helpers from both backend and
       frontend; verify declaration files and ESM entry points.
-      Frontend side verified (`next build` resolves `shared`'s dist output);
-      backend side blocked on B0.
+      **Both sides verified 2026-09-08.** Frontend: `next build` resolves
+      `shared`'s dist output. Backend: `tsc --noEmit` under NodeNext resolves
+      `shared`'s ESM entry and declarations, and B0.10.4 confirmed a watch-mode
+      rebuild reaches both consumers live.
 - [ ] **B1.6.2** Verify quantity serialization, money rounding and unit
       conversion fixtures on both consumers.
-      Verified on the frontend consumer (`formatCurrency`/`formatOdometer`
-      tests); backend side blocked on B0.
+      Frontend verified (`formatCurrency`/`formatOdometer` tests). Backend
+      verified for **quantity serialisation only**
+      (`tests/zod-contract.test.ts` round-trips `decimalToString` through a
+      route). Money rounding and km↔mil have no backend consumer yet; they
+      arrive with B4 and B6.
 - [ ] **B1.6.3** Record shared coverage and the cross-package build result
       before marking B1 Done.
       `shared`: 35/35 tests pass, 100% type-coverage, `tsup` build clean.
-      Cross-package result recorded only for frontend↔shared; backend↔shared
-      is pending B0.
+      Cross-package build now recorded for both consumers. Still outstanding
+      for B1 as a whole: B1.4 (state machine), the `Quantity` wrapper in
+      B1.2.1, and 100% coverage of `shared/src`, which the schema files are
+      currently excluded from.
 
 </details>
 

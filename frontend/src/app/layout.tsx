@@ -8,11 +8,7 @@ export const metadata: Metadata = {
   description: 'Bokning och verkstadshantering för en svensk bilverkstad.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="sv" className={`${archivo.variable} ${sourceSerif4.variable}`}>
       <body>{children}</body>

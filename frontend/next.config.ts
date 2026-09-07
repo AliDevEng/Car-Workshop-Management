@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
-const BACKEND_ORIGIN = process.env.BACKEND_DEV_ORIGIN ?? 'http://localhost:3001';
+const BACKEND_ORIGIN =
+  process.env.BACKEND_DEV_ORIGIN ?? 'http://localhost:3001';
 
 const nextConfig: NextConfig = {
   // `shared` ships TypeScript source consumed as a workspace package; Next

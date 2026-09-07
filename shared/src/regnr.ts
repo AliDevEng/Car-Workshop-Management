@@ -30,7 +30,8 @@ export function isNonStandardPlate(input: string): boolean {
     return false;
   }
   return (
-    !ALLOWED_CHARS_PATTERN.test(normalised) || !STANDARD_PATTERN.test(normalised)
+    !ALLOWED_CHARS_PATTERN.test(normalised) ||
+    !STANDARD_PATTERN.test(normalised)
   );
 }
 

@@ -60,24 +60,26 @@ describe('apiFetch', () => {
       ),
     );
 
-    await expect(apiFetch('/health', healthResponseSchema)).rejects.toMatchObject(
-      {
-        code: 'VALIDATION_FAILED',
-        message: 'Ogiltigt registreringsnummer.',
-        requestId: 'req-123',
-      },
-    );
+    await expect(
+      apiFetch('/health', healthResponseSchema),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      message: 'Ogiltigt registreringsnummer.',
+      requestId: 'req-123',
+    });
   });
 
   it('throws ApiError for a non-JSON response', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response('<html>502</html>', { status: 502 })),
+      vi
+        .fn()
+        .mockResolvedValue(new Response('<html>502</html>', { status: 502 })),
     );
 
-    await expect(apiFetch('/health', healthResponseSchema)).rejects.toBeInstanceOf(
-      ApiError,
-    );
+    await expect(
+      apiFetch('/health', healthResponseSchema),
+    ).rejects.toBeInstanceOf(ApiError);
   });
 
   it('throws ApiError.networkFailure when fetch itself rejects', async () => {

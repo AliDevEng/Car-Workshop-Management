@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The suite reads this instead of starting a Testcontainers instance
+  # (backend/tests/setup/global-database.ts). A service container is faster and
+  # more predictable on a shared runner.
+  TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+
+jobs:
+  quality:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Both must happen before any typecheck: the backend imports `shared`'s
+      # built output and the generated Prisma client, and neither is committed.
+      - name: Build shared
+        run: pnpm --filter shared build
+
+      - name: Generate Prisma client
+        run: pnpm --filter backend prisma:generate
+
+      - name: Quality gate
+        run: pnpm check
+
+      - name: Build
+        run: pnpm build
+
+  migrations:
+    name: Migrations apply to an empty database
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: verkstad_migrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d verkstad_migrations"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/verkstad_migrations
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Apply committed migrations
+        run: pnpm --filter backend prisma:deploy
+
+      - name: Assert the schema matches the migrations
+        # Catches a schema.prisma change that was never turned into a
+        # migration — the drift that makes production and development diverge.
+        #
+        # `migrate diff --from-migrations` replays them into a shadow database
+        # and resets whatever it is given, so it gets one of its own. Pointing
+        # it at DATABASE_URL would drop the database the previous step just
+        # verified. Prisma 7 takes the URL from prisma.config.ts, which reads
+        # SHADOW_DATABASE_URL, rather than from a command-line flag.
+        env:
+          SHADOW_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/verkstad_shadow
+        run: |
+          psql "$DATABASE_URL" -c 'CREATE DATABASE verkstad_shadow'
+          pnpm --filter backend exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema prisma/schema.prisma \
+            --exit-code
+
+      - name: Assert the required extensions exist
+        # pg_trgm powers the global search and btree_gist is what makes the
+        # booking exclusion constraint creatable at all (PROJECT_SPEC.md §8.2).
+        run: |
+          psql "$DATABASE_URL" -tAc \
+            "SELECT count(*) FROM pg_extension WHERE extname IN ('pg_trgm','btree_gist')" \
+            | grep -qx 2
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # PROJECT_SPEC.md §5.4. High and critical advisories fail the build;
+      # lower ones are reported without blocking a workshop's release.
+      - run: pnpm audit --audit-level high
