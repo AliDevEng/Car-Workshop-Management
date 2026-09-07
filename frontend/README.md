@@ -1,41 +1,176 @@
 # Frontend — Iteration Plan
 
-Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind CSS 4 ·
-shadcn/ui · TanStack Query · Motion
+Next.js 16 · React 19 · TypeScript 6 strict · Tailwind CSS 4 · Zod 4 · shadcn/ui
+· TanStack Query 5 · Motion 13
 
-> Read `PROJECT_SPEC.md` (especially §9, design direction) and `CLAUDE.md`
-> before starting. This file is the build order and the progress log.
+> Read [PROJECT_SPEC.md](../PROJECT_SPEC.md), especially §9, and
+> [CLAUDE.md](../CLAUDE.md) before implementation. The root
+> [README.md](../README.md#phases) defines the phase order.
 
-**All user-facing text is Swedish. All code, comments and identifiers are
-English.** No exceptions in either direction.
+This plan is written in English. Product labels, messages and examples of UI
+copy remain Swedish, as required by the specification.
 
 ## How to use this file
 
-1. Find the first unticked step. That is the next thing to build.
-2. Build only that step.
-3. Tick the box **in the same commit as the code**.
-4. When an iteration is complete, verify its Definition of Done and update the
-   status table here and in the root `README.md`.
+1. Pick the current phase, then the first unfinished milestone whose stated
+   dependencies are available. Iteration IDs are stable references, not numeric
+   execution order: F4 and F6 precede F2 in the phase map.
+2. Work on one numbered task at a time, such as **F1.3.2**. Check its box with
+   `[x]` in the same commit as the implementation and relevant verification.
+3. Each **F1.3** section is a milestone. Tick its milestone checkbox in the
+   iteration checklist only when every task and its acceptance outcome pass.
+4. Update the iteration's **Milestones done** counter here. For example, three
+   completed milestones in F1 means **3/6**, even if the fourth has some tasks
+   checked. Counts measure scope completion, not elapsed time or effort.
+5. Mark an iteration **Done** only after all its milestones, Definition of Done
+   and applicable `PROJECT_SPEC.md` §10 checks pass. Record evidence and the
+   completion date, then update its status in the root README in the same
+   commit.
+6. Keep blocked tasks unchecked and name the missing dependency in the iteration
+   record. Where a later phase owns an integration, follow the explicit owner
+   below; a placeholder is never evidence that the integration works.
+
+Checkboxes are edited as `- [ ]` / `- [x]`; an IDE preview may render them as
+clickable controls. Milestone and iteration checkboxes are roll-ups, not extra
+work items. Update the overall counter and the per-iteration checklist counter
+from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-| Iteration | Title | Depends on | Status |
-|---|---|---|---|
-| F0 | Next.js foundation | B0 | ⬜ |
-| F1 | Design system | F0 | ⬜ |
-| F2 | Public site | F1, B10.1–B10.4 | ⬜ |
-| F3 | Public booking flow | F2, B5 | ⬜ |
-| F4 | Admin shell and authentication | F1, B2 | ⬜ |
-| F5 | Dashboard | F4, B5, B6 | ⬜ |
-| F6 | Customers and vehicles | F4, B3 | ⬜ |
-| F7 | Inventory | F4, B4 | ⬜ |
-| F8 | Calendar and booking requests | F4, B5 | ⬜ |
-| F9 | Work orders | F4, B6 | ⬜ |
-| F10 | Quotes and service protocols | F9, B7, B8 | ⬜ |
-| F11 | Settings, service rules, partner links | F4, B9, B10 | ⬜ |
-| F12 | Polish, accessibility and performance | all | ⬜ |
+**Overall: 0/83 milestones complete; 0/13 iterations Done.**
 
-⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
+| Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
+| ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
+| [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 0/7             | Not started |
+| [F1](#f1)   | Design system                             | 1     | F0                                 | 0/6             | Not started |
+| [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 0/6             | Not started |
+| [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 0/6             | Not started |
+| [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 0/6             | Not started |
+| [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 0/6             | Not started |
+| [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 0/6             | Not started |
+| [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 0/6             | Not started |
+| [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6         | 0/7             | Not started |
+| [F9](#f9)   | Work orders                               | 4     | F4, B4, B5, B6                     | 0/7             | Not started |
+| [F10](#f10) | Quotes and service protocols              | 5     | F9, B7, B8                         | 0/6             | Not started |
+| [F11](#f11) | Settings, service rules and partner links | 6     | F4, B9, B10; settings contracts    | 0/6             | Not started |
+| [F12](#f12) | Polish, accessibility and performance     | 8     | F0–F11, B11, B12; B13 measurements | 0/8             | Not started |
+
+Statuses: **Not started**, **In progress**, **Blocked**, **Done**. Installing
+packages establishes the dependency baseline; it does not complete an
+application milestone. All implementation milestones are initially unchecked.
+
+### Phase hand-offs
+
+| Phase | Frontend delivery                 | Explicit follow-up                                                          |
+| ----- | --------------------------------- | --------------------------------------------------------------------------- |
+| 0     | F0 foundation                     | Complete backend B0/B1 prerequisites within this phase                      |
+| 1     | F1, F4 and F6 core register       | Lookup, history, advice and privacy actions have later owners below         |
+| 2     | F7 inventory                      | Partner links are activated in F8.7                                         |
+| 3     | F2, F3 and F8 booking/public site | F8.7 activates F6/F7 lookup and partner links; B6 job actions wait for F9.7 |
+| 4     | F5 and F9 work management         | F9.7 activates customer/vehicle history and calendar job actions            |
+| 5     | F10 documents                     | Recommendation pre-filling waits for F11.6                                  |
+| 6     | F11 settings and service advice   | F11.6 activates advice in the public site, vehicle detail and protocols     |
+| 7     | Backend B11/B12 hardening         | Supplies the privacy and deployment dependencies verified in F12            |
+| 8     | F12 polish and final acceptance   | F12.7 activates privacy actions and verifies production sessions            |
+
+## Installed package baseline
+
+**Reviewed: 2026-09-07.** Versions below match `frontend/package.json`, the
+workspace lockfile and the installed packages. The read-only registry check
+`pnpm --filter frontend outdated --format json` reported only TypeScript:
+installed **6.0.3**, registry latest **7.0.2**. Other frontend direct packages
+were not reported outdated at the time of review.
+
+Keep TypeScript 6.0.3: the installed `typescript-eslint@8.69.0` accepts
+`>=4.8.4 <6.1.0`. Upgrading to 7 currently violates that peer range. Root ESLint
+9.39.5 also remains intentional: the installed React, import and JSX
+accessibility plugins do not accept ESLint 10. These are the compatibility
+exceptions already recorded in the root decision log.
+
+The baseline is **installed and metadata-checked**, not yet verified as a
+working application: source entry points, Next/TypeScript/test configurations
+and backend endpoints are still to be built. F0.7 owns that verification.
+
+| Frontend package                 | Installed version |
+| -------------------------------- | ----------------- |
+| `@hookform/resolvers`            | 5.9.1             |
+| `@tanstack/react-query`          | 5.102.8           |
+| `class-variance-authority`       | 0.7.1             |
+| `clsx`                           | 2.1.1             |
+| `lucide-react`                   | 1.42.0            |
+| `motion`                         | 13.2.0            |
+| `next`                           | 16.3.4            |
+| `react`                          | 19.2.8            |
+| `react-dom`                      | 19.2.8            |
+| `react-hook-form`                | 7.87.0            |
+| `shared`                         | workspace package |
+| `tailwind-merge`                 | 3.6.0             |
+| `zod`                            | 4.5.4             |
+| `@playwright/test`               | 1.63.0            |
+| `@tailwindcss/postcss`           | 4.3.3             |
+| `@tanstack/react-query-devtools` | 5.102.8           |
+| `@types/react`                   | 19.2.18           |
+| `@types/react-dom`               | 19.2.7            |
+| `eslint-config-next`             | 16.3.4            |
+| `postcss`                        | 8.5.28            |
+| `shadcn`                         | 4.21.0            |
+| `tailwindcss`                    | 4.3.3             |
+| `typescript`                     | 6.0.3             |
+| `vitest`                         | 5.0.0             |
+
+Shared workspace helpers additionally provide `date-fns@4.4.0`,
+`date-fns-tz@3.2.0` and `decimal.js@10.6.0`. Root tools include
+`typescript-eslint@8.69.0`, `prettier@3.9.6` and `type-coverage@2.30.1`. Use
+pnpm **12.3.4** from root `packageManager` and Node **22.21.1** from `.nvmrc`.
+The runtime satisfies the installed frontend engine requirements. The root's
+permitted Node floor (22.11.0) is lower than Vitest/Vite require (22.12.0);
+correcting that tooling declaration is tracked in F0.7.
+
+### Version-specific implementation notes
+
+- **Next.js 16:** use `src/proxy.ts` for the optimistic route check, async
+  request APIs, and explicit ESLint execution. Development and builds default to
+  Turbopack. See the
+  [Next.js 16 migration guide](https://nextjs.org/docs/app/guides/upgrading/version-16).
+- **Tailwind 4:** use `@tailwindcss/postcss`, `@import "tailwindcss"` and CSS
+  theme declarations. See the
+  [Next.js setup](https://tailwindcss.com/docs/installation/framework-guides/nextjs).
+- **shadcn/ui:** the CLI is installed; components and their runtime packages are
+  added during F1. Use the installed CLI and inspect its generated diff. Current
+  templates may use `tw-animate-css`; do not copy a Tailwind 3 plugin setup.
+  Keep the chosen registry's toast implementation consistent with its generated
+  dependencies. See [Tailwind 4 support](https://ui.shadcn.com/docs/tailwind-v4)
+  and the
+  [React Hook Form guide](https://ui.shadcn.com/docs/forms/react-hook-form).
+- **React Hook Form + Zod 4:** import the Zod resolver from
+  `@hookform/resolvers/zod`; use the project's shared schemas rather than
+  copying a tutorial's separate Zod 3 schema.
+- **Motion:** import React APIs from `motion/react`, using the installed
+  `motion` package. See [Motion for React](https://motion.dev/docs/react).
+- **Tests:** Vitest covers pure helpers; Playwright covers browser journeys.
+  Async server-component behaviour is checked through the running application.
+  An empty suite permitted by `--passWithNoTests` is not acceptance evidence.
+
+### Commands and evidence
+
+Run from the repository root after the relevant foundation configuration exists.
+On Windows PowerShell, use `pnpm.cmd` if execution policy blocks `pnpm.ps1`.
+
+| Command                                         | Purpose                                     |
+| ----------------------------------------------- | ------------------------------------------- |
+| `pnpm dev`                                      | Watch shared, backend and frontend together |
+| `pnpm --filter frontend typecheck`              | Check frontend types                        |
+| `pnpm lint`                                     | Run the root ESLint quality gate            |
+| `pnpm --filter frontend test`                   | Run frontend unit tests                     |
+| `pnpm test:e2e`                                 | Run the configured Playwright flows         |
+| `pnpm build`                                    | Build the workspace in dependency order     |
+| `pnpm check`                                    | Run the full root quality gate              |
+| `pnpm --filter frontend outdated --format json` | Read-only comparison with registry versions |
+
+After a future package update, rerun compatibility checks, `pnpm check`,
+`pnpm build` and the affected browser journeys before calling the new baseline
+working. Record exact versions and results; do not rely on the word "latest" as
+a permanent version requirement.
 
 ---
 
@@ -48,8 +183,8 @@ Fixed here so that every iteration builds the same product. The reasoning is in
 
 Swedish workshop signage and measuring instruments: road-sign blue, hi-vis
 yellow, painted concrete, tabular numbers, honest engineering. Two interfaces
-with different jobs — the public site persuades, the admin panel gets work done —
-sharing tokens but not personality.
+with different jobs — the public site persuades, the admin panel gets work done
+— sharing tokens but not personality.
 
 **Explicitly avoided**, because they are generated-page defaults rather than
 choices: cream-and-terracotta editorial layouts, near-black backgrounds with a
@@ -60,21 +195,21 @@ all-caps tracked-out eyebrow labels above every heading.
 
 ```css
 /* styles/tokens.css */
---color-concrete:    #E6E8E5;  /* public background */
---color-concrete-2:  #F2F3F1;  /* raised surface */
---color-steel:       #1C2B33;  /* text; admin background */
---color-steel-2:     #2A3C46;  /* admin raised surface */
---color-signal:      #0B4F8F;  /* primary action, links */
---color-signal-lift: #1568B5;  /* hover */
---color-hivis:       #FFC500;  /* warning, overdue, low stock */
---color-oxide:       #B23A16;  /* destructive, error */
---color-moss:        #2E7D53;  /* success, completed */
---color-mist:        #8A9AA3;  /* muted text, borders */
+--color-concrete: #e6e8e5; /* public background */
+--color-concrete-2: #f2f3f1; /* raised surface */
+--color-steel: #1c2b33; /* text; admin background */
+--color-steel-2: #2a3c46; /* admin raised surface */
+--color-signal: #0b4f8f; /* primary action, links */
+--color-signal-lift: #1568b5; /* hover */
+--color-hivis: #ffc500; /* warning, overdue, low stock */
+--color-oxide: #b23a16; /* destructive, error */
+--color-moss: #2e7d53; /* success, completed */
+--color-mist: #8a9aa3; /* muted text, borders */
 
---radius-sharp: 2px;   /* data surfaces: tables, inputs */
---radius-soft:  10px;  /* content surfaces: cards, dialogs */
+--radius-sharp: 2px; /* data surfaces: tables, inputs */
+--radius-soft: 10px; /* content surfaces: cards, dialogs */
 
---space: 4px;          /* everything is a multiple */
+--space: 4px; /* everything is a multiple */
 ```
 
 Two radii, used with meaning: sharp for anything containing data, soft for
@@ -85,16 +220,16 @@ and it also throws away a free signal about what a surface is for.
 
 A mechanic learns this mapping once. It never varies between screens.
 
-| Meaning | Token | Used for |
-|---|---|---|
-| Neutral / draft | `mist` | Draft work orders, unassigned bookings |
-| Active | `signal` | In progress, scheduled |
-| Attention | `hivis` | Awaiting parts, due soon, low stock |
-| Overdue / error | `oxide` | Overdue inspection, negative stock, cancelled |
-| Done | `moss` | Completed, ready for pickup, accepted quote |
+| Meaning         | Token    | Used for                                      |
+| --------------- | -------- | --------------------------------------------- |
+| Neutral / draft | `mist`   | Draft work orders, unassigned bookings        |
+| Active          | `signal` | In progress, scheduled                        |
+| Attention       | `hivis`  | Awaiting parts, due soon, low stock           |
+| Overdue / error | `oxide`  | Overdue inspection, negative stock, cancelled |
+| Done            | `moss`   | Completed, ready for pickup, accepted quote   |
 
-Colour is never the only signal: every status also carries text and an icon,
-for colourblind users and for a tablet in daylight.
+Colour is never the only signal: every status also carries text and an icon, for
+colourblind users and for a tablet in daylight.
 
 ### Typography
 
@@ -106,8 +241,8 @@ for colourblind users and for a tablet in daylight.
   reading, date and registration number.** One utility class, applied without
   exception. Columns of prices that do not align are measurably harder to check.
 
-Type scale: 12, 14, 16, 18, 21, 28, 37, 49 px. Public body 18 px; admin body
-14 px, because density is the point there.
+Type scale: 12, 14, 16, 18, 21, 28, 37, 49 px. Public body 18 px; admin body 14
+px, because density is the point there.
 
 ### Layout
 
@@ -135,135 +270,342 @@ the only way to reach an action.
 ### Copy
 
 Sentence case. Active voice. A button names what happens, and the confirmation
-uses the same word: *"Slutför arbetsorder"* → *"Arbetsordern är slutförd"*.
+uses the same word: _"Slutför arbetsorder"_ → _"Arbetsordern är slutförd"_.
 Errors say what went wrong and what to do next. Empty states invite an action:
-*"Inga artiklar än. Lägg till den första."*
+_"Inga artiklar än. Lägg till den första."_
 
 ---
 
+<a id="f0"></a>
+
 ## F0 — Next.js foundation
 
-**Goal:** a typed frontend that can talk to the backend and fails the build on
-any contract mismatch.
+**Goal:** a typed frontend that talks to the backend, detects incompatible
+contract use during typecheck and validates API responses at runtime.
 
 **Definition of done:** the health endpoint is rendered from a fully typed API
 call; `pnpm build` and `pnpm typecheck` pass.
 
+**Phase:** 0. **Entry dependencies:** B0, B1 shared contracts.
+
+B0 supplies the API/test infrastructure and B1 supplies shared contracts.
+Interleave those backend steps within Phase 0 before signing off F0.
+
+**Milestone checklist — 0/7 complete:**
+
+- [ ] **[F0.1](#f0-1)** ? — Project setup
+- [ ] **[F0.2](#f0-2)** ? — Tailwind and tokens
+- [ ] **[F0.3](#f0-3)** ? — Fonts
+- [ ] **[F0.4](#f0-4)** ? — Typed API client
+- [ ] **[F0.5](#f0-5)** ? — TanStack Query
+- [ ] **[F0.6](#f0-6)** ? — Formatting helpers
+- [ ] **[F0.7](#f0-7)** ? — Toolchain and foundation verification
+
+<a id="f0-1"></a>
+
 ### F0.1 Project setup
-- [ ] Next.js 15, App Router, TypeScript, no `src/app/api` scaffolding kept
-- [ ] `tsconfig.json` extending `tsconfig.base.json`, path alias `@/*`
-- [ ] ESLint with the same strict rules as the backend, including `no-unsafe-*`
-- [ ] `shared` added as a workspace dependency and importing correctly
-- [ ] `transpilePackages: ['shared']` in `next.config.ts`. Next does not compile
-      workspace TypeScript by default; without this the dev server fails on the
-      first `shared` import with an unhelpful parse error. The alternative —
-      building `shared` to JavaScript before every frontend start — works but
-      breaks hot reload across the package boundary
-- [ ] Confirm no `app/api/` directory exists. Caddy routes `/api/*` to the
-      backend, so a Next route handler there works locally and silently returns
-      the wrong thing in production
+
+**Acceptance:** A minimal Next.js 16 page renders and resolves the shared
+package.
+
+- [ ] **F0.1.1** Create the App Router entry points and root layout using
+      installed Next.js 16.3.4; keep the existing package manifest. Set the
+      document language to `sv`.
+- [ ] **F0.1.2** Extend `tsconfig.base.json` with Next-compatible frontend
+      overrides (`module: "ESNext"`, `moduleResolution: "Bundler"`,
+      `jsx: "react-jsx"`, `noEmit: true`) and the Next TypeScript plugin; keep
+      all strictness rules and the `@/*` alias. Include generated Next types.
+      The installed Next.js 16.3.4 configuration writer requires `react-jsx`.
+- [ ] **F0.1.3** Wire ESLint flat config with `eslint-config-next` and the
+      shared type-aware `no-unsafe-*` rules. Run ESLint explicitly through root
+      `pnpm lint`; `next build` does not run linting.
+- [ ] **F0.1.4** Verify the existing `shared: workspace:*` dependency resolves
+      its built ESM and declaration files in the frontend.
+- [ ] **F0.1.5** Keep `transpilePackages: ['shared']` in `next.config.ts`
+      alongside the shared `tsup` watch build, as required by §2.1. Verify
+      cross-package hot reload; record the result with B0.10 instead of assuming
+      it works.
+- [ ] **F0.1.6** Confirm no `app/api/` directory exists. Caddy routes `/api/*`
+      to the backend, so a Next route handler there works locally and silently
+      returns the wrong thing in production
+- [ ] **F0.1.7** Use async access for `cookies()`, `headers()`, and page
+      `params` / `searchParams` where applicable. Keep server-only API
+      configuration out of client imports.
+- [ ] **F0.1.8** Configure the development `/api/*` proxy to Fastify using a
+      Next rewrite or the development Caddy setup. Browser requests use the same
+      relative URL in development and production.
+- [ ] **F0.1.9** Configure Vitest for pure frontend helpers and Playwright for
+      browser flows before implementing the tests in subsequent milestones; use
+      the B0 test backend and shared fixtures.
+
+<a id="f0-2"></a>
 
 ### F0.2 Tailwind and tokens
-- [ ] Tailwind CSS 4 configured
-- [ ] `styles/tokens.css` with the tokens above, exposed as Tailwind theme values
-- [ ] Reset and base styles; `tabular-nums` utility defined
-- [ ] Dark surfaces reachable via a scoped class on the admin layout, not a
-      global theme toggle — the two interfaces are simply different
+
+**Acceptance:** The intended tokens and admin scope render through Tailwind 4.
+
+- [ ] **F0.2.1** Configure `postcss.config.mjs` with installed
+      `@tailwindcss/postcss` 4.3.3.
+- [ ] **F0.2.2** Import Tailwind with `@import "tailwindcss"` in the global
+      stylesheet and load that stylesheet in the root layout.
+- [ ] **F0.2.3** Create `styles/tokens.css` using the design tokens below;
+      expose theme values through Tailwind 4 CSS `@theme` / `@theme inline`,
+      rather than a Tailwind 3 setup.
+- [ ] **F0.2.4** Reset and base styles; `tabular-nums` utility defined
+- [ ] **F0.2.5** Dark surfaces reachable via a scoped class on the admin layout,
+      not a global theme toggle — the two interfaces are simply different
+
+<a id="f0-3"></a>
 
 ### F0.3 Fonts
-- [ ] Font files committed under `src/fonts/`, subset to Latin Extended
-- [ ] Registered with `next/font/local`, `display: 'swap'`
-- [ ] Verify å, ä and ö render in every weight
+
+**Acceptance:** All required Swedish glyphs render in each selected weight.
+
+- [ ] **F0.3.1** Commit the required web font files under `src/fonts/`, with
+      their licence files, subset to Latin Extended. Keep PDF static `.ttf`
+      files in the backend as a separate asset set.
+- [ ] **F0.3.2** Registered with `next/font/local`, `display: 'swap'`
+- [ ] **F0.3.3** Verify å, ä and ö render in every weight
+
+<a id="f0-4"></a>
 
 ### F0.4 Typed API client
-- [ ] `lib/api/client.ts` — a `fetch` wrapper that always sends credentials and
-      the CSRF header on unsafe methods, reading the token from the
-      non-`httpOnly` `csrfToken` cookie
-- [ ] Two base URLs, chosen automatically: server components use
+
+**Acceptance:** Typed reads and failures work through both browser and server
+paths.
+
+- [ ] **F0.4.1** Create `lib/api/client.ts` with a typed `fetch` wrapper;
+      browser requests include credentials and the CSRF header on authenticated
+      unsafe methods, using the readable `csrfToken` cookie. Public form calls
+      use their HMAC form token.
+- [ ] **F0.4.2** Two base URLs, chosen automatically: server components use
       `INTERNAL_API_URL`, browser code uses the relative `/api`. Getting this
       wrong fails only in the container, where `localhost` is not the backend
-- [ ] Every response parsed with the matching `shared` Zod schema. **A response
-      is never cast.** This is what makes a backend contract change a build
-      failure instead of a runtime one
-- [ ] `ApiError` class carrying `code`, `message`, `details` and `requestId`
-- [ ] Non-2xx responses parsed as the error envelope and thrown
-- [ ] Network failure and non-JSON response handled explicitly
+- [ ] **F0.4.3** Parse every response with the matching `shared` Zod schema;
+      never cast it. Runtime parsing detects malformed responses, while shared
+      inferred types catch incompatible code changes during typecheck.
+- [ ] **F0.4.4** `ApiError` class carrying `code`, `message`, `details` and
+      `requestId`
+- [ ] **F0.4.5** Non-2xx responses parsed as the error envelope and thrown
+- [ ] **F0.4.6** Network failure and non-JSON response handled explicitly
+- [ ] **F0.4.7** For authenticated server-side reads, forward only the required
+      session cookie to the trusted internal API and use `cache: "no-store"`;
+      never share one user's response through a public cache.
+- [ ] **F0.4.8** Verify typed success, API validation error, non-JSON response
+      and network failure with fixtures; no paid provider calls.
+
+<a id="f0-5"></a>
 
 ### F0.5 TanStack Query
-- [ ] Provider in the admin layout only; the public site uses server components
-- [ ] A query-key factory in `lib/api/keys.ts` — no inline string arrays
-- [ ] Sensible defaults: `staleTime` 30 s, retry once, no refetch on window focus
-      (a mechanic switching apps should not trigger a storm)
-- [ ] Devtools in development only
+
+**Acceptance:** Admin queries have a stable provider, keys and documented
+defaults.
+
+- [ ] **F0.5.1** Create a client `QueryProvider` boundary for the admin layout,
+      with a stable QueryClient per browser session; keep public pages on server
+      fetching. Mount it with the admin shell in F4.
+- [ ] **F0.5.2** A query-key factory in `lib/api/keys.ts` — no inline string
+      arrays
+- [ ] **F0.5.3** Sensible defaults: `staleTime` 30 s, retry once, no refetch on
+      window focus (a mechanic switching apps should not trigger a storm)
+- [ ] **F0.5.4** Devtools in development only
+
+<a id="f0-6"></a>
 
 ### F0.6 Formatting helpers
-- [ ] `formatCurrency` using `Intl.NumberFormat('sv-SE')` on öre from the API
-- [ ] `formatOdometer` — km to mil, one decimal, with the unit
-- [ ] `formatDate`, `formatDateTime`, `formatRelative`, all `Europe/Stockholm`
-- [ ] `formatRegNr` producing the spaced display form
-- [ ] Unit tests for each; these appear on every screen and must not vary
+
+**Acceptance:** Money, mileage, dates and registration numbers format
+consistently.
+
+- [ ] **F0.6.1** `formatCurrency` using `Intl.NumberFormat('sv-SE')` on öre from
+      the API
+- [ ] **F0.6.2** `formatOdometer` — km to mil, one decimal, with the unit
+- [ ] **F0.6.3** `formatDate`, `formatDateTime`, `formatRelative`, all
+      `Europe/Stockholm`
+- [ ] **F0.6.4** `formatRegNr` producing the spaced display form
+- [ ] **F0.6.5** Unit tests for each; these appear on every screen and must not
+      vary
+
+<a id="f0-7"></a>
+
+### F0.7 Toolchain and foundation verification
+
+**Acceptance:** The implemented foundation passes its build and quality gates.
+
+- [ ] **F0.7.1** Run frontend typecheck, shared/frontend builds and root
+      `pnpm check` after B0/B1 supply their configurations. Verify the health
+      endpoint renders through the API client.
+- [ ] **F0.7.2** Check the repository Node engine range against Vitest 5 and
+      Vite 8: the current lower bound 22.11.0 is too low for their 22.12.0
+      minimum. Align it during tooling setup; use the pinned Node 22.21.1 for
+      this baseline.
+- [ ] **F0.7.3** Verify the configured Vitest and Playwright suites discover
+      real tests; remove `--passWithNoTests` when real unit tests are introduced
+      so a missing suite cannot look green.
+- [ ] **F0.7.4** Run `next dev` and `next build` with their default Turbopack
+      setup; verify aliases, local fonts and shared-package resolution.
+- [ ] **F0.7.5** Record command results, Node/pnpm versions and the shared
+      hot-reload evidence before marking F0 complete.
+
+**Iteration acceptance record**
+
+- [ ] **F0 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f1"></a>
 
 ## F1 — Design system
 
 **Goal:** the component vocabulary, built once, so no iteration invents its own.
 
 **Definition of done:** every component has all its states, is keyboard
-operable, meets AA contrast, and appears on an internal `/admin/styleguide` page.
+operable, meets AA contrast, and appears on an internal `/admin/styleguide`
+page.
+
+**Phase:** 1. **Entry dependencies:** F0.
+
+Build primitives in dependency order; assemble the styleguide as they become
+available. Its production access check is owned by F4.6.
+
+**Milestone checklist — 0/6 complete:**
+
+- [ ] **[F1.1](#f1-1)** ? — shadcn/ui base
+- [ ] **[F1.2](#f1-2)** ? — Buttons and actions
+- [ ] **[F1.3](#f1-3)** ? — Forms
+- [ ] **[F1.4](#f1-4)** ? — Data display
+- [ ] **[F1.5](#f1-5)** ? — Feedback
+- [ ] **[F1.6](#f1-6)** ? — Styleguide page
+
+<a id="f1-1"></a>
 
 ### F1.1 shadcn/ui base
-- [ ] Initialised, components copied into `components/ui/`
-- [ ] Restyled to the tokens above — not left on shadcn defaults
-- [ ] Button, Input, Select, Dialog, Sheet, Toast, Tabs, Badge, Table, Card
+
+**Acceptance:** The selected primitives are available in the repository and
+styled.
+
+- [ ] **F1.1.1** Initialise shadcn with the installed CLI
+      (`pnpm --filter frontend exec shadcn init`), review `components.json`, and
+      copy the selected primitives into `components/ui/`.
+- [ ] **F1.1.2** Restyled to the tokens above — not left on shadcn defaults
+- [ ] **F1.1.3** Add and style Button, Input and Select, including focus,
+      disabled and invalid states.
+- [ ] **F1.1.4** Add Dialog and Sheet, checking focus trapping, dismissal and
+      focus return.
+- [ ] **F1.1.5** Add Tabs, Badge, Table and Card, then the current toast
+      primitive supported by the chosen shadcn registry.
+- [ ] **F1.1.6** Review and pin dependencies introduced by each generated
+      component. The installed `shadcn` CLI alone does not install the component
+      source or its runtime dependencies.
+
+<a id="f1-2"></a>
 
 ### F1.2 Buttons and actions
-- [ ] Variants: primary, secondary, ghost, destructive
-- [ ] Sizes: `sm`, `md`, `lg` — `lg` is 44 px minimum for tablet use
-- [ ] Loading state that disables and shows a spinner without changing width
-      (a button that shrinks moves everything next to it)
-- [ ] Visible focus ring on all variants, tested against both backgrounds
+
+**Acceptance:** Each action remains usable across idle, pending, disabled and
+focus states.
+
+- [ ] **F1.2.1** Variants: primary, secondary, ghost, destructive
+- [ ] **F1.2.2** Sizes: `sm`, `md`, `lg` — `lg` is 44 px minimum for tablet use
+- [ ] **F1.2.3** Loading state that disables and shows a spinner without
+      changing width (a button that shrinks moves everything next to it)
+- [ ] **F1.2.4** Visible focus ring on all variants, tested against both
+      backgrounds
+
+<a id="f1-3"></a>
 
 ### F1.3 Forms
-- [ ] React Hook Form with the Zod resolver, using `shared` schemas directly
-- [ ] `FormField` wrapper: label, description, error, required marker
-- [ ] Inline errors in Swedish, tied to inputs with `aria-describedby`
-- [ ] `MoneyInput` — accepts kronor with decimals, submits öre. Handles both
-      `,` and `.` as the decimal separator, because Swedish keyboards produce
-      both
-- [ ] `QuantityInput` — respects the article unit, up to 3 decimals
-- [ ] `OdometerInput` — labelled in mil, submits km, shows the km value beneath
-      as confirmation
-- [ ] `RegNrInput` — uppercases as you type, formats on blur, validates with the
-      `shared` helper
-- [ ] Unit tests on each conversion input, including paste and locale separators
+
+**Acceptance:** Forms accept Swedish input and submit the expected shared-schema
+values.
+
+- [ ] **F1.3.1** Connect React Hook Form 7 to `zodResolver` from
+      `@hookform/resolvers/zod` and the shared Zod 4 schemas; distinguish input
+      and output types when schemas transform values.
+- [ ] **F1.3.2** Build the project's `FormField` wrapper using the current
+      shadcn Field pattern and React Hook Form Controller where needed: label,
+      description, error and required marker.
+- [ ] **F1.3.3** Inline errors in Swedish, tied to inputs with
+      `aria-describedby`
+- [ ] **F1.3.4** `MoneyInput` — accepts kronor with decimals, submits öre.
+      Handles both `,` and `.` as the decimal separator, because Swedish
+      keyboards produce both
+- [ ] **F1.3.5** `QuantityInput` — respects the article unit, up to 3 decimals
+- [ ] **F1.3.6** `OdometerInput` — labelled in mil, submits km, shows the km
+      value beneath as confirmation
+- [ ] **F1.3.7** `RegNrInput` — uppercases as you type, formats on blur,
+      validates with the `shared` helper
+- [ ] **F1.3.8** Unit tests on each conversion input, including paste and locale
+      separators
+
+<a id="f1-4"></a>
 
 ### F1.4 Data display
-- [ ] `DataTable` — sticky header, `tabular-nums`, row click, keyboard
-      navigation, and pagination driven by the API's declared mode
-- [ ] **Sorting is only offered on columns the API declares as sortable.** A
-      cursor is stable only against a sort key it was built for; a table that
-      offers to sort by any column will silently skip and repeat rows at page
-      boundaries, and the bug looks like missing data rather than a paging bug.
-      The table reads the sortable set from the endpoint (`PROJECT_SPEC.md` §8.1)
-- [ ] `StatusBadge` driven by the fixed status map; colour plus text plus icon
-- [ ] `EmptyState` — icon, one sentence, one action
-- [ ] `ErrorState` — the Swedish message, the `requestId` in small text, and a
-      retry button
-- [ ] Skeleton loaders matching real layout dimensions, so nothing jumps
+
+**Acceptance:** Tables, badges and data states communicate consistently.
+
+- [ ] **F1.4.1** `DataTable` — sticky header, `tabular-nums`, row click,
+      keyboard navigation, and pagination driven by the API's declared mode
+- [ ] **F1.4.2** **Sorting is only offered on columns the API declares as
+      sortable.** A cursor is stable only against a sort key it was built for; a
+      table that offers to sort by any column will silently skip and repeat rows
+      at page boundaries, and the bug looks like missing data rather than a
+      paging bug. The table reads the sortable set from the endpoint
+      (`PROJECT_SPEC.md` §8.1)
+- [ ] **F1.4.3** `StatusBadge` driven by the fixed status map; colour plus text
+      plus icon
+- [ ] **F1.4.4** `EmptyState` — icon, one sentence, one action
+- [ ] **F1.4.5** `ErrorState` — the Swedish message, the `requestId` in small
+      text, and a retry button
+- [ ] **F1.4.6** Skeleton loaders matching real layout dimensions, so nothing
+      jumps
+
+<a id="f1-5"></a>
 
 ### F1.5 Feedback
-- [ ] Toasts: success, error, info; `aria-live="polite"`; auto-dismiss except on
-      error
-- [ ] `ConfirmDialog` for destructive actions, naming what will happen
-- [ ] A global error boundary rendering `ErrorState`
+
+**Acceptance:** Success, failure and confirmation feedback is visible and
+accessible.
+
+- [ ] **F1.5.1** Toasts: success, error, info; `aria-live="polite"`;
+      auto-dismiss except on error
+- [ ] **F1.5.2** `ConfirmDialog` for destructive actions, naming what will
+      happen
+- [ ] **F1.5.3** A global error boundary rendering `ErrorState`
+
+<a id="f1-6"></a>
 
 ### F1.6 Styleguide page
-- [ ] `/admin/styleguide` rendering every component in every state
-- [ ] Colour tokens shown with their measured contrast ratios
-- [ ] Excluded from the production build or admin-only
+
+**Acceptance:** The styleguide demonstrates every component state and contrast
+pairing.
+
+- [ ] **F1.6.1** `/admin/styleguide` rendering every component in every state
+- [ ] **F1.6.2** Colour tokens shown with their measured contrast ratios
+- [ ] **F1.6.3** Keep `/admin/styleguide` admin-only; verify an unauthenticated
+      visitor cannot view it when F4 route protection is connected.
+
+**Iteration acceptance record**
+
+- [ ] **F1 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f2"></a>
 
 ## F2 — Public site
 
@@ -273,65 +615,141 @@ that ranks locally.
 **Definition of done:** Lighthouse ≥ 95 on performance, accessibility and SEO
 for every public page on a throttled mobile profile.
 
+**Phase:** 3. **Entry dependencies:** F1, B5.2, B10.1–B10.4.
+
+Build B5.2 before the shared form-token hook in F2.2. Workshop-settings reads
+must be available for opening hours; coordinate the API contract with backend
+work. Service advice is activated later in F11.6.
+
+**Milestone checklist — 0/6 complete:**
+
+- [ ] **[F2.1](#f2-1)** ? — Public layout
+- [ ] **[F2.2](#f2-2)** ? — Start page and hero
+- [ ] **[F2.3](#f2-3)** ? — Services pages
+- [ ] **[F2.4](#f2-4)** ? — About and contact
+- [ ] **[F2.5](#f2-5)** ? — SEO and metadata
+- [ ] **[F2.6](#f2-6)** ? — Public performance
+
+<a id="f2-1"></a>
+
 ### F2.1 Public layout
-- [ ] `(public)` route group with its own layout
-- [ ] Header: workshop name, navigation, phone number as a `tel:` link, a
-      prominent *"Boka tid"*
-- [ ] Footer: address, opening hours, organisation number, privacy policy link
-- [ ] Mobile navigation as a sheet; full keyboard operation
-- [ ] Skip-to-content link
+
+**Acceptance:** Public pages share usable navigation, contact details and a
+footer.
+
+- [ ] **F2.1.1** `(public)` route group with its own layout
+- [ ] **F2.1.2** Header: workshop name, navigation, phone number as a `tel:`
+      link, a prominent _"Boka tid"_
+- [ ] **F2.1.3** Footer: address, opening hours, organisation number, privacy
+      policy link
+- [ ] **F2.1.4** Mobile navigation as a sheet; full keyboard operation
+- [ ] **F2.1.5** Skip-to-content link
+
+<a id="f2-2"></a>
 
 ### F2.2 Start page and hero
-- [ ] The registration-number lookup as the hero — a single input, a clear label
-      in Swedish, and a large submit
-- [ ] On submit, call `/api/public/vehicle-lookup` **client-side only**. Never
-      during SSR: a crawler must not be able to spend the workshop's API budget
-- [ ] Send the HMAC form token from F3.1's hook. Without it the endpoint rejects
-      the request, and IP rate limiting alone would not protect the budget from
-      a bot rotating addresses
-- [ ] Result panel: make, model, model year, last inspection, next inspection
-      due
-- [ ] The panel reserves a section for suggested services, rendered only when
-      the API returns them. **That data arrives in Phase 6 with B9** — build the
-      layout for it now so adding it later is not a redesign
-- [ ] The one orchestrated motion moment — the panel revealing, respecting
-      `prefers-reduced-motion`
-- [ ] Result includes a *"Boka tid"* button that carries the registration number
-      into the booking form
-- [ ] States handled explicitly and in plain Swedish: unknown registration
-      number, invalid format, rate limit reached, and provider unavailable
-      (which says data is temporarily unavailable and offers the booking form)
-- [ ] Below the hero: three services, opening hours, address with a map link
+
+**Acceptance:** An explicit lookup returns a result or a useful booking
+fallback.
+
+- [ ] **F2.2.1** The registration-number lookup as the hero — a single input, a
+      clear label in Swedish, and a large submit
+- [ ] **F2.2.2** On submit, call `/api/public/vehicle-lookup` **client-side
+      only**. Never during SSR: a crawler must not be able to spend the
+      workshop's API budget
+- [ ] **F2.2.3** Implement the reusable public form-token hook here, backed by
+      B5.2, and send its token with vehicle lookups. F3.1 reuses this hook; F2
+      must not depend on an unbuilt F3 form.
+- [ ] **F2.2.4** Result panel: make, model, model year, last inspection, next
+      inspection due
+- [ ] **F2.2.5** The panel reserves a section for suggested services, rendered
+      only when the API returns them. **That data arrives in Phase 6 with B9** —
+      build the layout for it now so adding it later is not a redesign
+- [ ] **F2.2.6** The one orchestrated motion moment — the panel revealing,
+      respecting `prefers-reduced-motion`
+- [ ] **F2.2.7** Result includes a _"Boka tid"_ button that carries the
+      registration number into the booking form
+- [ ] **F2.2.8** States handled explicitly and in plain Swedish: unknown
+      registration number, invalid format, rate limit reached, and provider
+      unavailable (which says data is temporarily unavailable and offers the
+      booking form)
+- [ ] **F2.2.9** Below the hero: three services, opening hours, address with a
+      map link
+- [ ] **F2.2.10** Verify cached results, public daily-limit fallback and a
+      provider failure with fixtures; booking remains reachable when lookup
+      fails.
+
+<a id="f2-3"></a>
 
 ### F2.3 Services pages
-- [ ] `/tjanster` listing services with a short description and a from-price
-- [ ] `/tjanster/[slug]` with full description, what is included, duration and
-      price
-- [ ] Content in a typed local content file, not a CMS — v1 has no editors
-- [ ] Each detail page has its own metadata and `Service` JSON-LD
+
+**Acceptance:** Each service has a typed listing and a reachable detail page.
+
+- [ ] **F2.3.1** `/tjanster` listing services with a short description and a
+      from-price
+- [ ] **F2.3.2** `/tjanster/[slug]` with full description, what is included,
+      duration and price
+- [ ] **F2.3.3** Content in a typed local content file, not a CMS — v1 has no
+      editors
+- [ ] **F2.3.4** Each detail page has its own metadata and `Service` JSON-LD
+- [ ] **F2.3.5** Await the dynamic service `slug` in page and metadata code;
+      return the designed not-found page for unknown slugs.
+
+<a id="f2-4"></a>
 
 ### F2.4 About and contact
-- [ ] `/om-oss` — the workshop, the two owners, real photographs
-- [ ] `/kontakt` — address, map, opening hours, phone, email
-- [ ] Opening hours read from the API so they are edited in one place
-- [ ] `/integritetspolicy` — what is collected, why, how long, and the contact
-      route for erasure
+
+**Acceptance:** Workshop information and contact details are available in
+Swedish.
+
+- [ ] **F2.4.1** `/om-oss` — the workshop, the two owners, real photographs
+- [ ] **F2.4.2** `/kontakt` — address, map, opening hours, phone, email
+- [ ] **F2.4.3** Opening hours read from the API so they are edited in one place
+- [ ] **F2.4.4** `/integritetspolicy` — what is collected, why, how long, and
+      the contact route for erasure
+
+<a id="f2-5"></a>
 
 ### F2.5 SEO and metadata
-- [ ] Per-route `metadata`, unique titles and descriptions
-- [ ] `LocalBusiness` JSON-LD with address, geo, hours and telephone
-- [ ] `sitemap.ts` and `robots.ts`
-- [ ] Open Graph image
-- [ ] One `<h1>` per page and a correct heading hierarchy
+
+**Acceptance:** Public metadata, structured data and crawl files are present.
+
+- [ ] **F2.5.1** Per-route `metadata`, unique titles and descriptions
+- [ ] **F2.5.2** `LocalBusiness` JSON-LD with address, geo, hours and telephone
+- [ ] **F2.5.3** `sitemap.ts` and `robots.ts`
+- [ ] **F2.5.4** Open Graph image
+- [ ] **F2.5.5** One `<h1>` per page and a correct heading hierarchy
+- [ ] **F2.5.6** Confirm public pages remain indexable and staff routes are
+      excluded from the sitemap and indexing.
+
+<a id="f2-6"></a>
 
 ### F2.6 Public performance
-- [ ] All public pages server-rendered; client JavaScript only in the hero and
-      the booking form
-- [ ] Images via `next/image`, correct sizes, explicit dimensions to prevent
-      layout shift
-- [ ] Lighthouse budget met and recorded here
+
+**Acceptance:** Production public pages meet the recorded Lighthouse budget.
+
+- [ ] **F2.6.1** All public pages server-rendered; client JavaScript only in the
+      hero and the booking form
+- [ ] **F2.6.2** Images via `next/image`, correct sizes, explicit dimensions to
+      prevent layout shift
+- [ ] **F2.6.3** Lighthouse budget met and recorded here
+- [ ] **F2.6.4** Record the measured URL, production build, device profile and
+      report location for each Lighthouse run.
+
+**Iteration acceptance record**
+
+- [ ] **F2 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f3"></a>
 
 ## F3 — Public booking flow
 
@@ -341,78 +759,245 @@ workshop.
 **Definition of done:** a submission from a phone in one hand takes under a
 minute, and every anti-spam layer is exercised by an E2E test.
 
+**Phase:** 3. **Entry dependencies:** F2, B5.
+
+Reuse F2.2 token handling. The public endpoint creates a request only; staff
+confirmation is implemented in F8.
+
+**Milestone checklist — 0/6 complete:**
+
+- [ ] **[F3.1](#f3-1)** ? — Booking form
+- [ ] **[F3.2](#f3-2)** ? — Result handling
+- [ ] **[F3.3](#f3-3)** ? — Mobile first
+- [ ] **[F3.4](#f3-4)** ? — E2E
+- [ ] **[F3.5](#f3-5)** ? — Form recovery and spam responses
+- [ ] **[F3.6](#f3-6)** ? — Booking journey acceptance
+
+<a id="f3-1"></a>
+
 ### F3.1 Booking form
-- [ ] `/boka` with fields: registration number (optional, pre-filled from the
-      hero), name, phone, email (optional), preferred date, time of day,
-      service type, message
-- [ ] Validated with the `shared` schema, so the client and server agree exactly
-- [ ] Honeypot field, visually hidden but not `display: none`, and not reachable
-      by keyboard
-- [ ] Form token fetched on mount and submitted with the request. **The same
-      token is required by the vehicle lookup in F2.2** — one hook, used by
-      both
-- [ ] Submit disabled while pending, with a spinner and no width change
+
+**Acceptance:** A customer can enter and submit a schema-valid booking request.
+
+- [ ] **F3.1.1** Build `/boka` with optional registration number pre-filled from
+      the lookup hero, customer name, phone and optional email.
+- [ ] **F3.1.2** Add preferred date, time of day, service selection and optional
+      message; keep the API field names and optionality aligned with the shared
+      request schema.
+- [ ] **F3.1.3** Validated with the `shared` schema, so the client and server
+      agree exactly
+- [ ] **F3.1.4** Honeypot field, visually hidden but not `display: none`, and
+      not reachable by keyboard
+- [ ] **F3.1.5** Reuse the public form-token hook from F2.2; fetch on mount and
+      submit the HMAC token with the booking request.
+- [ ] **F3.1.6** Submit disabled while pending, with a spinner and no width
+      change
+
+<a id="f3-2"></a>
 
 ### F3.2 Result handling
-- [ ] `/boka/tack` confirming what happens next and when to expect a reply
-- [ ] Validation errors mapped to fields in Swedish
-- [ ] Rate-limit response explained plainly, with the phone number as the
-      alternative — never a dead end
+
+**Acceptance:** Success and validation/rate-limit outcomes lead to clear next
+actions.
+
+- [ ] **F3.2.1** `/boka/tack` confirming what happens next and when to expect a
+      reply
+- [ ] **F3.2.2** Validation errors mapped to fields in Swedish
+- [ ] **F3.2.3** Rate-limit response explained plainly, with the phone number as
+      the alternative — never a dead end
+
+<a id="f3-3"></a>
 
 ### F3.3 Mobile first
-- [ ] Correct `inputMode` and `autoComplete` on every field, so phone keyboards
-      show digits
-- [ ] Tested at 360 px width
-- [ ] Whole form operable by keyboard, with a visible focus order
+
+**Acceptance:** The form is usable at 360 px and with a keyboard.
+
+- [ ] **F3.3.1** Correct `inputMode` and `autoComplete` on every field, so phone
+      keyboards show digits
+- [ ] **F3.3.2** Tested at 360 px width
+- [ ] **F3.3.3** Whole form operable by keyboard, with a visible focus order
+
+<a id="f3-4"></a>
 
 ### F3.4 E2E
-- [ ] Playwright: complete a booking request end to end
-- [ ] Playwright: a filled honeypot is rejected
-- [ ] Playwright: a submission faster than 3 seconds is rejected
+
+**Acceptance:** The booking journey and original anti-spam cases pass browser
+checks.
+
+- [ ] **F3.4.1** Playwright: complete a booking request end to end
+- [ ] **F3.4.2** Playwright: a filled honeypot is rejected
+- [ ] **F3.4.3** Playwright: a submission faster than 3 seconds is rejected
+
+<a id="f3-5"></a>
+
+### F3.5 Form recovery and spam responses
+
+**Acceptance:** A failed or expired submission preserves input and offers
+recovery.
+
+- [ ] **F3.5.1** Keep entered values when a request fails; display the Swedish
+      API error and allow a deliberate retry.
+- [ ] **F3.5.2** Handle an expired or unavailable form token with a visible
+      retry; a refreshed token must still respect the backend minimum submission
+      age.
+- [ ] **F3.5.3** Explain an early submission or rate limit without a dead end;
+      keep the workshop telephone link available.
+- [ ] **F3.5.4** Extend browser checks for expired tokens and rate-limit
+      responses; verify content flagged for staff review does not become a
+      confirmed calendar booking.
+
+<a id="f3-6"></a>
+
+### F3.6 Booking journey acceptance
+
+**Acceptance:** The full mobile booking journey satisfies the iteration goal.
+
+- [ ] **F3.6.1** Walk from the public lookup to the pre-filled booking form and
+      confirmation on a 360 px viewport.
+- [ ] **F3.6.2** Confirm the thank-you message promises staff review rather than
+      a guaranteed appointment.
+- [ ] **F3.6.3** Verify keyboard operation, preserved input after failure and
+      disabled submit while pending against the real test API.
+- [ ] **F3.6.4** Record the browser evidence and check the iteration Definition
+      of Done before marking the booking flow complete.
+
+**Iteration acceptance record**
+
+- [ ] **F3 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f4"></a>
 
 ## F4 — Admin shell and authentication
 
 **Goal:** the frame every internal screen lives in.
 
-**Definition of done:** an unauthenticated visit to any `/admin` route
-redirects to login and returns to the intended page after signing in.
+**Definition of done:** an unauthenticated visit to any `/admin` route redirects
+to login and returns to the intended page after signing in.
+
+**Phase:** 1. **Entry dependencies:** F1, B2; B3 for search.
+
+B3 is required for customer/vehicle search. Article results are activated in
+F7.1; the booking badge gains live request data with F8.1.
+
+**Milestone checklist — 0/6 complete:**
+
+- [ ] **[F4.1](#f4-1)** ? — Login
+- [ ] **[F4.2](#f4-2)** ? — Route protection
+- [ ] **[F4.3](#f4-3)** ? — Admin shell
+- [ ] **[F4.4](#f4-4)** ? — Global search
+- [ ] **[F4.5](#f4-5)** ? — Shared admin patterns
+- [ ] **[F4.6](#f4-6)** ? — Session lifecycle acceptance
+
+<a id="f4-1"></a>
 
 ### F4.1 Login
-- [ ] `/admin/logga-in` — a deliberately plain page
-- [ ] Errors in Swedish that do not reveal whether the email exists
-- [ ] Redirect to the originally requested URL after login
-- [ ] `autoComplete` set so password managers work
+
+**Acceptance:** Staff can sign in and return to a valid requested admin page.
+
+- [ ] **F4.1.1** `/admin/logga-in` — a deliberately plain page
+- [ ] **F4.1.2** Errors in Swedish that do not reveal whether the email exists
+- [ ] **F4.1.3** Redirect to the originally requested URL after login
+- [ ] **F4.1.4** `autoComplete` set so password managers work
+- [ ] **F4.1.5** Accept only a local admin return path after login; reject
+      external URLs and the login route itself.
+
+<a id="f4-2"></a>
 
 ### F4.2 Route protection
-- [ ] Middleware guarding `/admin/*` on the session cookie
-- [ ] Server-side session verification in the admin layout; the middleware check
-      is a fast path, not the security boundary
-- [ ] A 401 from any API call clears local state and redirects to login
+
+**Acceptance:** Unauthenticated access redirects and protected data stays
+server-checked.
+
+- [ ] **F4.2.1** Create `src/proxy.ts` with an exported `proxy` function for the
+      Next.js 16 optimistic cookie check on `/admin/*`; exempt `/admin/logga-in`
+      to avoid a redirect loop.
+- [ ] **F4.2.2** Verify sessions server-side before rendering protected data;
+      the proxy cookie check only accelerates redirects. Fastify remains
+      responsible for authentication and authorisation on every API request.
+- [ ] **F4.2.3** A 401 from any API call clears local state and redirects to
+      login
+
+<a id="f4-3"></a>
 
 ### F4.3 Admin shell
-- [ ] `(admin)` route group with the dark steel surface
-- [ ] Left navigation: Översikt, Bokningar, Arbetsordrar, Kunder, Fordon, Lager,
-      Inställningar
-- [ ] Badge on Bokningar showing unhandled requests
-- [ ] Collapsing to icons under 1100 px; a sheet on tablet portrait
-- [ ] Current user and sign-out in the top bar
+
+**Acceptance:** Admin navigation, user actions and query state share one shell.
+
+- [ ] **F4.3.1** `(admin)` route group with the dark steel surface
+- [ ] **F4.3.2** Left navigation: Översikt, Bokningar, Arbetsordrar, Kunder,
+      Fordon, Lager, Inställningar
+- [ ] **F4.3.3** Prepare the Bokningar badge component; connect the real
+      unhandled-request count in F8.1 after B5. Do not show a fabricated count
+      before that endpoint exists.
+- [ ] **F4.3.4** Collapsing to icons under 1100 px; a sheet on tablet portrait
+- [ ] **F4.3.5** Current user and sign-out in the top bar
+- [ ] **F4.3.6** Mount the F0.5 QueryProvider and clear cached customer data on
+      logout or session expiry.
+
+<a id="f4-4"></a>
 
 ### F4.4 Global search
-- [ ] Command palette opened with `/` or `Cmd/Ctrl+K`
-- [ ] Debounced 250 ms against `/api/search`
-- [ ] Results grouped by type, keyboard navigable, Enter opens
-- [ ] Recent items when the field is empty
+
+**Acceptance:** Supported search results are reachable by keyboard.
+
+- [ ] **F4.4.1** Command palette opened with `/` or `Cmd/Ctrl+K`
+- [ ] **F4.4.2** Debounced 250 ms against `/api/search`
+- [ ] **F4.4.3** Results grouped by type, keyboard navigable, Enter opens
+- [ ] **F4.4.4** Recent items when the field is empty
+- [ ] **F4.4.5** Until B4 exists, render supported customer/vehicle search
+      results without inventing article data; activate article results during
+      F7.
+
+<a id="f4-5"></a>
 
 ### F4.5 Shared admin patterns
-- [ ] `PageHeader` with title, breadcrumb and actions
-- [ ] `DetailLayout` implementing the two-column pattern
-- [ ] Standard list-page composition: filters, table, pagination
-- [ ] A conflict handler that turns a `409` into a clear Swedish prompt to
-      reload, used by every mutation
+
+**Acceptance:** List, detail and conflict handling patterns can be reused.
+
+- [ ] **F4.5.1** `PageHeader` with title, breadcrumb and actions
+- [ ] **F4.5.2** `DetailLayout` implementing the two-column pattern
+- [ ] **F4.5.3** Standard list-page composition: filters, table, pagination
+- [ ] **F4.5.4** A conflict handler that turns a `409` into a clear Swedish
+      prompt to reload, used by every mutation
+
+<a id="f4-6"></a>
+
+### F4.6 Session lifecycle acceptance
+
+**Acceptance:** Login, expiry, forbidden actions and logout behave as expected.
+
+- [ ] **F4.6.1** Verify login, return to the requested page and logout using the
+      real test API.
+- [ ] **F4.6.2** Verify an expired session produces a login redirect and a
+      forbidden action remains a clear 403 error.
+- [ ] **F4.6.3** Confirm cookie credentials and CSRF work through the
+      development proxy; repeat the production-origin check with B12.
+- [ ] **F4.6.4** Verify the styleguide and admin data cannot be reached by an
+      unauthenticated user; record the result.
+
+**Iteration acceptance record**
+
+- [ ] **F4 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f5"></a>
 
 ## F5 — Dashboard
 
@@ -421,76 +1006,235 @@ redirects to login and returns to the intended page after signing in.
 **Definition of done:** loads in under one second on the seeded dataset and
 every card links somewhere useful.
 
+**Phase:** 4. **Entry dependencies:** F4, B4, B5, B6.
+
+Confirm dashboard response schemas and endpoints with backend work before UI
+integration. Do not invent aggregate response shapes in components.
+
+**Milestone checklist — 0/6 complete:**
+
+- [ ] **[F5.1](#f5-1)** ? — Today
+- [ ] **[F5.2](#f5-2)** ? — Action cards
+- [ ] **[F5.3](#f5-3)** ? — Attention cards
+- [ ] **[F5.4](#f5-4)** ? — Layout
+- [ ] **[F5.5](#f5-5)** ? — Dashboard query integration
+- [ ] **[F5.6](#f5-6)** ? — Dashboard acceptance
+
+<a id="f5-1"></a>
+
 ### F5.1 Today
-- [ ] Today's bookings with time, vehicle, customer, mechanic and status
-- [ ] Clicking opens the booking or its work order
-- [ ] An empty state that is calm rather than alarming
+
+**Acceptance:** Today's bookings show their status and open the relevant record.
+
+- [ ] **F5.1.1** Today's bookings with time, vehicle, customer, mechanic and
+      status
+- [ ] **F5.1.2** Clicking opens the booking or its work order
+- [ ] **F5.1.3** An empty state that is calm rather than alarming
+
+<a id="f5-2"></a>
 
 ### F5.2 Action cards
-- [ ] Unhandled booking requests, with a count
-- [ ] Work orders awaiting parts
-- [ ] Work orders ready for pickup
+
+**Acceptance:** Each action count leads to the work requiring attention.
+
+- [ ] **F5.2.1** Unhandled booking requests, with a count
+- [ ] **F5.2.2** Work orders awaiting parts
+- [ ] **F5.2.3** Work orders ready for pickup
+
+<a id="f5-3"></a>
 
 ### F5.3 Attention cards
-- [ ] Vehicles with inspection due within 60 days — the workshop's cheapest
-      repeat business
-- [ ] Articles below minimum stock
-- [ ] Each links to a pre-filtered list rather than a dead-end number
+
+**Acceptance:** Inspection and stock warnings link to the correct filtered list.
+
+- [ ] **F5.3.1** Vehicles with inspection due within 60 days — the workshop's
+      cheapest repeat business
+- [ ] **F5.3.2** Articles below minimum stock
+- [ ] **F5.3.3** Each links to a pre-filtered list rather than a dead-end number
+
+<a id="f5-4"></a>
 
 ### F5.4 Layout
-- [ ] Responsive grid, densest on desktop, single column on tablet portrait
-- [ ] Independent loading skeletons per card, so one slow query does not block
-      the screen
+
+**Acceptance:** Each card loads independently on desktop and tablet.
+
+- [ ] **F5.4.1** Responsive grid, densest on desktop, single column on tablet
+      portrait
+- [ ] **F5.4.2** Independent loading skeletons per card, so one slow query does
+      not block the screen
+
+<a id="f5-5"></a>
+
+### F5.5 Dashboard query integration
+
+**Acceptance:** Cards refresh consistently without mixing dates or failure
+states.
+
+- [ ] **F5.5.1** Connect the cards to available typed backend contracts using
+      query keys that include the selected date and applicable filters.
+- [ ] **F5.5.2** Refresh affected cards after booking and work-order mutations
+      through shared query invalidation.
+- [ ] **F5.5.3** Keep a failed card independently retryable; distinguish a
+      failed request from a real zero count.
+- [ ] **F5.5.4** Verify dates displayed around midnight use Europe/Stockholm
+      rather than the browser or container timezone.
+
+<a id="f5-6"></a>
+
+### F5.6 Dashboard acceptance
+
+**Acceptance:** The dashboard walkthrough meets the measured loading budget.
+
+- [ ] **F5.6.1** Check every card link opens the corresponding list with the
+      intended filter.
+- [ ] **F5.6.2** Demonstrate populated, empty, loading and partial-failure
+      states.
+- [ ] **F5.6.3** Measure the one-second dashboard budget on the seeded dataset
+      and record the environment and result.
+
+**Iteration acceptance record**
+
+- [ ] **F5 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f6"></a>
 
 ## F6 — Customers and vehicles
 
 **Goal:** the register staff use dozens of times a day.
 
-**Definition of done:** a mechanic can go from a registration number to that
-vehicle's full history in one search and one click.
+**Definition of done:** a mechanic can go from a registration number to the
+vehicle's core details and available odometer history in one search and one
+click. Complete work-order history is accepted in F9.7 after B6 exists.
+
+**Phase:** 1. **Entry dependencies:** F4, B3 (core).
+
+This iteration delivers the Phase 1 register. Later integrations are explicitly
+assigned to F8.7, F9.7, F11.6 and F12.7 so future backend work does not block
+core register delivery.
+
+**Milestone checklist — 0/6 complete:**
+
+- [ ] **[F6.1](#f6-1)** ? — Customer list
+- [ ] **[F6.2](#f6-2)** ? — Customer detail
+- [ ] **[F6.3](#f6-3)** ? — Vehicle list
+- [ ] **[F6.4](#f6-4)** ? — Vehicle detail — the centrepiece
+- [ ] **[F6.5](#f6-5)** ? — Vehicle creation and editing
+- [ ] **[F6.6](#f6-6)** ? — Core register acceptance
+
+<a id="f6-1"></a>
 
 ### F6.1 Customer list
-- [ ] Search, filter by type, cursor pagination
-- [ ] Columns: name, phone, vehicle count, last visit
-- [ ] *"Ny kund"* opening a dialog
+
+**Acceptance:** Staff can find, filter and start creating customer records.
+
+- [ ] **F6.1.1** Search, filter by type, cursor pagination
+- [ ] **F6.1.2** Columns: name, phone, vehicle count, last visit
+- [ ] **F6.1.3** _"Ny kund"_ opening a dialog
+
+<a id="f6-2"></a>
 
 ### F6.2 Customer detail
-- [ ] Contact information, editable inline with optimistic updates
-- [ ] Vehicles owned, each linking onwards
-- [ ] Work order history, newest first
-- [ ] Notes field, saved on blur with a visible saved indicator
-- [ ] `ADMIN` actions: export data, anonymise — behind a confirmation that
-      explains exactly what is kept and what is removed
+
+**Acceptance:** Core customer details and available relationships are editable.
+
+- [ ] **F6.2.1** Contact information, editable inline with optimistic updates
+- [ ] **F6.2.2** Vehicles owned, each linking onwards
+- [ ] **F6.2.3** Reserve the customer work-order history area in Phase 1;
+      connect real history in F9.7 after B6.
+- [ ] **F6.2.4** Notes field, saved on blur with a visible saved indicator
+- [ ] **F6.2.5** Reserve ADMIN export/anonymise controls with an explicit
+      unavailable state until B11; activate and verify them in F12.7. Do not
+      present placeholders as working privacy actions.
+
+<a id="f6-3"></a>
 
 ### F6.3 Vehicle list
-- [ ] Search by registration number, make and model, tolerant of spacing
-- [ ] Filter for inspection due soon
-- [ ] Registration numbers in `tabular-nums` and the spaced display format
+
+**Acceptance:** Staff can locate vehicles with the required filters and
+formatting.
+
+- [ ] **F6.3.1** Search by registration number, make and model, tolerant of
+      spacing
+- [ ] **F6.3.2** Filter for inspection due soon
+- [ ] **F6.3.3** Registration numbers in `tabular-nums` and the spaced display
+      format
+
+<a id="f6-4"></a>
 
 ### F6.4 Vehicle detail — the centrepiece
-- [ ] Header: registration number, make, model, model year, owner
-- [ ] Technical data with a *"Hämta fordonsdata"* button, showing when data was
-      last fetched and whether it came from cache
-- [ ] Inspection block: last inspection, next due, days remaining, colour-coded
-      by the fixed status map
-- [ ] Service recommendations, each showing severity, why it was suggested, and
-      its `sourceNote`, with *"Lägg till på arbetsorder"* and *"Avfärda"*.
-      **Depends on B9 — Phase 6.** Until then this block renders a placeholder
-      explaining that no service rules exist yet
-- [ ] Partner-link buttons, rendered from the API, opening in a new tab with
-      `rel="noopener noreferrer"`. Depends on B10.6, available from Phase 3
-- [ ] Work order history
-- [ ] Odometer history as a small sparkline
+
+**Acceptance:** Core vehicle facts and available history render; later
+integrations have owners.
+
+- [ ] **F6.4.1** Header: registration number, make, model, model year, owner
+- [ ] **F6.4.2** Show stored technical data. Connect the explicit lookup button,
+      cache age and source in F8.7 after B10.1–B10.4; no automatic paid calls.
+- [ ] **F6.4.3** Inspection block: last inspection, next due, days remaining,
+      colour-coded by the fixed status map
+- [ ] **F6.4.4** Reserve the service-recommendation section with an honest
+      unavailable state; implement severity, reason, sourceNote and
+      accept/dismiss integration in F11.6 after B9.
+- [ ] **F6.4.5** Reserve the partner-link area; activate API-driven links in
+      F8.7 after B10.6.
+- [ ] **F6.4.6** Reserve the vehicle work-order history area; connect real
+      records in F9.7 after B6.
+- [ ] **F6.4.7** Odometer history as a small sparkline
+
+<a id="f6-5"></a>
 
 ### F6.5 Vehicle creation and editing
-- [ ] Create with only a registration number; everything else optional
-- [ ] Offer to fetch data on create, never automatically — a paid call is always
-      a deliberate act
-- [ ] Reassign owner, with a clear warning that history stays with the vehicle
+
+**Acceptance:** A vehicle can be created and reassigned without losing its
+identity.
+
+- [ ] **F6.5.1** Create with only a registration number; everything else
+      optional
+- [ ] **F6.5.2** Reserve the explicit fetch-data action on creation; enable it
+      in F8.7 when lookup exists. Never perform it automatically.
+- [ ] **F6.5.3** Reassign owner, with a clear warning that history stays with
+      the vehicle
+
+<a id="f6-6"></a>
+
+### F6.6 Core register acceptance
+
+**Acceptance:** The Phase 1 register is usable and deferred integrations remain
+tracked.
+
+- [ ] **F6.6.1** Create a customer and a vehicle, find the vehicle by
+      registration number, and open the available detail/history view in one
+      search and one click.
+- [ ] **F6.6.2** Reassign a vehicle to another customer and verify its existing
+      vehicle and odometer records remain attached.
+- [ ] **F6.6.3** Check phone formatting, non-standard registration numbers,
+      blank optional fields and server validation errors.
+- [ ] **F6.6.4** Record Phase 1 evidence for the core register; confirm later
+      integrations are owned by F8.7, F9.7, F11.6 and F12.7 rather than silently
+      counted as delivered.
+
+**Iteration acceptance record**
+
+- [ ] **F6 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f7"></a>
 
 ## F7 — Inventory
 
@@ -499,37 +1243,115 @@ vehicle's full history in one search and one click.
 **Definition of done:** article creation, stocktake and a low-stock export all
 work on the tablet.
 
+**Phase:** 2. **Entry dependencies:** F4, B4.
+
+B4 supplies the ledger and article search. Partner-link integration is completed
+in F8.7 after B10.6.
+
+**Milestone checklist — 0/6 complete:**
+
+- [ ] **[F7.1](#f7-1)** ? — Article list
+- [ ] **[F7.2](#f7-2)** ? — Article create and edit
+- [ ] **[F7.3](#f7-3)** ? — Article detail
+- [ ] **[F7.4](#f7-4)** ? — Stocktake
+- [ ] **[F7.5](#f7-5)** ? — Low stock
+- [ ] **[F7.6](#f7-6)** ? — Inventory acceptance
+
+<a id="f7-1"></a>
+
 ### F7.1 Article list
-- [ ] Search by name, SKU and OE number
-- [ ] Filters: low stock, inactive
-- [ ] Columns: SKU, name, stock with unit, minimum, price, shelf
-- [ ] Rows below minimum marked with `hivis`; negative stock with `oxide`
-- [ ] All numeric columns `tabular-nums` and right-aligned
+
+**Acceptance:** Articles are searchable, sortable as supported and visibly low
+on stock.
+
+- [ ] **F7.1.1** Search by name, SKU and OE number
+- [ ] **F7.1.2** Filters: low stock, inactive
+- [ ] **F7.1.3** Columns: SKU, name, stock with unit, minimum, price, shelf
+- [ ] **F7.1.4** Rows below minimum marked with `hivis`; negative stock with
+      `oxide`
+- [ ] **F7.1.5** All numeric columns `tabular-nums` and right-aligned
+- [ ] **F7.1.6** Activate article results in the global search now that B4 is
+      available.
+
+<a id="f7-2"></a>
 
 ### F7.2 Article create and edit
-- [ ] Full form with unit, prices, minimum, shelf and OE numbers
-- [ ] `MoneyInput` for prices; a visible note that prices are excluding VAT
-- [ ] OE numbers as a tag input
-- [ ] Price fields disabled and explained for non-admins, not hidden
+
+**Acceptance:** Permitted article edits use the correct units and prices.
+
+- [ ] **F7.2.1** Full form with unit, prices, minimum, shelf and OE numbers
+- [ ] **F7.2.2** `MoneyInput` for prices; a visible note that prices are
+      excluding VAT
+- [ ] **F7.2.3** OE numbers as a tag input
+- [ ] **F7.2.4** Price fields disabled and explained for non-admins, not hidden
+
+<a id="f7-3"></a>
 
 ### F7.3 Article detail
-- [ ] Current balance, prominent, with the unit
-- [ ] Movement history: date, type, quantity, resulting balance, user, work order
-- [ ] Partner-link buttons using the OE number
-- [ ] *"Justera lager"* and *"Inventera"* actions
+
+**Acceptance:** A balance can be traced through its movement history.
+
+- [ ] **F7.3.1** Current balance, prominent, with the unit
+- [ ] **F7.3.2** Movement history: date, type, quantity, resulting balance,
+      user, work order
+- [ ] **F7.3.3** Reserve article partner links using the OE number; activate
+      them in F8.7 after B10.6.
+- [ ] **F7.3.4** _"Justera lager"_ and _"Inventera"_ actions
+
+<a id="f7-4"></a>
 
 ### F7.4 Stocktake
-- [ ] Dialog showing the expected quantity and taking the counted quantity
-- [ ] Difference displayed before confirming
-- [ ] Large numeric input suitable for a tablet
-- [ ] Success toast stating the adjustment made
+
+**Acceptance:** A counted quantity produces a clearly explained stock
+adjustment.
+
+- [ ] **F7.4.1** Dialog showing the expected quantity and taking the counted
+      quantity
+- [ ] **F7.4.2** Difference displayed before confirming
+- [ ] **F7.4.3** Large numeric input suitable for a tablet
+- [ ] **F7.4.4** Success toast stating the adjustment made
+
+<a id="f7-5"></a>
 
 ### F7.5 Low stock
-- [ ] A dedicated view sorted by how far below minimum each article is
-- [ ] CSV export
-- [ ] Empty state that reads as good news
+
+**Acceptance:** Low stock is readable and exportable.
+
+- [ ] **F7.5.1** A dedicated view sorted by how far below minimum each article
+      is
+- [ ] **F7.5.2** CSV export
+- [ ] **F7.5.3** Empty state that reads as good news
+
+<a id="f7-6"></a>
+
+### F7.6 Inventory acceptance
+
+**Acceptance:** The inventory journey works on the tablet with role
+restrictions.
+
+- [ ] **F7.6.1** Create an article, change its permitted fields, perform a
+      stocktake and inspect the resulting movement and balance.
+- [ ] **F7.6.2** Verify a MECHANIC sees disabled price and adjustment controls
+      with an explanation; API authorisation remains enforced.
+- [ ] **F7.6.3** Download the low-stock CSV and confirm Swedish characters and
+      quantities remain readable.
+- [ ] **F7.6.4** Complete the inventory journey on the workshop tablet and
+      record evidence, including negative stock and failed-save states.
+
+**Iteration acceptance record**
+
+- [ ] **F7 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f8"></a>
 
 ## F8 — Calendar and booking requests
 
@@ -538,36 +1360,127 @@ work on the tablet.
 **Definition of done:** a request becomes a scheduled booking in under thirty
 seconds, and an overlapping drop is refused with a clear message.
 
+**Phase:** 3. **Entry dependencies:** F4, B5, B10.1–B10.4, B10.6.
+
+B10.6 supplies partner links. Day-view work-order actions need B6; their
+activation and acceptance are owned by F9.7.
+
+**Milestone checklist — 0/7 complete:**
+
+- [ ] **[F8.1](#f8-1)** ? — Request inbox
+- [ ] **[F8.2](#f8-2)** ? — Confirmation dialog
+- [ ] **[F8.3](#f8-3)** ? — Week view
+- [ ] **[F8.4](#f8-4)** ? — Day view
+- [ ] **[F8.5](#f8-5)** ? — Calendar performance
+- [ ] **[F8.6](#f8-6)** ? — Calendar and booking acceptance
+- [ ] **[F8.7](#f8-7)** ? — Activate vehicle lookup and partner links
+
+<a id="f8-1"></a>
+
 ### F8.1 Request inbox
-- [ ] List with status filters, newest first
-- [ ] Detail panel with everything the customer submitted
-- [ ] Items flagged as possible spam are visually separated but still reviewable
-- [ ] *"Bekräfta"* and *"Avvisa"* with a reason
+
+**Acceptance:** Staff can inspect, confirm or reject a booking request.
+
+- [ ] **F8.1.1** List with status filters, newest first
+- [ ] **F8.1.2** Detail panel with everything the customer submitted
+- [ ] **F8.1.3** Items flagged as possible spam are visually separated but still
+      reviewable
+- [ ] **F8.1.4** _"Bekräfta"_ and _"Avvisa"_ with a reason
+- [ ] **F8.1.5** Connect the unhandled-request count to the F4 navigation badge;
+      refresh the inbox and badge after confirmation or rejection.
+
+<a id="f8-2"></a>
 
 ### F8.2 Confirmation dialog
-- [ ] Pre-filled from the request; matched existing customer or vehicle shown
-      clearly, with the option to create new instead
-- [ ] Date, start time, duration and mechanic
-- [ ] Availability shown inline as times are chosen
-- [ ] A `409` from the conflict constraint is rendered as a plain Swedish
-      explanation, not a generic error
+
+**Acceptance:** Confirmation handles existing records and booking conflicts.
+
+- [ ] **F8.2.1** Pre-filled from the request; matched existing customer or
+      vehicle shown clearly, with the option to create new instead
+- [ ] **F8.2.2** Date, start time, duration and mechanic
+- [ ] **F8.2.3** Availability shown inline as times are chosen
+- [ ] **F8.2.4** A `409` from the conflict constraint is rendered as a plain
+      Swedish explanation, not a generic error
+
+<a id="f8-3"></a>
 
 ### F8.3 Week view
-- [ ] Columns per mechanic, hours down the side
-- [ ] Colour-coded by status using the fixed map
-- [ ] Click to open, drag to reschedule
-- [ ] Optimistic update with rollback on conflict
+
+**Acceptance:** Week-view rescheduling rolls back when the server rejects it.
+
+- [ ] **F8.3.1** Columns per mechanic, hours down the side
+- [ ] **F8.3.2** Colour-coded by status using the fixed map
+- [ ] **F8.3.3** Click to open, drag to reschedule
+- [ ] **F8.3.4** Optimistic update with rollback on conflict
+
+<a id="f8-4"></a>
 
 ### F8.4 Day view
-- [ ] Denser, tablet-friendly, showing full job details
-- [ ] Quick actions: start work, create work order, mark no-show
+
+**Acceptance:** Today's jobs are usable in the tablet day view.
+
+- [ ] **F8.4.1** Denser, tablet-friendly, showing full job details
+- [ ] **F8.4.2** Connect supported booking-status actions such as mark no-show.
+      Reserve start-work and create-work-order actions for activation in F9.7
+      after B6; keep unavailable actions clearly explained.
+
+<a id="f8-5"></a>
 
 ### F8.5 Calendar performance
-- [ ] Only the visible range is fetched
-- [ ] Adjacent weeks prefetched
-- [ ] No layout shift when moving between weeks
+
+**Acceptance:** Calendar navigation fetches only its required date ranges.
+
+- [ ] **F8.5.1** Only the visible range is fetched
+- [ ] **F8.5.2** Adjacent weeks prefetched
+- [ ] **F8.5.3** No layout shift when moving between weeks
+
+<a id="f8-6"></a>
+
+### F8.6 Calendar and booking acceptance
+
+**Acceptance:** Booking confirmation and conflict recovery meet the iteration
+goal.
+
+- [ ] **F8.6.1** Turn a request into a scheduled booking in under thirty seconds
+      and record the walkthrough.
+- [ ] **F8.6.2** Drag a booking into an occupied slot, verify the 409
+      explanation and restore its original position.
+- [ ] **F8.6.3** Verify adjacent bookings and cancelled bookings follow the API
+      availability rules.
+- [ ] **F8.6.4** Check a Sweden DST boundary, keyboard access and the day/week
+      views on the tablet.
+
+<a id="f8-7"></a>
+
+### F8.7 Activate vehicle lookup and partner links
+
+**Acceptance:** The previously reserved lookup and partner actions work with the
+mock API.
+
+- [ ] **F8.7.1** After B10.1–B10.4, connect the explicit vehicle-detail and
+      vehicle-create lookup actions reserved in F6; display cache age and
+      provider failure states.
+- [ ] **F8.7.2** After B10.6, connect vehicle registration-number links and
+      article OE-number links reserved in F6/F7.
+- [ ] **F8.7.3** Open external links with `rel="noopener noreferrer"`; use the
+      shared URL builder and implement the copy-and-open fallback where needed.
+- [ ] **F8.7.4** Verify all flows using the mock provider. The real paid
+      provider still waits until Phase 6.
+
+**Iteration acceptance record**
+
+- [ ] **F8 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f9"></a>
 
 ## F9 — Work orders
 
@@ -576,53 +1489,133 @@ seconds, and an overlapping drop is refused with a clear message.
 **Definition of done:** a complete job can be run on a tablet without a
 keyboard, and a concurrent edit is handled without data loss.
 
+**Phase:** 4. **Entry dependencies:** F4, B4, B5, B6.
+
+Complete B6 before testing job completion and concurrency. The history panels
+reserved in F6 are activated here.
+
+**Milestone checklist — 0/7 complete:**
+
+- [ ] **[F9.1](#f9-1)** ? — Work order list
+- [ ] **[F9.2](#f9-2)** ? — Work order detail
+- [ ] **[F9.3](#f9-3)** ? — Lines
+- [ ] **[F9.4](#f9-4)** ? — Totals
+- [ ] **[F9.5](#f9-5)** ? — Completion
+- [ ] **[F9.6](#f9-6)** ? — Concurrency
+- [ ] **[F9.7](#f9-7)** ? — History integration and job acceptance
+
+<a id="f9-1"></a>
+
 ### F9.1 Work order list
-- [ ] Filter by status, mechanic and date range
-- [ ] Columns: number, vehicle, customer, status, mechanic, total
-- [ ] Default filter is active work only
+
+**Acceptance:** Active work is easy to find and filter.
+
+- [ ] **F9.1.1** Filter by status, mechanic and date range
+- [ ] **F9.1.2** Columns: number, vehicle, customer, status, mechanic, total
+- [ ] **F9.1.3** Default filter is active work only
+
+<a id="f9-2"></a>
 
 ### F9.2 Work order detail
-- [ ] Header: number, vehicle with registration number, customer, status, mechanic
-- [ ] Status control offering only legal transitions, from the `shared` state
-      machine
-- [ ] Description and internal note, autosaved on blur
-- [ ] In and out odometer using `OdometerInput`, with the low-reading warning
-      surfaced inline
+
+**Acceptance:** Header editing and status controls follow the shared rules.
+
+- [ ] **F9.2.1** Header: number, vehicle with registration number, customer,
+      status, mechanic
+- [ ] **F9.2.2** Status control offering only legal transitions, from the
+      `shared` state machine
+- [ ] **F9.2.3** Description and internal note, autosaved on blur
+- [ ] **F9.2.4** In and out odometer using `OdometerInput`, with the low-reading
+      warning surfaced inline
+
+<a id="f9-3"></a>
 
 ### F9.3 Lines
-- [ ] Add a line: article search, free text, or labour
-- [ ] Article search shows stock balance in the results, so a mechanic sees a
-      shortage before committing to it
-- [ ] Inline editing of quantity, price and description
-- [ ] Drag to reorder, with a keyboard alternative
-- [ ] Delete with confirmation
-- [ ] A visible note when a line's price differs from the article's current
-      price, explaining that the line keeps its original price
+
+**Acceptance:** Staff can add, edit, reorder and remove permitted order lines.
+
+- [ ] **F9.3.1** Add a line: article search, free text, or labour
+- [ ] **F9.3.2** Article search shows stock balance in the results, so a
+      mechanic sees a shortage before committing to it
+- [ ] **F9.3.3** Inline editing of quantity, price and description
+- [ ] **F9.3.4** Drag to reorder, with a keyboard alternative
+- [ ] **F9.3.5** Delete with confirmation
+- [ ] **F9.3.6** A visible note when a line's price differs from the article's
+      current price, explaining that the line keeps its original price
+
+<a id="f9-4"></a>
 
 ### F9.4 Totals
-- [ ] Sticky totals panel: net, VAT, gross
-- [ ] Updates as lines change
-- [ ] Rendered from backend-calculated values — **totals are never computed in
-      the browser**, so the screen cannot disagree with the PDF
+
+**Acceptance:** Displayed totals always come from the backend.
+
+- [ ] **F9.4.1** Sticky totals panel: net, VAT, gross
+- [ ] **F9.4.2** Updates as lines change
+- [ ] **F9.4.3** Rendered from backend-calculated values — **totals are never
+      computed in the browser**, so the screen cannot disagree with the PDF
+
+<a id="f9-5"></a>
 
 ### F9.5 Completion
-- [ ] *"Slutför arbetsorder"* opening a confirmation that lists what will happen,
-      including which articles will be deducted
-- [ ] Blocked with an explanation if the out-odometer is missing or there are no
-      lines
-- [ ] An `Idempotency-Key` sent with the request, so a double tap is safe
-- [ ] Success reveals the protocol action
+
+**Acceptance:** Completion explains stock effects and tolerates a retried
+request.
+
+- [ ] **F9.5.1** _"Slutför arbetsorder"_ opening a confirmation that lists what
+      will happen, including which articles will be deducted
+- [ ] **F9.5.2** Blocked with an explanation if the out-odometer is missing or
+      there are no lines
+- [ ] **F9.5.3** An `Idempotency-Key` sent with the request, so a double tap is
+      safe
+- [ ] **F9.5.4** Success reveals the protocol action
+- [ ] **F9.5.5** Reuse the same idempotency key when retrying one completion
+      attempt; do not mint a different key just because the network response was
+      lost.
+
+<a id="f9-6"></a>
 
 ### F9.6 Concurrency
-- [ ] `version` carried on **header and status mutations only**. Line
+
+**Acceptance:** Concurrent edits are handled without silently discarding local
+work.
+
+- [ ] **F9.6.1** `version` carried on **header and status mutations only**. Line
       operations are not version-checked — two mechanics adding different lines
       is normal and must not fail. Lines and totals are refetched after every
       line mutation (`PROJECT_SPEC.md` §6.5)
-- [ ] A `409` prompts: keep editing, or reload and lose local changes
-- [ ] Local changes shown in the dialog so nothing is lost silently
-- [ ] E2E test of two browser contexts editing the same order
+- [ ] **F9.6.2** A `409` prompts: keep editing, or reload and lose local changes
+- [ ] **F9.6.3** Local changes shown in the dialog so nothing is lost silently
+- [ ] **F9.6.4** E2E test of two browser contexts editing the same order
+
+<a id="f9-7"></a>
+
+### F9.7 History integration and job acceptance
+
+**Acceptance:** A completed job appears in history and deducts stock once.
+
+- [ ] **F9.7.1** Connect customer and vehicle work-order history reserved in F6,
+      with newest-first ordering and links to the order.
+- [ ] **F9.7.2** Link day-view work-order actions from F8 now that B6 is
+      available.
+- [ ] **F9.7.3** Complete a mixed labour/parts job against the test API and
+      verify the displayed stock balance changes exactly once after a retry.
+- [ ] **F9.7.4** Verify the customer and vehicle history show the completed
+      order; record the job walkthrough and concurrency test evidence.
+
+**Iteration acceptance record**
+
+- [ ] **F9 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f10"></a>
 
 ## F10 — Quotes and service protocols
 
@@ -631,34 +1624,109 @@ keyboard, and a concurrent edit is handled without data loss.
 **Definition of done:** a quote and a protocol can be produced, previewed and
 downloaded, and Swedish characters are correct in both.
 
+**Phase:** 5. **Entry dependencies:** F9, B7, B8.
+
+B7/B8 provide stored document files and checklist contracts. Next-service
+recommendation pre-filling is completed in F11.6 after B9; manual entry works
+here.
+
+**Milestone checklist — 0/6 complete:**
+
+- [ ] **[F10.1](#f10-1)** ? — Quote creation
+- [ ] **[F10.2](#f10-2)** ? — Quote management
+- [ ] **[F10.3](#f10-3)** ? — Protocol creation
+- [ ] **[F10.4](#f10-4)** ? — Protocol finalisation
+- [ ] **[F10.5](#f10-5)** ? — Document viewer
+- [ ] **[F10.6](#f10-6)** ? — Document journey acceptance
+
+<a id="f10-1"></a>
+
 ### F10.1 Quote creation
-- [ ] *"Skapa offert"* from a work order, snapshotting the current lines
-- [ ] Editable while draft: validity date, free-text terms
-- [ ] Preview before sending
+
+**Acceptance:** A draft quote can be created and previewed from an order.
+
+- [ ] **F10.1.1** _"Skapa offert"_ from a work order, snapshotting the current
+      lines
+- [ ] **F10.1.2** Editable while draft: validity date, free-text terms
+- [ ] **F10.1.3** Preview before sending
+
+<a id="f10-2"></a>
 
 ### F10.2 Quote management
-- [ ] Quotes listed on the work order with status and version
-- [ ] Download the PDF; register accepted or declined
-- [ ] A sent quote is read-only, with *"Skapa ny version"* explaining why
+
+**Acceptance:** Quote versions and immutable sent documents are visible.
+
+- [ ] **F10.2.1** Quotes listed on the work order with status and version
+- [ ] **F10.2.2** Download the PDF; register accepted or declined
+- [ ] **F10.2.3** A sent quote is read-only, with _"Skapa ny version"_
+      explaining why
+
+<a id="f10-3"></a>
 
 ### F10.3 Protocol creation
-- [ ] Available only on a completed work order
-- [ ] Checklist rendered from the template for the service type
-- [ ] Every item must be answered before finalising, with unanswered items
-      highlighted
-- [ ] Next service pre-filled from accepted recommendations, editable
+
+**Acceptance:** A completed order can be reviewed through a complete checklist.
+
+- [ ] **F10.3.1** Available only on a completed work order
+- [ ] **F10.3.2** Checklist rendered from the template for the service type
+- [ ] **F10.3.3** Every item must be answered before finalising, with unanswered
+      items highlighted
+- [ ] **F10.3.4** Provide editable next-service fields; add pre-filling from
+      accepted recommendations in F11.6 after B9.
+
+<a id="f10-4"></a>
 
 ### F10.4 Protocol finalisation
-- [ ] Preview, then finalise
-- [ ] A clear warning that finalising is permanent
-- [ ] Download and print; a print stylesheet that produces clean A4
+
+**Acceptance:** Finalisation produces a read-only protocol with print/download
+actions.
+
+- [ ] **F10.4.1** Preview, then finalise
+- [ ] **F10.4.2** A clear warning that finalising is permanent
+- [ ] **F10.4.3** Download and print; a print stylesheet that produces clean A4
+
+<a id="f10-5"></a>
 
 ### F10.5 Document viewer
-- [ ] Inline PDF preview with a download fallback
-- [ ] Documents listed on the work order and the vehicle
-- [ ] Filenames in Swedish and readable: `Serviceprotokoll-SP-2026-0042.pdf`
+
+**Acceptance:** Stored documents can be previewed or downloaded with useful
+filenames.
+
+- [ ] **F10.5.1** Inline PDF preview with a download fallback
+- [ ] **F10.5.2** Documents listed on the work order and the vehicle
+- [ ] **F10.5.3** Filenames in Swedish and readable:
+      `Serviceprotokoll-SP-2026-0042.pdf`
+
+<a id="f10-6"></a>
+
+### F10.6 Document journey acceptance
+
+**Acceptance:** Quote and protocol output match the displayed Swedish business
+data.
+
+- [ ] **F10.6.1** Create and preview a quote, register its sent status and
+      verify editing requires a new version.
+- [ ] **F10.6.2** Complete a protocol checklist, finalise it and download the
+      stored document.
+- [ ] **F10.6.3** Verify Swedish characters, odometer units and displayed totals
+      match the PDF; the frontend must not recalculate totals.
+- [ ] **F10.6.4** Check authenticated file access, download fallback and A4
+      printing; record the quote/protocol journey evidence.
+
+**Iteration acceptance record**
+
+- [ ] **F10 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f11"></a>
 
 ## F11 — Settings, service rules and partner links
 
@@ -667,44 +1735,125 @@ downloaded, and Swedish characters are correct in both.
 **Definition of done:** a partner site redesign is fixed by an admin in under a
 minute, with no deploy.
 
+**Phase:** 6. **Entry dependencies:** F4, B9, B10; settings contracts.
+
+Coordinate settings, users, rules, partner and checklist contracts before their
+forms. If a planned preview/import endpoint is missing from the backend plan,
+record that dependency before building the UI; do not substitute a client-only
+success state.
+
+**Milestone checklist — 0/6 complete:**
+
+- [ ] **[F11.1](#f11-1)** ? — Workshop settings
+- [ ] **[F11.2](#f11-2)** ? — Users
+- [ ] **[F11.3](#f11-3)** ? — Service rules
+- [ ] **[F11.4](#f11-4)** ? — Partner links
+- [ ] **[F11.5](#f11-5)** ? — Checklist templates
+- [ ] **[F11.6](#f11-6)** ? — Activate service advice and verify settings
+
+<a id="f11-1"></a>
+
 ### F11.1 Workshop settings
-- [ ] Name, address, organisation number, phone, email, logo
-- [ ] Opening hours per weekday, plus closed dates
-- [ ] Default hourly rate and quote validity period
-- [ ] `ADMIN`-only, audited
+
+**Acceptance:** Admins can edit the workshop's operational settings.
+
+- [ ] **F11.1.1** Name, address, organisation number, phone, email, logo
+- [ ] **F11.1.2** Opening hours per weekday, plus closed dates
+- [ ] **F11.1.3** Default hourly rate and quote validity period
+- [ ] **F11.1.4** `ADMIN`-only, audited
+
+<a id="f11-2"></a>
 
 ### F11.2 Users
-- [ ] List with role and status
-- [ ] Invite, edit role, deactivate
-- [ ] The last active admin cannot be deactivated, explained in the UI rather
-      than only rejected by the API
+
+**Acceptance:** Staff accounts and role limits are manageable without invitation
+emails.
+
+- [ ] **F11.2.1** List with role and status
+- [ ] **F11.2.2** Create staff users, edit their roles and deactivate accounts
+      using B2.6. Provide credentials through the existing manual workflow; v1
+      has no invitation-email infrastructure.
+- [ ] **F11.2.3** The last active admin cannot be deactivated, explained in the
+      UI rather than only rejected by the API
+
+<a id="f11-3"></a>
 
 ### F11.3 Service rules
-- [ ] List filterable by make and service type
-- [ ] Create and edit: make, model, engine code, year range, service type,
-      interval in km and months, note
-- [ ] `sourceNote` is required, with helper text explaining that it is shown
-      next to every recommendation
-- [ ] A preview showing which vehicles in the register the rule would match, so
-      a typo in the model name is visible immediately
-- [ ] Bulk import from CSV, with a dry-run preview
+
+**Acceptance:** Service rules are traceable, editable and previewable.
+
+- [ ] **F11.3.1** List filterable by make and service type
+- [ ] **F11.3.2** Create and edit: make, model, engine code, year range, service
+      type, interval in km and months, note
+- [ ] **F11.3.3** `sourceNote` is required, with helper text explaining that it
+      is shown next to every recommendation
+- [ ] **F11.3.4** A preview showing which vehicles in the register the rule
+      would match, so a typo in the model name is visible immediately
+- [ ] **F11.3.5** Bulk import from CSV, with a dry-run preview
+
+<a id="f11-4"></a>
 
 ### F11.4 Partner links
-- [ ] List with drag-to-reorder and an active toggle
-- [ ] Create and edit with a template field and inline help naming the available
-      placeholders
-- [ ] Live preview: enter a test registration number, see the resulting URL, open it
-- [ ] Validation rejects a template that is not `https`, does not parse, or
-      contains no known placeholder
-- [ ] An explanatory note in the UI about why links break and how to fix them —
-      the admins, not the developer, own this
+
+**Acceptance:** Partner templates can be corrected without a deployment.
+
+- [ ] **F11.4.1** List with drag-to-reorder and an active toggle
+- [ ] **F11.4.2** Create and edit with a template field and inline help naming
+      the available placeholders
+- [ ] **F11.4.3** Live preview: enter a test registration number, see the
+      resulting URL, open it
+- [ ] **F11.4.4** Match the B10.6 schema: reject non-HTTPS or unparseable
+      templates, unknown placeholders and templates without exactly one
+      supported placeholder.
+- [ ] **F11.4.5** An explanatory note in the UI about why links break and how to
+      fix them — the admins, not the developer, own this
+
+<a id="f11-5"></a>
 
 ### F11.5 Checklist templates
-- [ ] Per service type, with reorderable items
-- [ ] Item types: OK/not OK, not applicable, measured value with a unit
-- [ ] A warning that changes affect only future protocols
+
+**Acceptance:** Template changes apply only to future protocols.
+
+- [ ] **F11.5.1** Per service type, with reorderable items
+- [ ] **F11.5.2** Item types: OK/not OK, not applicable, measured value with a
+      unit
+- [ ] **F11.5.3** A warning that changes affect only future protocols
+
+<a id="f11-6"></a>
+
+### F11.6 Activate service advice and verify settings
+
+**Acceptance:** Deferred service integrations work and settings acceptance is
+recorded.
+
+- [ ] **F11.6.1** After B9, activate the F6 vehicle recommendations with
+      severity, explanation, sourceNote and recorded accept/dismiss actions.
+- [ ] **F11.6.2** Populate the reserved suggested-services area on the public
+      hero using only the public API response.
+- [ ] **F11.6.3** Connect accepted-recommendation pre-filling to F10
+      next-service fields; staff can still review and edit before finalisation.
+- [ ] **F11.6.4** With B10.5 configured, verify the real-provider boundary
+      through the separately authorised manual contract test; regular frontend
+      tests still use fixtures.
+- [ ] **F11.6.5** Change a partner link in settings and verify the updated
+      vehicle/article button works without deployment in under a minute.
+- [ ] **F11.6.6** Record evidence for settings permissions, preservation of
+      historical checklists and the last-active-admin safeguard.
+
+**Iteration acceptance record**
+
+- [ ] **F11 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
+
+<a id="f12"></a>
 
 ## F12 — Polish, accessibility and performance
 
@@ -713,41 +1862,144 @@ minute, with no deploy.
 **Definition of done:** every budget met, every check passed, results recorded
 in this file.
 
+**Phase:** 8. **Entry dependencies:** F0–F11, B11, B12; B13 measurements.
+
+B11 supplies privacy/audit functions, B12 supplies the deployed origin and
+restore evidence, and B13 supplies production load measurements. This is the
+final frontend acceptance gate.
+
+**Milestone checklist — 0/8 complete:**
+
+- [ ] **[F12.1](#f12-1)** ? — Accessibility audit
+- [ ] **[F12.2](#f12-2)** ? — Motion polish
+- [ ] **[F12.3](#f12-3)** ? — Performance
+- [ ] **[F12.4](#f12-4)** ? — Error and empty states
+- [ ] **[F12.5](#f12-5)** ? — Copy pass
+- [ ] **[F12.6](#f12-6)** ? — Cross-device
+- [ ] **[F12.7](#f12-7)** ? — Activate privacy actions and production
+      authentication
+- [ ] **[F12.8](#f12-8)** ? — Release evidence and progress closure
+
+<a id="f12-1"></a>
+
 ### F12.1 Accessibility audit
-- [ ] Full keyboard pass over both interfaces; no trap, correct order
-- [ ] `axe` clean on every route
-- [ ] Screen-reader pass over the booking form and the work order screen
-- [ ] AA contrast verified on every token pair actually used
-- [ ] Focus visible on every interactive element against both backgrounds
-- [ ] `prefers-reduced-motion` honoured everywhere
+
+**Acceptance:** Both interfaces pass the defined accessibility review.
+
+- [ ] **F12.1.1** Full keyboard pass over both interfaces; no trap, correct
+      order
+- [ ] **F12.1.2** `axe` clean on every route
+- [ ] **F12.1.3** Screen-reader pass over the booking form and the work order
+      screen
+- [ ] **F12.1.4** AA contrast verified on every token pair actually used
+- [ ] **F12.1.5** Focus visible on every interactive element against both
+      backgrounds
+- [ ] **F12.1.6** `prefers-reduced-motion` honoured everywhere
+- [ ] **F12.1.7** Verify the page Content-Security-Policy on Next-served HTML,
+      including the nonce handling specified in §5.4. Fastify headers alone do
+      not cover these pages.
+
+<a id="f12-2"></a>
 
 ### F12.2 Motion polish
-- [ ] The single public hero moment refined
-- [ ] Admin transitions timed at 150–200 ms; anything slower removed
-- [ ] Confirm no decorative motion survived from earlier iterations
+
+**Acceptance:** Motion explains state changes and respects reduced-motion
+preferences.
+
+- [ ] **F12.2.1** The single public hero moment refined
+- [ ] **F12.2.2** Admin transitions timed at 150–200 ms; anything slower removed
+- [ ] **F12.2.3** Confirm no decorative motion survived from earlier iterations
+
+<a id="f12-3"></a>
 
 ### F12.3 Performance
-- [ ] Bundle analysed; heavy client components split
-- [ ] Public pages Lighthouse ≥ 95 on all four categories
-- [ ] Admin first load under 200 KB of JavaScript, gzipped
-- [ ] No layout shift on any list or detail page
+
+**Acceptance:** The recorded performance and bundle budgets are met.
+
+- [ ] **F12.3.1** Bundle analysed; heavy client components split
+- [ ] **F12.3.2** Public pages Lighthouse ≥ 95 on all four categories
+- [ ] **F12.3.3** Admin first load under 200 KB of JavaScript, gzipped
+- [ ] **F12.3.4** No layout shift on any list or detail page
+
+<a id="f12-4"></a>
 
 ### F12.4 Error and empty states
-- [ ] Every route has a real `error.tsx` and `not-found.tsx`
-- [ ] Every list has a designed empty state
-- [ ] Every failure surfaces the `requestId` in small text, so a screenshot from
-      an owner is enough to find the log line
+
+**Acceptance:** Errors, empty lists and missing records have useful recovery
+paths.
+
+- [ ] **F12.4.1** Every route has a real `error.tsx` and `not-found.tsx`
+- [ ] **F12.4.2** Every list has a designed empty state
+- [ ] **F12.4.3** Every failure surfaces the `requestId` in small text, so a
+      screenshot from an owner is enough to find the log line
+
+<a id="f12-5"></a>
 
 ### F12.5 Copy pass
-- [ ] Every string reviewed by a Swedish speaker
-- [ ] Terminology consistent: one word per concept, everywhere
-- [ ] Buttons match their confirmations
-- [ ] No English leaking into the interface, and no Swedish leaking into the code
+
+**Acceptance:** Swedish terminology and action confirmations are consistent.
+
+- [ ] **F12.5.1** Every string reviewed by a Swedish speaker
+- [ ] **F12.5.2** Terminology consistent: one word per concept, everywhere
+- [ ] **F12.5.3** Buttons match their confirmations
+- [ ] **F12.5.4** No English leaking into the interface, and no Swedish leaking
+      into the code
+
+<a id="f12-6"></a>
 
 ### F12.6 Cross-device
-- [ ] Tested on the actual workshop tablet, in the workshop, in daylight
-- [ ] Public site tested on iOS Safari and Android Chrome
-- [ ] Print stylesheets verified on real A4
+
+**Acceptance:** The real devices and A4 printouts have been checked.
+
+- [ ] **F12.6.1** Tested on the actual workshop tablet, in the workshop, in
+      daylight
+- [ ] **F12.6.2** Public site tested on iOS Safari and Android Chrome
+- [ ] **F12.6.3** Print stylesheets verified on real A4
+
+<a id="f12-7"></a>
+
+### F12.7 Activate privacy actions and production authentication
+
+**Acceptance:** Privacy actions and production authentication work with B11/B12.
+
+- [ ] **F12.7.1** After B11, activate ADMIN customer export and anonymisation
+      controls reserved in F6.2.
+- [ ] **F12.7.2** Show the confirmation explaining retained records; verify the
+      export and post-anonymisation display against the backend policy.
+- [ ] **F12.7.3** Confirm a historical quote and protocol remain accessible to
+      authorised staff after anonymisation.
+- [ ] **F12.7.4** With B12, verify login, CSRF-protected saving, logout and
+      document downloads through the production Caddy origin; repeat with an
+      expired session.
+
+<a id="f12-8"></a>
+
+### F12.8 Release evidence and progress closure
+
+**Acceptance:** All required checks and evidence are complete and progress is
+reconciled.
+
+- [ ] **F12.8.1** Run the root quality gate, production build and the required
+      Playwright flows with real test data; record commands, date, commit and
+      results.
+- [ ] **F12.8.2** Attach the accessibility review, Lighthouse reports, bundle
+      measurement and actual-device/print observations.
+- [ ] **F12.8.3** Confirm no deferred integration remains unowned or unfinished;
+      verify F8.7, F9.7, F11.6 and F12.7 are complete.
+- [ ] **F12.8.4** Update milestone counts, iteration checkboxes and both README
+      status tables; mark the frontend Done only when every iteration acceptance
+      criterion is met.
+
+**Iteration acceptance record**
+
+- [ ] **F12 Done** — every milestone and the iteration Definition of Done pass;
+      both README status tables are updated.
+
+| Field                       | Record                                                 |
+| --------------------------- | ------------------------------------------------------ |
+| Current milestone / blocker | Not started                                            |
+| Verification evidence       | Pending — add commands/results, commit or report links |
+| Completed on                | —                                                      |
 
 ---
 
@@ -759,9 +2011,9 @@ it. The public site should ship almost no JavaScript.
 **Data fetching.** Public pages fetch on the server. Admin pages use TanStack
 Query, because they need caching, refetch and optimistic updates.
 
-**Never cast an API response.** Always parse with the `shared` schema. This is
-the mechanism that makes a backend change break the build rather than the
-workshop's afternoon.
+**Never cast an API response.** Always parse with the `shared` schema. Shared
+types catch incompatible code changes during typecheck; runtime parsing catches
+malformed API responses.
 
 **No business logic in components.** Money arithmetic, unit conversion and state
 transitions come from `shared`. The browser formats; it does not calculate.

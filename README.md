@@ -22,10 +22,10 @@ vehicles, bookings, work orders, inventory, quotes and service protocols.
 
 ## Stack
 
-**Backend** — Node.js 22 · Fastify 5 · Prisma 6 · PostgreSQL 16 · Zod ·
+**Backend** — Node.js 22 · Fastify 5 · Prisma 7 · PostgreSQL 16 · Zod ·
 argon2id sessions · `@react-pdf/renderer` · Pino · Vitest
 
-**Frontend** — Next.js 15 (App Router) · React 19 · Tailwind CSS 4 · shadcn/ui ·
+**Frontend** — Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · shadcn/ui ·
 TanStack Query · React Hook Form · Motion · Playwright
 
 **Shared** — Zod schemas, domain types, money/unit helpers, the service-rule
@@ -159,6 +159,19 @@ built to accommodate that section from the start.
 Update this table when a phase completes. Update the per-step checkboxes in
 `backend/README.md` and `frontend/README.md` **in the same commit as the code**.
 
+The [backend iteration tracker](backend/README.md#status) presents 14 iterations
+with 92 milestone checkboxes and expandable implementation details. Iteration 1
+maps to B0; all original B-references remain stable. B10 is deliberately split
+across Phases 3 and 6, and stays In progress until its real-provider milestone
+is complete.
+
+The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
+83 milestones with numbered task checkboxes, acceptance criteria and completion
+records. Its phase hand-offs explicitly assign later integrations: lookup and
+partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
+privacy actions in F12.7. Earlier iterations deliver their stated core scope;
+the frontend is complete only after these follow-ups also pass.
+
 | Phase | Status | Started | Completed |
 |---|---|---|---|
 | 0 — Foundation | ⬜ Not started | | |
@@ -240,7 +253,10 @@ past row.
 
 ### Prerequisites
 
-Node.js 22 LTS, pnpm 9+, Docker and Docker Compose.
+Node.js 22 LTS (at least 22.22.0 for the installed Testcontainers version),
+pnpm 12.3.4, Docker and Docker Compose. The current `.nvmrc` still pins 22.21.1;
+backend B0.1 tracks aligning that pin, root engines, CI and containers before
+running the test stack. B0.4 tracks the missing Prisma 7 driver/configuration.
 
 ### First run
 
@@ -248,8 +264,9 @@ Node.js 22 LTS, pnpm 9+, Docker and Docker Compose.
 cp .env.example .env          # fill in the values; the app refuses to start otherwise
 pnpm install
 docker compose -f infra/docker-compose.dev.yml up -d   # Postgres
-pnpm --filter backend prisma migrate dev
-pnpm --filter backend prisma db seed                   # demo data, incl. two users
+pnpm --filter backend prisma:migrate
+pnpm --filter backend prisma:generate                  # explicit with Prisma 7
+pnpm --filter backend exec prisma db seed              # demo data, incl. two users
 pnpm dev                                               # backend :3001, frontend :3000
 ```
 

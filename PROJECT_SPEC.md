@@ -68,7 +68,7 @@ A **pnpm workspace monorepo** with three packages:
 
 ```
 verkstad/
-├── frontend/    Next.js 15 (App Router) — public site + admin panel
+├── frontend/    Next.js 16 (App Router) — public site + admin panel
 ├── backend/     Fastify 5 + Prisma — REST API, PDF generation, jobs
 ├── shared/      Zod schemas, domain types, unit helpers — imported by both
 └── infra/       Docker Compose, Caddy config, backup scripts
