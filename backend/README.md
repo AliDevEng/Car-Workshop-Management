@@ -33,12 +33,12 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 11/92 milestones complete; 0/14 iterations Done.**
+**Overall: 13/92 milestones complete; 0/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
 | [1](#b0)   | B0        | 0       | 9/10            | In progress |
-| [2](#b1)   | B1        | 0       | 2/6             | In progress |
+| [2](#b1)   | B1        | 0       | 4/6             | In progress |
 | [3](#b2)   | B2        | 1       | 0/7             | Not started |
 | [4](#b3)   | B3        | 1       | 0/6             | Not started |
 | [5](#b4)   | B4        | 2       | 0/6             | Not started |
@@ -558,20 +558,24 @@ be moved to 22.23.2 to match the pin.
 ## Iteration 2: Creating shared types and business rules
 
 - [x] Creating money and VAT helpers (`B1.1`)
-- [ ] Creating quantity and mileage helpers (`B1.2`)
+- [x] Creating quantity and mileage helpers (`B1.2`)
 - [x] Normalising registration numbers (`B1.3`)
-- [ ] Creating the work-order state machine (`B1.4`)
+- [x] Creating the work-order state machine (`B1.4`)
 - [ ] Creating shared schemas and types (`B1.5`)
 - [ ] Verifying shared package integration (`B1.6`)
 
-**Reference:** B1 · **Phase:** 0 · **Progress:** 2/6 · **Status:** In progress
+**Reference:** B1 · **Phase:** 0 · **Progress:** 4/6 · **Status:** In progress
 
-Built while completing frontend F0, which needed `shared/money.ts`,
-`shared/units.ts` and `shared/regnr.ts` to exist for F0.6's formatters
-(CLAUDE.md's absolute rules on money/odometer conversion living only in
-`shared/`) and needed a health/error schema for F0.4's typed API client.
-B1.4 (state machine) and the rest of B1.5 (full per-domain schema set) are
-untouched — nothing in F0 needed them yet.
+B1.1, B1.3 and most of B1.2 were built while completing frontend F0, which
+needed `shared/money.ts`, `shared/units.ts` and `shared/regnr.ts` to exist for
+F0.6's formatters (CLAUDE.md's absolute rules on money/odometer conversion
+living only in `shared/`) and needed a health/error schema for F0.4's typed API
+client.
+
+B1.2's `Quantity` wrapper and B1.4's state machine were completed on
+2026-09-08. Only B1.5 (the full per-domain schema set) and B1.6 (final
+verification) remain, and both are deliberately incremental: schemas arrive
+with the iteration that needs them.
 
 **Depends on:** B0.
 
@@ -606,9 +610,25 @@ import from `shared` and typecheck.
 
 ### B1.2 Quantities and units
 
-- [ ] **B1.2.1** `Quantity` helpers over `decimal.js`; `Unit` enum
-      **Partial:** the `Unit` enum exists (`shared/units.ts`); no dedicated
-      `Quantity` arithmetic wrapper was built yet — nothing in F0 needed one.
+- [x] **B1.2.1** `Quantity` helpers over `decimal.js`; `Unit` enum.
+      The `Unit` enum stays in `shared/units.ts` beside the JSON-boundary
+      helpers; the arithmetic lives in `shared/quantity.ts` (2026-09-08).
+      `Quantity` is a branded `Decimal`, mirroring how `Ore` brands a `number`
+      in B1.1: a value only becomes one through `quantity()` or
+      `parseQuantity()`, which enforce the `Decimal(12, 3)` column's scale and
+      range. Two decisions worth keeping:
+      - A fourth decimal place is **rejected, not rounded**. §4.2 makes the
+        ledger the truth, and a quantity quietly rounded on the way in is
+        exactly how a ledger and its cached balance drift apart.
+      - `addQuantity`/`subQuantity` re-check the range, because a sum can
+        leave the column's bounds even when both operands were valid.
+
+      The set is `quantity`, `parseQuantity`, `quantityToString`,
+      `addQuantity`, `subQuantity`, `negateQuantity` (for B6.6.4's compensating
+      `RETURN` movements), `compareQuantity`, `isNegativeQuantity`,
+      `isZeroQuantity` and `ZERO_QUANTITY`. There is deliberately no
+      multiplication: quantity × price is `multiplyOre`'s job in B1.1, and
+      nothing in the specification multiplies two quantities.
 - [x] **B1.2.2** `decimalToString` / `parseDecimal` for JSON boundaries
 - [x] **B1.2.3** `kmToMil` (one decimal) and `milToKm`, with tests including 0
       and 999 999
@@ -629,11 +649,39 @@ import from `shared` and typecheck.
 
 ### B1.4 Work order state machine
 
-- [ ] **B1.4.1** `WorkOrderStatus` and `canTransition(from, to)` as a typed
-      transition map
-- [ ] **B1.4.2** `assertTransition` throwing a `DomainError`
-- [ ] **B1.4.3** An exhaustive test over every pair, asserting the exact legal
-      set
+- [x] **B1.4.1** `WorkOrderStatus` and `canTransition(from, to)` as a typed
+      transition map (`shared/work-order-state.ts`), plus `allowedTransitions`
+      and `isTerminalStatus` so the UI can grey out what would fail using the
+      same table the API enforces. `WORK_ORDER_STATUS_LABELS` carries the
+      Swedish names (§9.7).
+
+      Four decisions are documented beside the table because they are easy to
+      get wrong later: `DRAFT` cannot jump to `COMPLETED` (completion deducts
+      stock and needs an out-odometer and a line, §6.5); `COMPLETED` reverts
+      only to `IN_PROGRESS`, never straight to `CANCELLED`, so a cancellation
+      is forced down the path that writes the compensating `RETURN` movements
+      (B6.6.4); `CANCELLED` is terminal (§4.3); and no status transitions to
+      itself, so a double-tapped **Slutför** is refused by the state machine
+      rather than relying on the `stockDeducted` guard.
+
+- [x] **B1.4.2** `assertTransition` throwing a `DomainError` — a
+      `ConflictError` (409): the request is well formed, but the order is not
+      in a state that allows it. `details` carries `{ from, to, allowed }`, so
+      the client can show what it could do instead of only that it failed.
+
+      **This required moving the `DomainError` hierarchy out of the backend
+      and into `shared/src/errors.ts`.** `shared` cannot import from the
+      backend, and the error `code` is part of the API contract anyway —
+      exactly like the §3.7 envelope schema that already lives in
+      `schemas/common.ts`. The backend now imports the hierarchy from
+      `shared`; `backend/src/lib/errors.ts` is deleted, and the frontend can
+      compare against the same constants instead of magic strings.
+
+- [x] **B1.4.3** An exhaustive test over every pair, asserting the exact legal
+      set — all 36 ordered pairs against a table written out by hand in the
+      test. Deriving the expectation from the implementation would only assert
+      that the code equals itself; this fails if the transition map is edited
+      without a deliberate decision.
 
 <a id="b1-5"></a>
 
@@ -674,23 +722,39 @@ import from `shared` and typecheck.
       arrive with B4 and B6.
 - [ ] **B1.6.3** Record shared coverage and the cross-package build result
       before marking B1 Done.
-      `shared`: 35/35 tests pass, 100% type-coverage, `tsup` build clean.
-      Cross-package build now recorded for both consumers. Still outstanding
-      for B1 as a whole: B1.4 (state machine), the `Quantity` wrapper in
-      B1.2.1, and 100% coverage of `shared/src`, which the schema files are
-      currently excluded from.
+      `shared`: 123/123 tests pass, **100% line, branch, statement and
+      function coverage of `shared/src`**, 100% type-coverage, `tsup` build
+      clean. That threshold is now enforced in `shared/vitest.config.ts`
+      rather than remembered — every file here is a pure function with no I/O,
+      so an unreachable line is a line that should not exist. `src/schemas/**`
+      stays excluded: asserting that `z.string()` is a string tests the
+      library, not us.
+      Cross-package build recorded for both consumers. Outstanding for B1 as a
+      whole: only B1.5's per-domain schema set, which arrives with the
+      iteration that needs each area.
 
 </details>
 
 - [ ] **Iteration 2 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** B1.1 (money) and B1.3 (registration numbers) fully done and
-tested; B1.2 partially done (units/decimal boundary helpers, no `Quantity`
-wrapper yet); B1.5 partially done (common/health schemas only, by design);
-B1.4 (state machine) untouched; B1.6 blocked on B0 for the backend side of
-cross-package verification. `pnpm --filter shared test` — 35/35 passing;
-`pnpm --filter shared exec tsc --noEmit` — clean; `type-coverage --project
-shared --at-least 99.5` — 100%. **Completed on:** —
+**Verification:** 2026-09-08. B1.1 (money), B1.2 (quantities and units), B1.3
+(registration numbers) and B1.4 (work-order state machine) are done and tested.
+B1.5 is partial by design (common and health schemas only). B1.6 is no longer
+blocked — both consumers are verified — but stays open until B1.5's schema set
+exists.
+
+| Command                                       | Result                                              |
+| --------------------------------------------- | --------------------------------------------------- |
+| `pnpm --filter shared test`                   | 123/123 passing across 7 files                       |
+| `pnpm --filter shared exec vitest run --coverage` | 100% statements, branches, functions and lines   |
+| `pnpm --filter shared build`                  | ESM plus bundled declarations, clean                 |
+| `pnpm check`                                  | Clean — 211 tests workspace-wide, type-coverage 100% |
+| `pnpm build`                                  | All three packages build                             |
+
+The 36-pair transition test is the acceptance evidence for B1.4; the
+scale-and-range rejection tests are the evidence for B1.2.1.
+
+**Completed on:** —
 
 ---
 

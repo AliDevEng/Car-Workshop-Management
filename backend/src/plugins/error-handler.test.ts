@@ -6,7 +6,7 @@ import {
   INTERNAL_ERROR_CODE,
   NotFoundError,
   ValidationError,
-} from '../lib/errors.js';
+} from 'shared';
 
 /**
  * The pure half of B0.7. The route-level shapes are asserted in

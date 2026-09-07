@@ -1,8 +1,14 @@
 /**
- * The domain error hierarchy (PROJECT_SPEC.md §3.7, backend README B0.7.1).
+ * The domain error hierarchy (PROJECT_SPEC.md §3.7).
  *
- * Handlers throw these; they never build an error response inline. One
- * `setErrorHandler` turns them into the single API error envelope.
+ * These live in `shared/` rather than in the backend because the error *code*
+ * is part of the API contract, exactly like the envelope schema in
+ * `schemas/common.ts`: the backend throws them, the frontend switches on the
+ * same constants, and neither side can drift. B1.4's `assertTransition` also
+ * needs them, and `shared` cannot import from the backend.
+ *
+ * Handlers throw; they never build an error response inline. One
+ * `setErrorHandler` on the backend turns these into the single envelope.
  *
  * Messages are Swedish because the frontend renders `error.message` directly
  * to the user. Code, identifiers and comments stay English (CLAUDE.md).

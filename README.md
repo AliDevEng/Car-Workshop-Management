@@ -163,8 +163,8 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **11/92 backend milestones are complete as of 2026-09-08**: B1.1
-and B1.3, plus nine of B0's ten.
+is complete. **13/92 backend milestones are complete as of 2026-09-08**: nine
+of B0's ten, and four of B1's six.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion
@@ -192,7 +192,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | Backend | Title | Phase | Status |
 |---|---|---|---|
 | B0 | Workspace and tooling | 0 | 🟨 (9/10 milestones; everything but B0.9 — CI has not yet run on a PR and branch protection needs a repository owner) |
-| B1 | Shared domain primitives | 0 | 🟨 (money, units, regnr and core schemas done; work-order state machine and full schema set remain) |
+| B1 | Shared domain primitives | 0 | 🟨 (4/6 — money, quantities, units, regnr, the work-order state machine and the error hierarchy are done; the full per-domain schema set remains, by design) |
 | B2 | Authentication and users | 1 | ⬜ |
 | B3 | Customers and vehicles | 1 | ⬜ |
 | B4 | Inventory and stock ledger | 2 | ⬜ |
@@ -262,6 +262,10 @@ past row.
 | 2026-09-08 | Project references are **not** used between packages, contrary to backend README B0.2.2 | `PROJECT_SPEC.md` §2.1 builds `shared` with `tsup`, and the spec wins over a README. A reference requires `composite: true`, which makes `tsup`'s declaration bundler fail with `TS6307`; and `tsc -b` could never produce `shared/dist` anyway, so a reference would encode a build graph that does not exist. §3.1 never asked for references |
 | 2026-09-08 | Node pinned to **22.23.2**; engines raised to `>=22.22.0 <23.0.0` | `testcontainers@12.1.0` requires `>=22.22`, and Prisma 7 and Vitest 5 exclude the old 22.11.0 floor. The suite in fact passes on 22.21.1, but the declared floor and the runtime should agree |
 | 2026-09-08 | `ServiceUnavailableError` (503) added to the §3.7 error hierarchy | A readiness probe reports an expected, transient state that a load balancer acts on. Folding it into a 500 tells an operator to investigate a bug that is not there |
+| 2026-09-08 | The `DomainError` hierarchy moved from `backend/src/lib/errors.ts` into `shared/src/errors.ts` | B1.4.2 requires `assertTransition` to throw a `DomainError`, and `shared` cannot import from the backend. It belongs there regardless: the error `code` is API contract, exactly like the §3.7 envelope schema already in `schemas/common.ts`, so the frontend can switch on the same constants instead of magic strings |
+| 2026-09-08 | `Quantity` is a branded `Decimal` that **rejects** a fourth decimal place rather than rounding it | §4.2 makes the stock ledger the truth and `Article.stockQuantity` a cache. A quantity silently rounded on the way in is precisely how the two drift apart, and the drift is only discovered by a nightly reconciliation job weeks later |
+| 2026-09-08 | Work orders cannot go from `COMPLETED` straight to `CANCELLED`, and no status transitions to itself | Reverting from `COMPLETED` is what writes the compensating `RETURN` stock movements (B6.6.4); a direct cancellation would strand the deducted parts. Refusing a self-transition means a double-tapped **Slutför** is rejected by the state machine rather than relying on the `stockDeducted` guard |
+| 2026-09-08 | `shared` coverage thresholds raised to 100% (statements, branches, functions, lines), enforced in `vitest.config.ts` | B1's Definition of Done asks for it, and the package is pure functions with no I/O — an unreachable line here is a line that should not exist. `src/schemas/**` stays excluded: asserting that `z.string()` is a string tests Zod, not us |
 
 ---
 

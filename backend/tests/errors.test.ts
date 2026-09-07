@@ -3,15 +3,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { apiErrorSchema } from 'shared';
 import {
+  apiErrorSchema,
   ConflictError,
   ForbiddenError,
   NotFoundError,
   RateLimitError,
   UnauthorizedError,
   ValidationError,
-} from '../src/lib/errors.js';
+} from 'shared';
 import { createTestApp, type TestApp } from './helpers/app.js';
 import { jsonBody } from './helpers/http.js';
 

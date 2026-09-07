@@ -4,8 +4,8 @@ import {
   apiErrorSchema,
   healthReadyResponseSchema,
   healthResponseSchema,
+  ServiceUnavailableError,
 } from 'shared';
-import { ServiceUnavailableError } from '../../lib/errors.js';
 import { APP_VERSION } from '../../lib/version.js';
 
 /**

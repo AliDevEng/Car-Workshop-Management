@@ -8,12 +8,12 @@ import {
   hasZodFastifySchemaValidationErrors,
   isResponseSerializationError,
 } from 'fastify-type-provider-zod';
-import type { ApiErrorBody } from 'shared';
 import {
+  type ApiErrorBody,
   INTERNAL_ERROR_CODE,
   INTERNAL_ERROR_MESSAGE,
   isDomainError,
-} from '../lib/errors.js';
+} from 'shared';
 import {
   isPrismaKnownRequestError,
   uniqueConstraintFields,
