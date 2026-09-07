@@ -1,0 +1,14 @@
+node_modules
+pnpm-lock.yaml
+dist
+build
+.next
+out
+coverage
+playwright-report
+blob-report
+backend/prisma/migrations
+backend/src/generated
+backend/prisma/generated
+storage
+*.md

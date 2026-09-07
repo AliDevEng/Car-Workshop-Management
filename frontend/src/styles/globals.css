@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+@layer base {
+  * {
+    border-color: var(--color-mist);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--color-concrete);
+    color: var(--color-steel);
+    font-family: var(--font-body-admin);
+  }
+
+  /* Every price, quantity, odometer reading, date and registration number
+     uses Tailwind's built-in `tabular-nums` utility (font-variant-numeric),
+     without exception — frontend/README.md "Typography". */
+}
+
+@layer components {
+  /*
+   * The admin panel is a scoped surface, not a global dark-mode toggle: the
+   * two interfaces share tokens but not personality (frontend/README.md
+   * "Design direction"). Applied to the (admin) layout root in F4.3.1.
+   */
+  .admin-scope {
+    background-color: var(--color-steel);
+    color: var(--color-concrete-2);
+    font-family: var(--font-body-admin);
+  }
+}

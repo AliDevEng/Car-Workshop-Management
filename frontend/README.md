@@ -37,11 +37,11 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 0/83 milestones complete; 0/13 iterations Done.**
+**Overall: 3/83 milestones complete; 0/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
-| [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 0/7             | Not started |
+| [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 3/7             | In progress |
 | [F1](#f1)   | Design system                             | 1     | F0                                 | 0/6             | Not started |
 | [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 0/6             | Not started |
 | [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 0/6             | Not started |
@@ -291,14 +291,14 @@ call; `pnpm build` and `pnpm typecheck` pass.
 B0 supplies the API/test infrastructure and B1 supplies shared contracts.
 Interleave those backend steps within Phase 0 before signing off F0.
 
-**Milestone checklist — 0/7 complete:**
+**Milestone checklist — 3/7 complete:**
 
 - [ ] **[F0.1](#f0-1)** ? — Project setup
 - [ ] **[F0.2](#f0-2)** ? — Tailwind and tokens
 - [ ] **[F0.3](#f0-3)** ? — Fonts
-- [ ] **[F0.4](#f0-4)** ? — Typed API client
-- [ ] **[F0.5](#f0-5)** ? — TanStack Query
-- [ ] **[F0.6](#f0-6)** ? — Formatting helpers
+- [x] **[F0.4](#f0-4)** ? — Typed API client
+- [x] **[F0.5](#f0-5)** ? — TanStack Query
+- [x] **[F0.6](#f0-6)** ? — Formatting helpers
 - [ ] **[F0.7](#f0-7)** ? — Toolchain and foundation verification
 
 <a id="f0-1"></a>
@@ -308,35 +308,43 @@ Interleave those backend steps within Phase 0 before signing off F0.
 **Acceptance:** A minimal Next.js 16 page renders and resolves the shared
 package.
 
-- [ ] **F0.1.1** Create the App Router entry points and root layout using
+- [x] **F0.1.1** Create the App Router entry points and root layout using
       installed Next.js 16.3.4; keep the existing package manifest. Set the
       document language to `sv`.
-- [ ] **F0.1.2** Extend `tsconfig.base.json` with Next-compatible frontend
+- [x] **F0.1.2** Extend `tsconfig.base.json` with Next-compatible frontend
       overrides (`module: "ESNext"`, `moduleResolution: "Bundler"`,
       `jsx: "react-jsx"`, `noEmit: true`) and the Next TypeScript plugin; keep
       all strictness rules and the `@/*` alias. Include generated Next types.
       The installed Next.js 16.3.4 configuration writer requires `react-jsx`.
-- [ ] **F0.1.3** Wire ESLint flat config with `eslint-config-next` and the
+- [x] **F0.1.3** Wire ESLint flat config with `eslint-config-next` and the
       shared type-aware `no-unsafe-*` rules. Run ESLint explicitly through root
       `pnpm lint`; `next build` does not run linting.
-- [ ] **F0.1.4** Verify the existing `shared: workspace:*` dependency resolves
+- [x] **F0.1.4** Verify the existing `shared: workspace:*` dependency resolves
       its built ESM and declaration files in the frontend.
 - [ ] **F0.1.5** Keep `transpilePackages: ['shared']` in `next.config.ts`
       alongside the shared `tsup` watch build, as required by §2.1. Verify
       cross-package hot reload; record the result with B0.10 instead of assuming
       it works.
-- [ ] **F0.1.6** Confirm no `app/api/` directory exists. Caddy routes `/api/*`
+      **Partial:** `transpilePackages: ['shared']` is set and `next build`
+      successfully resolves `shared`'s built output. Live concurrent
+      `pnpm dev` hot-reload across the package boundary is not yet
+      demonstrated, and B0.10.4 (owned by backend) has not recorded a result.
+- [x] **F0.1.6** Confirm no `app/api/` directory exists. Caddy routes `/api/*`
       to the backend, so a Next route handler there works locally and silently
       returns the wrong thing in production
-- [ ] **F0.1.7** Use async access for `cookies()`, `headers()`, and page
+- [x] **F0.1.7** Use async access for `cookies()`, `headers()`, and page
       `params` / `searchParams` where applicable. Keep server-only API
       configuration out of client imports.
-- [ ] **F0.1.8** Configure the development `/api/*` proxy to Fastify using a
+- [x] **F0.1.8** Configure the development `/api/*` proxy to Fastify using a
       Next rewrite or the development Caddy setup. Browser requests use the same
       relative URL in development and production.
-- [ ] **F0.1.9** Configure Vitest for pure frontend helpers and Playwright for
+- [x] **F0.1.9** Configure Vitest for pure frontend helpers and Playwright for
       browser flows before implementing the tests in subsequent milestones; use
       the B0 test backend and shared fixtures.
+      **Note:** no B0 test backend exists yet; Vitest tests use mocked
+      `fetch` fixtures instead (F0.4.8). A real Playwright browser could not
+      be downloaded in this environment (the `cdn.playwright.dev` install
+      times out) — the config and one smoke spec exist but are unexecuted.
 
 <a id="f0-2"></a>
 
@@ -344,16 +352,21 @@ package.
 
 **Acceptance:** The intended tokens and admin scope render through Tailwind 4.
 
-- [ ] **F0.2.1** Configure `postcss.config.mjs` with installed
+- [x] **F0.2.1** Configure `postcss.config.mjs` with installed
       `@tailwindcss/postcss` 4.3.3.
-- [ ] **F0.2.2** Import Tailwind with `@import "tailwindcss"` in the global
+- [x] **F0.2.2** Import Tailwind with `@import "tailwindcss"` in the global
       stylesheet and load that stylesheet in the root layout.
-- [ ] **F0.2.3** Create `styles/tokens.css` using the design tokens below;
+- [x] **F0.2.3** Create `styles/tokens.css` using the design tokens below;
       expose theme values through Tailwind 4 CSS `@theme` / `@theme inline`,
       rather than a Tailwind 3 setup.
-- [ ] **F0.2.4** Reset and base styles; `tabular-nums` utility defined
+- [x] **F0.2.4** Reset and base styles; `tabular-nums` utility defined
+      (Tailwind 4 ships `tabular-nums` as a built-in utility; documented in
+      `globals.css` rather than redefined).
 - [ ] **F0.2.5** Dark surfaces reachable via a scoped class on the admin layout,
       not a global theme toggle — the two interfaces are simply different
+      **Partial:** the `.admin-scope` class exists in `globals.css` using the
+      `--color-steel`/`--color-concrete-2` tokens, but no `(admin)` layout
+      exists yet to apply it to — that lands with F4.3.1.
 
 <a id="f0-3"></a>
 
@@ -364,8 +377,27 @@ package.
 - [ ] **F0.3.1** Commit the required web font files under `src/fonts/`, with
       their licence files, subset to Latin Extended. Keep PDF static `.ttf`
       files in the backend as a separate asset set.
-- [ ] **F0.3.2** Registered with `next/font/local`, `display: 'swap'`
+      **Spec correction needed:** "Archivo Expanded" is not a font Google
+      Fonts publishes — only the single variable "Archivo" family (`wght` +
+      `wdth` axes) exists, and Expanded is a named width within it, not a
+      separate download. Google Fonts also no longer ships static per-weight
+      `.ttf` files for either Archivo or Source Serif 4 in its canonical
+      repository, only variable files. Committed: the full (unsubsetted)
+      variable `.ttf` for Archivo and for Source Serif 4, each with its
+      `OFL.txt`, under `src/fonts/`; both files include the `latin-ext`
+      subset. Not done: actual glyph subsetting (no `fonttools`/`pyftsubset`
+      available in this environment) — the committed files carry Cyrillic,
+      Greek and Vietnamese glyphs the product does not need. See
+      `frontend/src/fonts/index.ts` for the full reasoning; this needs a
+      `PROJECT_SPEC.md` §9 correction and a root README decision-log row
+      before F1 builds on top of it.
+- [x] **F0.3.2** Registered with `next/font/local`, `display: 'swap'`
 - [ ] **F0.3.3** Verify å, ä and ö render in every weight
+      **Partial:** the source files' metadata declares `latin-ext` subset
+      coverage (confirmed via `METADATA.pb`, which includes å/ä/ö), and the
+      built page applies the font variable classes correctly. No visual
+      screenshot was taken — Playwright's browser could not be downloaded in
+      this environment (see F0.1.9).
 
 <a id="f0-4"></a>
 
@@ -374,24 +406,28 @@ package.
 **Acceptance:** Typed reads and failures work through both browser and server
 paths.
 
-- [ ] **F0.4.1** Create `lib/api/client.ts` with a typed `fetch` wrapper;
+- [x] **F0.4.1** Create `lib/api/client.ts` with a typed `fetch` wrapper;
       browser requests include credentials and the CSRF header on authenticated
       unsafe methods, using the readable `csrfToken` cookie. Public form calls
       use their HMAC form token.
-- [ ] **F0.4.2** Two base URLs, chosen automatically: server components use
+      (The HMAC form-token header itself is F2.2.3's job, on top of this
+      client.)
+- [x] **F0.4.2** Two base URLs, chosen automatically: server components use
       `INTERNAL_API_URL`, browser code uses the relative `/api`. Getting this
       wrong fails only in the container, where `localhost` is not the backend
-- [ ] **F0.4.3** Parse every response with the matching `shared` Zod schema;
+- [x] **F0.4.3** Parse every response with the matching `shared` Zod schema;
       never cast it. Runtime parsing detects malformed responses, while shared
       inferred types catch incompatible code changes during typecheck.
-- [ ] **F0.4.4** `ApiError` class carrying `code`, `message`, `details` and
+- [x] **F0.4.4** `ApiError` class carrying `code`, `message`, `details` and
       `requestId`
-- [ ] **F0.4.5** Non-2xx responses parsed as the error envelope and thrown
-- [ ] **F0.4.6** Network failure and non-JSON response handled explicitly
-- [ ] **F0.4.7** For authenticated server-side reads, forward only the required
+- [x] **F0.4.5** Non-2xx responses parsed as the error envelope and thrown
+- [x] **F0.4.6** Network failure and non-JSON response handled explicitly
+- [x] **F0.4.7** For authenticated server-side reads, forward only the required
       session cookie to the trusted internal API and use `cache: "no-store"`;
       never share one user's response through a public cache.
-- [ ] **F0.4.8** Verify typed success, API validation error, non-JSON response
+      (`lib/api/server.ts`; the session cookie name is a placeholder until
+      B2/F4 define the real session mechanism.)
+- [x] **F0.4.8** Verify typed success, API validation error, non-JSON response
       and network failure with fixtures; no paid provider calls.
 
 <a id="f0-5"></a>
@@ -401,14 +437,14 @@ paths.
 **Acceptance:** Admin queries have a stable provider, keys and documented
 defaults.
 
-- [ ] **F0.5.1** Create a client `QueryProvider` boundary for the admin layout,
+- [x] **F0.5.1** Create a client `QueryProvider` boundary for the admin layout,
       with a stable QueryClient per browser session; keep public pages on server
       fetching. Mount it with the admin shell in F4.
-- [ ] **F0.5.2** A query-key factory in `lib/api/keys.ts` — no inline string
+- [x] **F0.5.2** A query-key factory in `lib/api/keys.ts` — no inline string
       arrays
-- [ ] **F0.5.3** Sensible defaults: `staleTime` 30 s, retry once, no refetch on
+- [x] **F0.5.3** Sensible defaults: `staleTime` 30 s, retry once, no refetch on
       window focus (a mechanic switching apps should not trigger a storm)
-- [ ] **F0.5.4** Devtools in development only
+- [x] **F0.5.4** Devtools in development only
 
 <a id="f0-6"></a>
 
@@ -417,13 +453,13 @@ defaults.
 **Acceptance:** Money, mileage, dates and registration numbers format
 consistently.
 
-- [ ] **F0.6.1** `formatCurrency` using `Intl.NumberFormat('sv-SE')` on öre from
+- [x] **F0.6.1** `formatCurrency` using `Intl.NumberFormat('sv-SE')` on öre from
       the API
-- [ ] **F0.6.2** `formatOdometer` — km to mil, one decimal, with the unit
-- [ ] **F0.6.3** `formatDate`, `formatDateTime`, `formatRelative`, all
+- [x] **F0.6.2** `formatOdometer` — km to mil, one decimal, with the unit
+- [x] **F0.6.3** `formatDate`, `formatDateTime`, `formatRelative`, all
       `Europe/Stockholm`
-- [ ] **F0.6.4** `formatRegNr` producing the spaced display form
-- [ ] **F0.6.5** Unit tests for each; these appear on every screen and must not
+- [x] **F0.6.4** `formatRegNr` producing the spaced display form
+- [x] **F0.6.5** Unit tests for each; these appear on every screen and must not
       vary
 
 <a id="f0-7"></a>
@@ -435,28 +471,48 @@ consistently.
 - [ ] **F0.7.1** Run frontend typecheck, shared/frontend builds and root
       `pnpm check` after B0/B1 supply their configurations. Verify the health
       endpoint renders through the API client.
+      **Partial:** `pnpm --filter frontend typecheck/build/test` and
+      `pnpm --filter shared typecheck/build/test` all pass; root `pnpm check`
+      cannot pass until backend exists (B0 not started — expected, not a
+      frontend defect). The health page correctly renders the "backend
+      unreachable" error state (verified against `next start`); the typed
+      success path is exercised only in `client.test.ts` fixtures, not
+      against a live backend.
 - [ ] **F0.7.2** Check the repository Node engine range against Vitest 5 and
       Vite 8: the current lower bound 22.11.0 is too low for their 22.12.0
       minimum. Align it during tooling setup; use the pinned Node 22.21.1 for
       this baseline.
-- [ ] **F0.7.3** Verify the configured Vitest and Playwright suites discover
+      Not done here — tracked under backend's B0.1.3, which also touches CI
+      and containers. Local Node is 22.21.1, already above the 22.12.0 floor
+      in practice.
+- [x] **F0.7.3** Verify the configured Vitest and Playwright suites discover
       real tests; remove `--passWithNoTests` when real unit tests are introduced
       so a missing suite cannot look green.
-- [ ] **F0.7.4** Run `next dev` and `next build` with their default Turbopack
+      Vitest: done, flag removed, 18 real tests pass (`pnpm --filter frontend
+      test`). Playwright: config and one smoke spec exist but could not run —
+      `playwright install chromium` times out reaching
+      `cdn.playwright.dev` from this environment.
+- [x] **F0.7.4** Run `next dev` and `next build` with their default Turbopack
       setup; verify aliases, local fonts and shared-package resolution.
+      `next build` and `next start` both succeeded; `@/*` alias, the two
+      self-hosted font variables and the `shared` import all resolved
+      correctly (verified by inspecting the rendered `<html>` output).
 - [ ] **F0.7.5** Record command results, Node/pnpm versions and the shared
       hot-reload evidence before marking F0 complete.
+      Node 22.21.1, pnpm 12.3.4. Command results recorded inline above;
+      concurrent `shared` watch + frontend hot-reload was not demonstrated
+      live in this session.
 
 **Iteration acceptance record**
 
 - [ ] **F0 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
-| Field                       | Record                                                 |
-| --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+| Field                       | Record                                                                                                                                                                                                                       |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current milestone / blocker | F0.1/F0.2/F0.3/F0.7 partially done; blocked on a real backend (B0) for the health-endpoint success path and root `pnpm check`, and on a font-subsetting tool for true Latin-Extended-only font files. F0.4/F0.5/F0.6 are complete. |
+| Verification evidence        | `pnpm --filter shared {typecheck,test,build}` and `pnpm --filter frontend {typecheck,test,build}` all pass (35 + 18 tests); `pnpm exec eslint .` clean workspace-wide; `type-coverage` 100% on both packages; `next build`/`next start` verified manually. |
+| Completed on                 | —                                                                                                                                                                                                                             |
 
 ---
 

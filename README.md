@@ -174,7 +174,7 @@ the frontend is complete only after these follow-ups also pass.
 
 | Phase | Status | Started | Completed |
 |---|---|---|---|
-| 0 — Foundation | ⬜ Not started | | |
+| 0 — Foundation | 🟨 In progress | 2026-09-07 | |
 | 1 — Core data | ⬜ Not started | | |
 | 2 — Inventory | ⬜ Not started | | |
 | 3 — Booking | ⬜ Not started | | |
@@ -191,7 +191,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | Backend | Title | Phase | Status |
 |---|---|---|---|
 | B0 | Workspace and tooling | 0 | ⬜ |
-| B1 | Shared domain primitives | 0 | ⬜ |
+| B1 | Shared domain primitives | 0 | 🟨 (money, units, regnr and core schemas done; work-order state machine and full schema set remain) |
 | B2 | Authentication and users | 1 | ⬜ |
 | B3 | Customers and vehicles | 1 | ⬜ |
 | B4 | Inventory and stock ledger | 2 | ⬜ |
@@ -208,7 +208,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
 | Frontend | Title | Phase | Status |
 |---|---|---|---|
-| F0 | Next.js foundation | 0 | ⬜ |
+| F0 | Next.js foundation | 0 | 🟨 (3/7 milestones; see frontend/README.md) |
 | F1 | Design system | 1 | ⬜ |
 | F4 | Admin shell and authentication | 1 | ⬜ |
 | F6 | Customers and vehicles | 1 | ⬜ |
@@ -246,6 +246,10 @@ past row.
 | 2026-09-07 | ESLint **9.39.5**, not 10.10.0 | `eslint-config-next@16` pulls `eslint-plugin-import`/`-react`/`-jsx-a11y`, all capped at ESLint 9. npm marks 9.x deprecated; accepted, revisit when those plugins support 10 |
 | 2026-09-07 | `@types/node` pinned to **22.x**, not 26.x | Types must match the Node 22 runtime, or they describe APIs that do not exist at runtime |
 | 2026-09-07 | `allowBuilds` in `pnpm-workspace.yaml` is an explicit allow-list | pnpm 12 blocks lifecycle scripts by default. Prisma, esbuild and unrs-resolver need theirs; testcontainers' native extras (ssh2, cpu-features, protobufjs) are denied and fall back to pure JS |
+| 2026-09-07 | **Needs a §9 correction:** "Archivo Expanded" does not exist as a Google Fonts family | Google Fonts publishes only the single variable "Archivo" (`wght`+`wdth` axes); "Expanded" is a named width within it. Both display and admin-body roles self-host that one variable file (`frontend/src/fonts/index.ts`); display activates the `wdth` axis via `font-stretch`. Not yet reflected in `PROJECT_SPEC.md` §9 |
+| 2026-09-07 | Frontend fonts are the full (unsubsetted) variable `.ttf` files, not Latin-Extended subsets | Google Fonts' canonical repo no longer ships static per-weight files for Archivo or Source Serif 4, only variable ones, and no font-subsetting tool (`fonttools`/`pyftsubset`) was available to cut them to `latin-ext`. Functionally correct (glyph coverage confirmed) but larger than necessary; revisit before F2.6's Lighthouse budget |
+| 2026-09-07 | `shared/tsconfig.json` sets `ignoreDeprecations: "6.0"`, scoped to that package only | `tsup`'s dts bundler (`rollup-plugin-dts`) injects a `baseUrl` into the program it builds for declaration bundling; TS 6 deprecates the flag ahead of TS 7 removal. Affects only that generated program, not an actual relaxation of strictness |
+| 2026-09-07 | Frontend depends on `date-fns`/`date-fns-tz` directly, not only via `shared` | F0.6's `formatDate`/`formatDateTime`/`formatRelative` need them directly; both are already approved in §2.2 for `shared`, so this extends an existing choice rather than introducing a new one |
 
 ---
 

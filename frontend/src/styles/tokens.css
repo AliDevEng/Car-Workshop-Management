@@ -1,0 +1,42 @@
+/*
+ * Design tokens — PROJECT_SPEC.md §9, frontend/README.md "Design direction".
+ * Colours and radii are declared inside `@theme` so Tailwind 4 generates
+ * matching utilities (e.g. `bg-signal`, `rounded-sharp`) that reference these
+ * custom properties at runtime rather than inlining their values — which is
+ * what lets a scoped class (`.admin-scope` in globals.css) repaint a surface
+ * without a global theme toggle.
+ */
+@theme {
+  --color-concrete: #e6e8e5; /* public background */
+  --color-concrete-2: #f2f3f1; /* raised surface */
+  --color-steel: #1c2b33; /* text; admin background */
+  --color-steel-2: #2a3c46; /* admin raised surface */
+  --color-signal: #0b4f8f; /* primary action, links */
+  --color-signal-lift: #1568b5; /* hover */
+  --color-hivis: #ffc500; /* warning, overdue, low stock */
+  --color-oxide: #b23a16; /* destructive, error */
+  --color-moss: #2e7d53; /* success, completed */
+  --color-mist: #8a9aa3; /* muted text, borders */
+
+  --radius-sharp: 2px; /* data surfaces: tables, inputs */
+  --radius-soft: 10px; /* content surfaces: cards, dialogs */
+
+  /*
+   * Both `--font-display` and `--font-body-admin` resolve to the same
+   * self-hosted Archivo variable file (frontend/src/fonts/index.ts) — see
+   * that file for why "Archivo Expanded" isn't a separate download. Display
+   * text additionally sets `font-stretch: expanded` to pull the `wdth` axis.
+   */
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-body-public: var(--font-source-serif-4), ui-serif, Georgia, serif;
+  --font-body-admin: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * Everything is a multiple of 4px (frontend/README.md). Tailwind 4's default
+ * spacing scale already steps in 0.25rem (4px) units, so this constant is a
+ * reference for hand-written CSS rather than a Tailwind theme override.
+ */
+:root {
+  --space: 4px;
+}

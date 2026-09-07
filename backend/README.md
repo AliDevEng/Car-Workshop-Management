@@ -33,12 +33,12 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 0/92 milestones complete; 0/14 iterations Done.**
+**Overall: 2/92 milestones complete; 0/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
 | [1](#b0)   | B0        | 0       | 0/10            | Not started |
-| [2](#b1)   | B1        | 0       | 0/6             | Not started |
+| [2](#b1)   | B1        | 0       | 2/6             | In progress |
 | [3](#b2)   | B2        | 1       | 0/7             | Not started |
 | [4](#b3)   | B3        | 1       | 0/6             | Not started |
 | [5](#b4)   | B4        | 2       | 0/6             | Not started |
@@ -365,14 +365,21 @@ on:** —
 
 ## Iteration 2: Creating shared types and business rules
 
-- [ ] Creating money and VAT helpers (`B1.1`)
+- [x] Creating money and VAT helpers (`B1.1`)
 - [ ] Creating quantity and mileage helpers (`B1.2`)
-- [ ] Normalising registration numbers (`B1.3`)
+- [x] Normalising registration numbers (`B1.3`)
 - [ ] Creating the work-order state machine (`B1.4`)
 - [ ] Creating shared schemas and types (`B1.5`)
 - [ ] Verifying shared package integration (`B1.6`)
 
-**Reference:** B1 · **Phase:** 0 · **Progress:** 0/6 · **Status:** Not started
+**Reference:** B1 · **Phase:** 0 · **Progress:** 2/6 · **Status:** In progress
+
+Built while completing frontend F0, which needed `shared/money.ts`,
+`shared/units.ts` and `shared/regnr.ts` to exist for F0.6's formatters
+(CLAUDE.md's absolute rules on money/odometer conversion living only in
+`shared/`) and needed a health/error schema for F0.4's typed API client.
+B1.4 (state machine) and the rest of B1.5 (full per-domain schema set) are
+untouched — nothing in F0 needed them yet.
 
 **Depends on:** B0.
 
@@ -392,15 +399,15 @@ import from `shared` and typecheck.
 
 ### B1.1 Money
 
-- [ ] **B1.1.1** `Ore` branded type; `ore(n)`, `fromKronor`, `toKronor`
-- [ ] **B1.1.2** `addOre`, `subOre`, `multiplyOre(ore, Decimal)` with
+- [x] **B1.1.1** `Ore` branded type; `ore(n)`, `fromKronor`, `toKronor`
+- [x] **B1.1.2** `addOre`, `subOre`, `multiplyOre(ore, Decimal)` with
       half-away-from-zero rounding
-- [ ] **B1.1.3** `calculateLine({ unitPriceOre, quantity, vatRateBps })`
+- [x] **B1.1.3** `calculateLine({ unitPriceOre, quantity, vatRateBps })`
       returning `{ netOre, vatOre, grossOre }` in exactly the §3.3 order
-- [ ] **B1.1.4** `sumLines` — sums already-rounded values, never recomputes
-- [ ] **B1.1.5** `calculateOresRounding(grossOre)` for display-only whole-krona
+- [x] **B1.1.4** `sumLines` — sums already-rounded values, never recomputes
+- [x] **B1.1.5** `calculateOresRounding(grossOre)` for display-only whole-krona
       rounding
-- [ ] **B1.1.6** Tests: 0,005 boundaries, negatives, 33 lines of 33,33 kr, 0 %
+- [x] **B1.1.6** Tests: 0,005 boundaries, negatives, 33 lines of 33,33 kr, 0 %
       VAT, a quantity of `0.001`, and a total near the `Int` ceiling
 
 <a id="b1-2"></a>
@@ -408,20 +415,22 @@ import from `shared` and typecheck.
 ### B1.2 Quantities and units
 
 - [ ] **B1.2.1** `Quantity` helpers over `decimal.js`; `Unit` enum
-- [ ] **B1.2.2** `decimalToString` / `parseDecimal` for JSON boundaries
-- [ ] **B1.2.3** `kmToMil` (one decimal) and `milToKm`, with tests including 0
+      **Partial:** the `Unit` enum exists (`shared/units.ts`); no dedicated
+      `Quantity` arithmetic wrapper was built yet — nothing in F0 needed one.
+- [x] **B1.2.2** `decimalToString` / `parseDecimal` for JSON boundaries
+- [x] **B1.2.3** `kmToMil` (one decimal) and `milToKm`, with tests including 0
       and 999 999
-- [ ] **B1.2.4** A test asserting no money or quantity helper accepts a `number`
+- [x] **B1.2.4** A test asserting no money or quantity helper accepts a `number`
       where a `Decimal` is required
 
 <a id="b1-3"></a>
 
 ### B1.3 Registration numbers
 
-- [ ] **B1.3.1** `normaliseRegNr`, `formatRegNrForDisplay`,
+- [x] **B1.3.1** `normaliseRegNr`, `formatRegNrForDisplay`,
       `isValidSwedishRegNr`
-- [ ] **B1.3.2** `formatRegNrSpaced` for partner templates
-- [ ] **B1.3.3** Tests: `abc 12d` → `ABC12D`, `ABC-123`, `ÅÄÖ 123`, empty, too
+- [x] **B1.3.2** `formatRegNrSpaced` for partner templates
+- [x] **B1.3.3** Tests: `abc 12d` → `ABC12D`, `ABC-123`, `ÅÄÖ 123`, empty, too
       long, a personalised plate falling back to `isNonStandardPlate`
 
 <a id="b1-4"></a>
@@ -440,10 +449,17 @@ import from `shared` and typecheck.
 
 - [ ] **B1.5.1** `schemas/` folder, one file per domain area, all exported from
       `index.ts`
-- [ ] **B1.5.2** Pagination, error envelope and id schemas
-- [ ] **B1.5.3** Types derived with `z.infer` — no hand-written duplicates
+      **Partial by design:** `schemas/common.ts` (pagination, error envelope,
+      id) and `schemas/health.ts` exist; per B1's own instruction to "only
+      define contracts for implemented areas as they become needed", the
+      customer/vehicle/booking/etc. domain files are not created yet.
+- [x] **B1.5.2** Pagination, error envelope and id schemas
+- [x] **B1.5.3** Types derived with `z.infer` — no hand-written duplicates
 - [ ] **B1.5.4** `shared` builds to ESM with declaration files, consumable by
       both packages
+      **Partial:** builds to ESM+`.d.ts` via `tsup` and is consumed
+      successfully by `frontend`; `backend` does not exist yet to verify the
+      other side.
 
 <a id="b1-6"></a>
 
@@ -451,17 +467,29 @@ import from `shared` and typecheck.
 
 - [ ] **B1.6.1** Import the built schemas and helpers from both backend and
       frontend; verify declaration files and ESM entry points.
+      Frontend side verified (`next build` resolves `shared`'s dist output);
+      backend side blocked on B0.
 - [ ] **B1.6.2** Verify quantity serialization, money rounding and unit
       conversion fixtures on both consumers.
+      Verified on the frontend consumer (`formatCurrency`/`formatOdometer`
+      tests); backend side blocked on B0.
 - [ ] **B1.6.3** Record shared coverage and the cross-package build result
       before marking B1 Done.
+      `shared`: 35/35 tests pass, 100% type-coverage, `tsup` build clean.
+      Cross-package result recorded only for frontend↔shared; backend↔shared
+      is pending B0.
 
 </details>
 
 - [ ] **Iteration 2 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** B1.1 (money) and B1.3 (registration numbers) fully done and
+tested; B1.2 partially done (units/decimal boundary helpers, no `Quantity`
+wrapper yet); B1.5 partially done (common/health schemas only, by design);
+B1.4 (state machine) untouched; B1.6 blocked on B0 for the backend side of
+cross-package verification. `pnpm --filter shared test` — 35/35 passing;
+`pnpm --filter shared exec tsc --noEmit` — clean; `type-coverage --project
+shared --at-least 99.5` — 100%. **Completed on:** —
 
 ---
 

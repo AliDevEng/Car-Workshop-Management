@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": [],
+    // tsup's dts bundler (rollup-plugin-dts) injects a `baseUrl` into the
+    // program it builds for declaration bundling; TS 6 deprecates the flag
+    // ahead of removal in TS 7. This only affects that generated program,
+    // not our own compilerOptions above — silencing it here is scoped to
+    // `shared`'s dts build, not a relaxation of the any-ban strictness.
+    "ignoreDeprecations": "6.0"
+  },
+  "include": ["src", "tests", "*.config.ts"],
+  "exclude": ["dist", "node_modules"]
+}
