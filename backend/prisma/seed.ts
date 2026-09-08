@@ -1,6 +1,7 @@
 import { pino } from 'pino';
 import { loadDotEnv } from '../src/config/dotenv.js';
 import { loadEnv } from '../src/config/env.js';
+import { hashPassword } from '../src/lib/password.js';
 import { createPrismaClient } from '../src/lib/prisma.js';
 
 /**
@@ -8,8 +9,8 @@ import { createPrismaClient } from '../src/lib/prisma.js';
  * (Prisma 7 replaced `package.json#prisma.seed`) and always run explicitly —
  * `prisma migrate dev` no longer implies it (B0.4.8).
  *
- * B0 has no models yet. Each later iteration adds its own rows here: B2 the
- * two staff users, B3 customers and vehicles, B4 articles.
+ * Each iteration adds its own rows: B2 the two staff users, B3 customers and
+ * vehicles, B4 articles.
  */
 
 loadDotEnv();
@@ -22,12 +23,49 @@ if (env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
+/**
+ * Development credentials, printed below so they are discoverable without
+ * reading this file. They are safe to hard-code precisely because the guard
+ * above makes this script refuse to run against production — and because
+ * `.env`'s placeholder secrets are rejected there too (B0.6.3).
+ */
+const SEED_USERS = [
+  {
+    email: 'admin@verkstaden.se',
+    name: 'Anna Andersson',
+    role: 'ADMIN',
+    password: 'utveckling-admin-2026',
+  },
+  {
+    email: 'mekaniker@verkstaden.se',
+    name: 'Björn Bergström',
+    role: 'MECHANIC',
+    password: 'utveckling-mekaniker-2026',
+  },
+] as const;
+
 const prisma = createPrismaClient(env, logger);
 
 try {
-  // Proves the connection and the adapter before any iteration relies on it.
-  await prisma.$queryRaw`SELECT 1`;
-  logger.info('Seed complete — no models defined yet (B0).');
+  for (const seedUser of SEED_USERS) {
+    // Upsert, not create: seeding twice is a normal thing to do while
+    // developing, and it must not fail on the unique email.
+    await prisma.user.upsert({
+      where: { email: seedUser.email },
+      update: {},
+      create: {
+        email: seedUser.email,
+        name: seedUser.name,
+        role: seedUser.role,
+        passwordHash: await hashPassword(seedUser.password),
+      },
+    });
+  }
+
+  logger.info(
+    { users: SEED_USERS.map((user) => `${user.email} / ${user.password}`) },
+    'Seed complete — staff users ready (B2).',
+  );
 } finally {
   await prisma.$disconnect();
 }

@@ -17,6 +17,8 @@ export type TestAppOptions = {
   readonly database?: 'isolated' | 'none';
   /** Extra routes, registered before `ready()`. Used to exercise plugins. */
   readonly register?: (app: FastifyInstance) => void;
+  /** Environment overrides, for the settings that change how the app is built. */
+  readonly env?: Record<string, string>;
 };
 
 export type TestApp = {
@@ -53,9 +55,10 @@ export async function createTestApp(
       ? await createIsolatedDatabase()
       : undefined;
 
-  const env = testEnv(
-    database === undefined ? {} : { DATABASE_URL: database.url },
-  );
+  const env = testEnv({
+    ...(database === undefined ? {} : { DATABASE_URL: database.url }),
+    ...options.env,
+  });
 
   const app = await buildApp({ env });
   options.register?.(app);

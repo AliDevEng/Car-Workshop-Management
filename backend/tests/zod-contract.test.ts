@@ -7,6 +7,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { decimalToString, isValidDecimalString } from 'shared';
 import { createTestApp, type TestApp } from './helpers/app.js';
 import { jsonBody } from './helpers/http.js';
+import { anonymousAgent, withAgent, type Agent } from './helpers/auth.js';
 
 /**
  * B0.5.6 and B0.5.7.
@@ -31,6 +32,7 @@ function registerContractRoutes(app: FastifyInstance): void {
   routes.post(
     '/test/contract/echo',
     {
+      config: { auth: 'public' },
       schema: {
         body: stockLineSchema,
         response: { 200: stockLineSchema },
@@ -42,7 +44,10 @@ function registerContractRoutes(app: FastifyInstance): void {
   // A repository maps Decimal to string before returning (§8.2).
   routes.get(
     '/test/contract/mapped',
-    { schema: { response: { 200: stockLineSchema } } },
+    {
+      config: { auth: 'public' },
+      schema: { response: { 200: stockLineSchema } },
+    },
     () => ({
       sku: 'OIL-5W30-1L',
       quantity: decimalToString(new Decimal('4.250')),
@@ -56,13 +61,17 @@ function registerContractRoutes(app: FastifyInstance): void {
   // refuses, rather than emitting "[object Object]" into a customer's PDF.
   app.get(
     '/test/contract/unmapped',
-    { schema: { response: { 200: z.object({ quantity: z.string() }) } } },
+    {
+      config: { auth: 'public' },
+      schema: { response: { 200: z.object({ quantity: z.string() }) } },
+    },
     () => ({ quantity: new Decimal('4.250') }),
   );
 
   routes.get(
     '/test/contract/leaky',
     {
+      config: { auth: 'public' },
       schema: {
         response: { 200: z.object({ email: z.string() }) },
       },
@@ -73,12 +82,18 @@ function registerContractRoutes(app: FastifyInstance): void {
 
 describe('shared Zod schemas drive both directions', () => {
   let harness: TestApp;
+  /**
+   * §5.2 protects every unsafe method, so even a test about serialisation has
+   * to carry a CSRF token — the same two-step a browser performs.
+   */
+  let anonymous: Agent;
 
   beforeAll(async () => {
     harness = await createTestApp({
       database: 'none',
       register: registerContractRoutes,
     });
+    anonymous = await anonymousAgent(harness);
   });
 
   afterAll(async () => {
@@ -86,8 +101,10 @@ describe('shared Zod schemas drive both directions', () => {
   });
 
   it('validates a request body against the schema', async () => {
-    await supertest(harness.app.server)
-      .post('/test/contract/echo')
+    await withAgent(
+      supertest(harness.app.server).post('/test/contract/echo'),
+      anonymous,
+    )
       .send({ sku: 'OIL-5W30-1L', quantity: '4.250', salesPriceOre: 12_900 })
       .expect(200, {
         sku: 'OIL-5W30-1L',
@@ -97,15 +114,19 @@ describe('shared Zod schemas drive both directions', () => {
   });
 
   it('rejects a quantity that is a number rather than a decimal string', async () => {
-    await supertest(harness.app.server)
-      .post('/test/contract/echo')
+    await withAgent(
+      supertest(harness.app.server).post('/test/contract/echo'),
+      anonymous,
+    )
       .send({ sku: 'OIL-5W30-1L', quantity: 4.25, salesPriceOre: 12_900 })
       .expect(400);
   });
 
   it('rejects a price expressed in kronor instead of öre', async () => {
-    await supertest(harness.app.server)
-      .post('/test/contract/echo')
+    await withAgent(
+      supertest(harness.app.server).post('/test/contract/echo'),
+      anonymous,
+    )
       .send({ sku: 'OIL-5W30-1L', quantity: '4.250', salesPriceOre: 129.5 })
       .expect(400);
   });

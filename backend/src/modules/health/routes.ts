@@ -20,6 +20,8 @@ export function registerHealthRoutes(app: FastifyInstance): void {
   routes.get(
     '/api/health',
     {
+      // Public: a load balancer and an uptime monitor have no session (§5.3).
+      config: { auth: 'public' },
       schema: {
         response: { 200: healthResponseSchema },
       },
@@ -36,6 +38,7 @@ export function registerHealthRoutes(app: FastifyInstance): void {
   routes.get(
     '/api/health/ready',
     {
+      config: { auth: 'public' },
       schema: {
         response: {
           200: healthReadyResponseSchema,

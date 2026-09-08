@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { cursorQuerySchema } from './common.js';
 import {
+  booleanQuerySchema,
   emailSchema,
   idSchema,
   nameSchema,
@@ -72,3 +74,11 @@ export const updateUserInputSchema = z
   })
   .partial();
 export type UpdateUserInput = z.infer<typeof updateUserInputSchema>;
+
+export const userListQuerySchema = cursorQuerySchema.extend({
+  isActive: booleanQuerySchema.optional(),
+});
+export type UserListQuery = z.infer<typeof userListQuerySchema>;
+
+export const userIdParamsSchema = z.object({ id: idSchema });
+export type UserIdParams = z.infer<typeof userIdParamsSchema>;

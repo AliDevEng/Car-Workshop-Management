@@ -163,8 +163,8 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **15/92 backend milestones are complete as of 2026-09-08**: nine
-of B0's ten, and all six of B1's. B1 is the first iteration to reach Done.
+is complete. **22/92 backend milestones are complete as of 2026-09-08**: nine
+of B0's ten, all six of B1's, and all seven of B2's. B1 and B2 are Done.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion
@@ -176,7 +176,7 @@ the frontend is complete only after these follow-ups also pass.
 | Phase | Status | Started | Completed |
 |---|---|---|---|
 | 0 — Foundation | 🟨 In progress | 2026-09-07 | |
-| 1 — Core data | ⬜ Not started | | |
+| 1 — Core data | 🟨 In progress | 2026-09-08 | |
 | 2 — Inventory | ⬜ Not started | | |
 | 3 — Booking | ⬜ Not started | | |
 | 4 — Work | ⬜ Not started | | |
@@ -193,7 +193,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 |---|---|---|---|
 | B0 | Workspace and tooling | 0 | 🟨 (9/10 milestones; everything but B0.9 — CI has not yet run on a PR and branch protection needs a repository owner) |
 | B1 | Shared domain primitives | 0 | ✅ (6/6 — money, quantities, units, regnr, the work-order state machine, the error hierarchy and the 21-file per-domain schema set; 100% coverage of `shared/src`, verified from both consumers) |
-| B2 | Authentication and users | 1 | ⬜ |
+| B2 | Authentication and users | 1 | ✅ (7/7 — argon2id sessions, per-route authorisation with a startup assertion, session-bound CSRF, ADMIN user management and the audit foundation) |
 | B3 | Customers and vehicles | 1 | ⬜ |
 | B4 | Inventory and stock ledger | 2 | ⬜ |
 | B5 | Bookings | 3 | ⬜ |
@@ -272,6 +272,12 @@ past row.
 | 2026-09-08 | **Work-order and quote `number` are nullable while the record is a `DRAFT`** | §4.2 lists `number` plainly, but §4.4 assigns it when the document is *finalised* rather than when the draft is created, so abandoned drafts leave no gaps — and §4.3 permits deleting a `DRAFT` work order, which is exactly such a gap. A required field would have made draft creation impossible. B6 and B7 should confirm when they implement the sequences |
 | 2026-09-08 | `normalisedRegistrationNumberSchema` checks the plate character set, not only that the value is canonical | Found while testing B1.5: `value === normaliseRegNr(value)` **passes `ABC_12D`**, because an underscore is neither lower case nor a separator normalisation strips. That column carries §4.2's unique index, so arbitrary text could have masqueraded as a plate |
 | 2026-09-08 | The service-protocol checklist result enum (`OK` / `ATTENTION` / `NOT_APPLICABLE`) is **provisional pending B8** | §6.7 fixes that a checklist is copied into each protocol with its answers, but not the answer vocabulary. Declared so the contract is usable and the UI has something to render; B8 owns confirming or replacing it. The surrounding `checklistJson`-style snapshots stay `z.unknown()`, which is the honest type for a shape that is allowed to change |
+| 2026-09-08 | **`TRUST_PROXY` added, defaulting to off. B12 must set it to `true`** | §2.3 puts Caddy in front of the backend, and Fastify without `trustProxy` reports the proxy's address as `request.ip`. That silently collapses §5.1's per-IP login limit and §5.4's global limit into one bucket shared by every visitor, and stores one `ipHash` for all of them (§5.5) — three controls that look present and do nothing. Off by default because trusting `X-Forwarded-For` with nothing in front to overwrite it lets a caller choose their own rate-limit bucket |
+| 2026-09-08 | The §5.2 CSRF allow-list is reconciled by giving anonymous callers **their own binding**, not by exempting login | Login and B10.4's public lookup have no session on first use, and §5.2 forbids exempting by prefix — login CSRF signs a victim into the attacker's account. An anonymous caller gets a random id in an httpOnly cookie and the token is HMAC'd from it exactly as from a session id, so one rule covers every unsafe request and the allow-list stays a single entry |
+| 2026-09-08 | **`GET /api/auth/csrf` added**, because §2.3's topology leaves the login form without a token | The CSRF cookie is set by the backend, but the login page is rendered by Next — the browser reaches the form having never spoken to the backend, so its first `POST /api/auth/login` would be refused. One safe GET returns the token and sets the cookie. Discovered by the login test failing with 403, which is the design working |
+| 2026-09-08 | The argon2 dummy hash is derived at **boot**, not on first use | §5.1 requires a failed lookup and a wrong password to be indistinguishable. Deriving it lazily made exactly the first unknown-email request ~40 ms slower than a known-email one, restoring the timing difference for the first probe an attacker sends |
+| 2026-09-08 | `assertNotLastActiveAdmin` takes `SELECT ... FOR UPDATE` before counting — the one raw statement outside §5.4's allowances | Counting and then acting is the check-then-act race in CLAUDE.md's trap table: two admins deactivating each other both read "there is another one", and the workshop ends up locked out of its own settings with no route left to fix it. The lock is the same pattern §8.2 requires of B4's stock ledger, and it carries no interpolation |
+| 2026-09-08 | A concurrency test that passes with its safeguard removed is not a regression test | The HTTP-level "two admins at once" test still passed after the row lock was deleted — two requests fired together usually finish one after the other. `backend/tests/admin-lock.test.ts` forces the interleaving instead; the HTTP test is kept and relabelled as the outcome check it is. Worth applying to B4.3's 50-parallel-consumption test, which faces the same trap |
 
 ---
 
@@ -295,7 +301,7 @@ docker compose -f infra/docker-compose.dev.yml --env-file .env up -d
 
 pnpm --filter backend prisma:migrate                   # apply migrations
 pnpm --filter backend prisma:generate                  # explicit with Prisma 7
-pnpm --filter backend exec prisma db seed              # demo data; no rows until B2
+pnpm --filter backend exec prisma db seed              # two staff users (B2)
 pnpm dev                                               # backend :3001, frontend :3000
 ```
 
@@ -304,8 +310,10 @@ Generate each secret separately, for example
 The template's placeholder values are accepted in development and **rejected in
 production**, so a deployment cannot inherit them by accident.
 
-Seeded logins will be printed by the seed script once B2 creates users. Seeding
-is development-only and refuses to run when `NODE_ENV=production`.
+The seed creates two staff users and prints their credentials —
+`admin@verkstaden.se` (ADMIN) and `mekaniker@verkstaden.se` (MECHANIC).
+Seeding is development-only, refuses to run when `NODE_ENV=production`, and is
+idempotent, so running it twice is not an error.
 
 Check that it worked:
 
@@ -339,6 +347,7 @@ the process immediately with a readable message.
 | `NODE_ENV` | `development` | `development` \| `test` \| `production` |
 | `HOST` | `127.0.0.1` | Backend listen address. `0.0.0.0` inside a container |
 | `PORT` | `3001` | Backend listen port |
+| `TRUST_PROXY` | `false` | Read the client address from `X-Forwarded-For`. **Must be `true` in the B12 deployment**, where Caddy sits in front: without it every request carries the proxy's address, and the per-IP login limit (§5.1), the global rate limit (§5.4) and the stored `ipHash` (§5.5) all silently describe one client. Never `true` when nothing in front overwrites the header — a caller could then pick their own rate-limit bucket |
 | `DATABASE_URL` | `postgresql://verkstad:verkstad@127.0.0.1:5433/verkstad?schema=public` | Port 5433 in development, so the container does not collide with a native PostgreSQL on 5432 |
 | `POSTGRES_USER` / `_PASSWORD` / `_DB` / `_PORT` | `verkstad` … `5433` | Read by `infra/docker-compose.dev.yml` only, never by the application. Must agree with `DATABASE_URL` |
 | `SHADOW_DATABASE_URL` | *(unset)* | Only for `prisma migrate diff --from-migrations`, which the CI drift check runs. `migrate dev` creates its own shadow database |

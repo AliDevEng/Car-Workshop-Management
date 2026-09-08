@@ -29,3 +29,77 @@ datasource db {
   // application supplies it through the driver adapter passed to
   // `new PrismaClient({ adapter })` (B0.4.4, B0.4.5).
 }
+
+// ---------------------------------------------------------------------------
+// B2 — staff, sessions and the audit foundation (PROJECT_SPEC.md §4.2, §5.1).
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  MECHANIC
+}
+
+/// Staff only. Two rows in practice; the role split exists so price lists and
+/// user management can be locked down without a later migration (§5.3).
+model User {
+  id           String   @id @default(uuid(7))
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  /// Deactivated, never deleted (§4.3). A dismissed admin must lose access
+  /// without their audit trail losing its actor.
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  sessions  Session[]
+  auditLogs AuditLog[]
+
+  @@index([isActive])
+}
+
+/// A logged-in browser (§5.1). Sessions rather than JWT because a dismissed
+/// admin must lose access *now*, and a revocation list is a session table with
+/// more moving parts.
+model Session {
+  /// 256 bits of randomness, generated in `modules/auth/service.ts`. Not a
+  /// `@default`: the value has to be the same string the signed cookie
+  /// carries, so the application generates it rather than the database.
+  id         String   @id
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime @db.Timestamptz(3)
+  /// Moved forward on activity; the 30-day expiry slides with it (§5.1).
+  lastSeenAt DateTime @db.Timestamptz(3)
+  /// Salted SHA-256, never a raw address (§5.5).
+  ipHash     String?
+  userAgent  String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([userId])
+  /// The hourly cleanup job (§8.4) scans this.
+  @@index([expiresAt])
+}
+
+/// Append-only (§4.2). No update or delete route exists for this table, and
+/// none should be added — an audit log that can be edited is not one.
+model AuditLog {
+  id         String   @id @default(uuid(7))
+  /// Null for a scheduled job rather than a person (§8.4).
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  /// Passwords, password hashes and session ids are redacted before these are
+  /// written (B2.7.2) — the log records what changed, not the secret.
+  beforeJson Json?
+  afterJson  Json?
+  ipHash     String?
+  at         DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([entityType, entityId])
+  @@index([at])
+  @@index([userId])
+}

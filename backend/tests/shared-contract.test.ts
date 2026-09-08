@@ -73,7 +73,10 @@ function registerSharedContractRoutes(app: FastifyInstance): void {
 
   routes.get(
     '/test/shared/totals',
-    { schema: { response: { 200: totalsResponseSchema } } },
+    {
+      config: { auth: 'public' },
+      schema: { response: { 200: totalsResponseSchema } },
+    },
     () => {
       const { summed } = computeTotals();
       const rounding = calculateOresRounding(summed.grossOre);
@@ -94,7 +97,10 @@ function registerSharedContractRoutes(app: FastifyInstance): void {
 
   routes.get(
     '/test/shared/odometer',
-    { schema: { response: { 200: odometerResponseSchema } } },
+    {
+      config: { auth: 'public' },
+      schema: { response: { 200: odometerResponseSchema } },
+    },
     () => {
       const km = milToKm(12_000);
       return { km, mil: kmToMil(km) };

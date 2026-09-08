@@ -42,3 +42,17 @@ export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;
 export const CSRF_TOKEN_HEADER = 'x-csrf-token';
 export const CSRF_COOKIE_NAME = 'verkstad_csrf';
 export const SESSION_COOKIE_NAME = 'verkstad_session';
+
+/**
+ * `GET /api/auth/csrf` — the token, and the cookie it must match.
+ *
+ * This endpoint exists because of §2.3's topology. The CSRF cookie is set by
+ * the backend, but the login page is rendered by Next: the browser arrives at
+ * the form having never spoken to the backend, so it has no cookie to double
+ * submit and its first `POST /api/auth/login` would be refused. One safe GET
+ * first closes that, and it is the only bootstrap the flow needs.
+ */
+export const csrfTokenResponseSchema = z.object({
+  token: z.string().min(1),
+});
+export type CsrfTokenResponse = z.infer<typeof csrfTokenResponseSchema>;

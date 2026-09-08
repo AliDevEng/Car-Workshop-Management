@@ -33,13 +33,13 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 15/92 milestones complete; 1/14 iterations Done.**
+**Overall: 22/92 milestones complete; 2/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
 | [1](#b0)   | B0        | 0       | 9/10            | In progress |
 | [2](#b1)   | B1        | 0       | 6/6             | Done        |
-| [3](#b2)   | B2        | 1       | 0/7             | Not started |
+| [3](#b2)   | B2        | 1       | 7/7             | Done        |
 | [4](#b3)   | B3        | 1       | 0/6             | Not started |
 | [5](#b4)   | B4        | 2       | 0/6             | Not started |
 | [6](#b5)   | B5        | 3       | 0/6             | Not started |
@@ -878,15 +878,15 @@ the three fixture groups in `backend/tests/shared-contract.test.ts` for B1.6.2.
 
 ## Iteration 3: Creating staff authentication and permissions
 
-- [ ] Creating staff users (`B2.1`)
-- [ ] Creating database-backed sessions (`B2.2`)
-- [ ] Connecting login and logout (`B2.3`)
-- [ ] Enforcing route permissions (`B2.4`)
-- [ ] Protecting requests against CSRF (`B2.5`)
-- [ ] Creating staff account management (`B2.6`)
-- [ ] Creating the audit foundation (`B2.7`)
+- [x] Creating staff users (`B2.1`)
+- [x] Creating database-backed sessions (`B2.2`)
+- [x] Connecting login and logout (`B2.3`)
+- [x] Enforcing route permissions (`B2.4`)
+- [x] Protecting requests against CSRF (`B2.5`)
+- [x] Creating staff account management (`B2.6`)
+- [x] Creating the audit foundation (`B2.7`)
 
-**Reference:** B2 · **Phase:** 1 · **Progress:** 0/7 · **Status:** Not started
+**Reference:** B2 · **Phase:** 1 · **Progress:** 7/7 · **Status:** Done
 
 **Depends on:** B1.
 
@@ -907,93 +907,243 @@ tested; the startup route audit passes.
 
 ### B2.1 User model
 
-- [ ] **B2.1.1** Prisma `User` and `Session` models with indexes; migration
-      committed
-- [ ] **B2.1.2** argon2id hashing wrapper with tuned parameters
-- [ ] **B2.1.3** Seed script creating one `ADMIN` and one `MECHANIC`, blocked in
-      production
+- [x] **B2.1.1** Prisma `User` and `Session` models with indexes; migration
+      committed — `20260908021952_add_users_sessions_audit`. Every timestamp is
+      `Timestamptz(3)` (§3.6). `Session.id` has no `@default`: the value has to
+      be the same string the signed cookie carries, so the application
+      generates it. `Session.userId` cascades on delete; `AuditLog.userId` is
+      `SetNull`, because an audit row must outlive the account it names.
+- [x] **B2.1.2** argon2id hashing wrapper with tuned parameters —
+      `lib/password.ts`, at OWASP's baseline of 19 MiB, two passes, one lane,
+      stated rather than defaulted so a silent downgrade is visible in review.
+      A unit test asserts the encoded prefix `$argon2id$v=19$m=19456,t=2,p=1$`,
+      which is what makes that check real rather than aspirational.
+      `verifyPassword` returns `false` on an unparseable stored hash instead of
+      throwing: a 500 on one account and a 401 on another tells an attacker
+      which accounts exist.
+- [x] **B2.1.3** Seed script creating one `ADMIN` and one `MECHANIC`, blocked
+      in production. It upserts, so seeding twice is not an error, and it
+      prints the credentials it created.
 
 <a id="b2-2"></a>
 
 ### B2.2 Session infrastructure
 
-- [ ] **B2.2.1** Create, read, refresh and destroy sessions in the database
-- [ ] **B2.2.2** Signed cookie: `httpOnly`, `secure`, `sameSite: 'lax'`, 30 days
-      sliding
-- [ ] **B2.2.3** `request.user` decorated and typed via module augmentation —
-      **not** `any`
-- [ ] **B2.2.4** Expired sessions rejected and deleted on access
+- [x] **B2.2.1** Create, read, refresh and destroy sessions in the database —
+      `modules/auth/repository.ts` and `service.ts`. The session and its user
+      come back in one query, because this runs on every authenticated request.
+- [x] **B2.2.2** Signed cookie: `httpOnly`, `secure`, `sameSite: 'lax'`, 30 days
+      sliding. `secure` follows `NODE_ENV`, since development and the test
+      harness speak plain HTTP while production is HTTPS behind Caddy.
+      The sliding expiry is written back at most once a minute rather than on
+      every request: a timestamp moved by milliseconds is not worth an UPDATE
+      on the hot path, and a minute of granularity keeps the 30-day window
+      honest.
+- [x] **B2.2.3** `request.user` decorated and typed via module augmentation —
+      `AuthenticatedUser | null`, never `any`. Handlers call `currentUser()`
+      rather than reading the field: the guard has already guaranteed it, but
+      the tempting way to express that is `request.user!`, which is banned and
+      would become a 500 the day a route's declaration changes.
+- [x] **B2.2.4** Expired sessions rejected and deleted on access. Three other
+      things end a session on the same path, all silently: an unknown id, a
+      tampered signature, and a user who has been deactivated. The last is the
+      point of database-backed sessions — an admin removed at 09:00 is locked
+      out on their next request, not when a token happens to expire.
 
 <a id="b2-3"></a>
 
 ### B2.3 Login and logout routes
 
-- [ ] **B2.3.1** `POST /api/auth/login`, `POST /api/auth/logout`,
-      `GET /api/auth/me`
-- [ ] **B2.3.2** Rate limit 5 per 15 minutes per email and per IP
-- [ ] **B2.3.3** Constant-time behaviour: when the email is unknown, **still run
-      an argon2 verify against a fixed dummy hash** before responding. Returning
-      early on a missing user makes the two cases distinguishable by timing, and
-      that is how an attacker enumerates the staff list. Same body, same status,
-      same work done.
-- [ ] **B2.3.4** Tests including the rate-limit path
+- [x] **B2.3.1** `POST /api/auth/login`, `POST /api/auth/logout`,
+      `GET /api/auth/me`, plus `POST /api/auth/password` (B2.6.2) and
+      `GET /api/auth/csrf` — see B2.5 for why that last one has to exist.
+- [x] **B2.3.2** Rate limit 5 per 15 minutes per email and per IP.
+      Two independent buckets, not one composite key: keying on the pair would
+      hand an attacker a fresh five attempts for every address they rotate
+      through, which is what the email limit exists to stop. Both are consumed
+      on every attempt without short-circuiting, or spreading attempts across
+      addresses would never exhaust the email bucket. Only a success resets
+      them.
+      `lib/attempt-limiter.ts` is separate from `@fastify/rate-limit`, which
+      covers §5.4's global ceiling — one plugin instance produces one bucket.
+      Its clock is injectable, so the window expiring is tested rather than
+      waited out.
+- [x] **B2.3.3** Constant-time behaviour: the unknown-email path runs a full
+      argon2 verify against a fixed dummy hash. A deactivated user is refused
+      with the same message for the same reason — a distinct one would confirm
+      the address belongs to a real employee. The dummy hash is **derived at
+      boot rather than lazily**: computing it on first use would make exactly
+      the first unknown-email probe ~40 ms slower than a known one, putting
+      back the timing difference the measure exists to remove.
+- [x] **B2.3.4** Tests including the rate-limit path — 14 in `auth.test.ts`,
+      covering the identical-answer requirement, the email bucket, the IP
+      bucket exhausted across five different accounts, and the reset.
 
 <a id="b2-4"></a>
 
 ### B2.4 Authorisation
 
-- [ ] **B2.4.1** `requireAuth` and `requireRole(role)` preHandlers
-- [ ] **B2.4.2** A route-registration convention where auth level is declared
-      per route
-- [ ] **B2.4.3** **Startup assertion** enumerating registered routes and
-      throwing if any lacks a declaration
-- [ ] **B2.4.4** A test that adds an undeclared route and asserts boot fails
+- [x] **B2.4.1** `requireAuth` and `requireRole(role)` preHandlers.
+- [x] **B2.4.2** A route-registration convention where auth level is declared
+      per route: `config: { auth: 'public' | 'authenticated' | { role } }`.
+      **The declaration is what installs the guard** — an `onRoute` hook reads
+      it and prepends the matching preHandler. Declaring `role: 'ADMIN'` and
+      forgetting the guard is therefore not a mistake that can be made, because
+      they are the same act. The guard is *prepended*, so a route's own
+      preHandler never sees an unauthorised request.
+- [x] **B2.4.3** **Startup assertion** enumerating registered routes and
+      throwing if any lacks a declaration. Collected in `onRoute` and thrown in
+      `onReady`, so one failure names every offending route rather than only
+      the first — the difference between one fix and a fix-and-rerun loop when
+      a whole module was written without them.
+- [x] **B2.4.4** A test that adds an undeclared route and asserts boot fails,
+      plus one asserting the error names both offending routes.
+      A third covers the auto-generated HEAD route: Fastify adds one for every
+      GET, it is the same resource, and an unguarded one would answer with
+      headers alone.
 
 <a id="b2-5"></a>
 
 ### B2.5 CSRF
 
-Before implementation, reconcile the §5.2 allow-list with login and B10.4 public
-lookup: neither has an authenticated session on first use. Document and test
-their explicit protections; never exempt all public or auth routes by prefix.
+**The §5.2 reconciliation, resolved.** Login and the B10.4 public lookup have
+no session on first use, so a token derived from a session id would not exist
+for them — and exempting them is not available, because login CSRF signs a
+victim into the attacker's account and §5.2 forbids exempting by prefix.
 
-- [ ] **B2.5.1** Issue the double-submit CSRF token as an HMAC bound to the
-      session ID; reissue the CSRF cookie whenever login or password change
-      rotates that ID.
-- [ ] **B2.5.2** Global preHandler on all unsafe methods, allow-listing only the
-      public booking endpoint
-- [ ] **B2.5.3** Tests: missing token, mismatched token, valid token
-- [ ] **B2.5.4** Verify password changes revoke other sessions and still permit
-      a valid CSRF-protected save in the current session.
+An anonymous caller therefore gets a **binding of their own**: a random id in
+an httpOnly cookie, which the token is HMAC'd from exactly as a session id
+would be. One rule then covers every unsafe request, and the only allow-listed
+route in the system stays the public booking endpoint.
+
+That exposed a gap worth recording, because §2.3's topology causes it: the CSRF
+cookie is set by the backend, but the login page is rendered by Next, so the
+browser reaches the form having never spoken to the backend and its first
+`POST /api/auth/login` would be refused. **`GET /api/auth/csrf` closes it** —
+one safe request that returns the token and sets the cookie. F4 calls it before
+the first login.
+
+- [x] **B2.5.1** Issue the double-submit CSRF token as an HMAC bound to the
+      session ID, with a `csrf:` purpose string so the signature is not also
+      valid in another context; reissue the CSRF cookie whenever login or a
+      password change rotates that ID.
+- [x] **B2.5.2** Global preHandler on all unsafe methods, allow-listing only
+      the public booking endpoint. The allow-list is an explicit constant in
+      `plugins/csrf.ts` rather than a per-route flag: a flag lets any future
+      route quietly exempt itself, and this decision should require editing a
+      file named `csrf.ts`. A test pins its contents, and another asserts a
+      neighbouring `/api/public/...` route is **not** exempt.
+- [x] **B2.5.3** Tests: missing token, mismatched token, valid token — and
+      another session's structurally valid token, which is the
+      session-fixation variant the binding exists to close.
+- [x] **B2.5.4** Verified: a password change revokes the other sessions,
+      rotates the session id, reissues both cookies, and the current session
+      can still save afterwards. Comparison is `timingSafeEqual` over
+      equal-length buffers.
 
 <a id="b2-6"></a>
 
 ### B2.6 User management (ADMIN)
 
-- [ ] **B2.6.1** `GET`, `POST`, `PATCH /api/users`, plus deactivate (never
-      delete)
-- [ ] **B2.6.2** Password change requires the current password; all other
-      sessions for that user are destroyed
-- [ ] **B2.6.3** The last active admin cannot be deactivated — tested
+- [x] **B2.6.1** `GET`, `POST`, `PATCH /api/users`, plus deactivate and
+      reactivate (never delete). Deactivation is its own route rather than an
+      `isActive` field on the patch: it has a precondition and a side effect —
+      the last-admin guard, and destroying that user's sessions — and a rule
+      that important should not be reachable by assigning a boolean.
+      Cursor pagination on `id`, which is a UUIDv7 and therefore already unique
+      **and** monotonic, so §8.1's composite cursor is not needed here.
+- [x] **B2.6.2** Password change requires the current password; all other
+      sessions for that user are destroyed, and the session id is rotated, in
+      one transaction. The audit entry records the action and the actor and
+      **no before/after at all** — the only field that changed is the one that
+      must never be recorded.
+- [x] **B2.6.3** The last active admin cannot be deactivated — tested — and
+      cannot be demoted to `MECHANIC` either, which locks the workshop out of
+      its own settings just as thoroughly.
+
+      **The lock is the point, not the count.** Checking and then acting is the
+      race in CLAUDE.md's trap table, so `assertNotLastActiveAdmin` takes
+      `SELECT ... FOR UPDATE` on the active admin rows first. This is the one
+      raw statement outside §5.4's two allowances; it carries no interpolation,
+      and it is the same explicit-row-lock pattern §8.2 requires of B4's
+      ledger.
+
+      One finding worth keeping: **the HTTP-level "two admins at once" test
+      passes with the lock removed.** Two requests fired together usually
+      finish one after the other, so it does not reproduce the interleaving it
+      describes. `tests/admin-lock.test.ts` forces the interleaving and is the
+      actual regression test; the HTTP one is kept, relabelled as the outcome
+      check it really is.
 
 <a id="b2-7"></a>
 
 ### B2.7 Creating the audit foundation
 
-- [ ] **B2.7.1** Introduce the AuditLog model and transaction-aware write helper
-      specified in §4.2 before audited mutations in later iterations depend on
-      them.
-- [ ] **B2.7.2** Redact passwords, password hashes and session secrets from
-      captured changes.
-- [ ] **B2.7.3** Record user-management mutations with their actor; B11.1 later
-      verifies coverage across all domain modules and exposes the audit reader.
+- [x] **B2.7.1** The `AuditLog` model and a transaction-aware write helper —
+      `lib/audit.ts`. `writeAuditLog` takes the client explicitly, so every
+      audited mutation passes its `tx`: a log written after the transaction is
+      a log a crash can lose, leaving a change nobody can account for. A test
+      rolls a transaction back and asserts neither the change nor its entry
+      survives.
+- [x] **B2.7.2** Redact passwords, password hashes and session secrets from
+      captured changes. Matched on the **whole key**, case-insensitively, not
+      as a substring: `passwordHash` is a secret but `passwordChangedAt` is a
+      fact worth auditing, and a substring rule would silently swallow it.
+      `redact` also narrows `unknown` to a declared `JsonValue` as it walks, so
+      the result is assignable to Prisma's `InputJsonValue` without a cast, and
+      a `Date`, a `bigint` or a `NaN` becomes something the column can hold.
+- [x] **B2.7.3** Record user-management mutations with their actor —
+      `user.created`, `user.updated`, `user.deactivated`, `user.reactivated`
+      and `user.password_changed`, each with a salted `ipHash`. B11.1 later
+      verifies coverage across all domain modules and exposes the reader.
 
 </details>
 
-- [ ] **Iteration 3 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 3 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-08. B2's Definition of Done is *"an unauthenticated
+request to a protected route returns `401`; a `MECHANIC` hitting an `ADMIN`
+route returns `403`; both cases are tested; the startup route audit passes"* —
+all four hold, in `tests/authorisation.test.ts`.
+
+| Command                                          | Result                                                              |
+| ------------------------------------------------ | ------------------------------------------------------------------- |
+| `pnpm check`                                     | Clean — typecheck, lint (0 warnings), 396 tests, type-coverage 100%  |
+| `pnpm --filter backend test`                     | 167 across 17 files                                                  |
+| `pnpm --filter backend test:coverage`            | 94.66% statements, 85.93% branches (floor 80%)                       |
+| `pnpm format:check`                              | Clean                                                                |
+| `pnpm build`                                     | All three packages                                                   |
+| `pnpm --filter backend prisma:migrate`           | `20260908021952_add_users_sessions_audit` applied                    |
+| `pnpm --filter backend exec prisma migrate status` | 2 migrations, schema up to date, no drift                          |
+| `pnpm --filter backend exec prisma db seed`      | Two staff users created; idempotent on a second run                  |
+
+Acceptance evidence per milestone: `auth.test.ts` (14) for B2.1–B2.3,
+`authorisation.test.ts` (10) for B2.4 and the Definition of Done,
+`csrf.test.ts` (11) for B2.5, `users.test.ts` (14) for B2.6,
+`admin-lock.test.ts` (1) for B2.6.3's row lock, `audit.test.ts` (6) for B2.7,
+`security.test.ts` (8) for §5.4, plus 29 unit tests over the pure helpers.
+
+**Three defects were found by reviewing and testing this iteration, and are
+fixed:**
+
+1. **`trustProxy` was not set, and §2.3 puts Caddy in front.** Every request
+   would have carried the proxy's address in production, silently collapsing
+   the per-IP login limit (§5.1) and the global limit (§5.4) into one bucket
+   shared by every visitor, and storing one `ipHash` for all of them (§5.5).
+   Three controls that look present and do nothing. Added as `TRUST_PROXY`,
+   defaulting to **off** — trusting `X-Forwarded-For` with nothing in front to
+   overwrite it lets a caller choose their own rate-limit bucket — with a test
+   asserting `request.ip` in both positions. **B12 must set it to `true` in
+   the deployed compose file.**
+2. **The dummy password hash was computed lazily**, so the first login with an
+   unknown email paid ~40 ms that a login with a known one did not — putting
+   back, for the first probe an attacker sends, exactly the timing difference
+   §5.1's measure exists to remove. Derived at boot instead.
+3. **The "two admins at once" test passed with the row lock removed**, so it
+   was not the regression test it claimed to be. `admin-lock.test.ts` now
+   forces the interleaving; the original is kept and relabelled.
+
+**Completed on:** 2026-09-08
 
 ---
 

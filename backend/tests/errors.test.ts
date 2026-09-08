@@ -14,6 +14,7 @@ import {
 } from 'shared';
 import { createTestApp, type TestApp } from './helpers/app.js';
 import { jsonBody } from './helpers/http.js';
+import { anonymousAgent, withAgent } from './helpers/auth.js';
 
 /**
  * B0.7.6 — one assertion per case in the §3.7 envelope. These routes exist
@@ -33,6 +34,7 @@ function registerThrowingRoutes(app: FastifyInstance): void {
   routes.post(
     '/test/validate',
     {
+      config: { auth: 'public' },
       schema: {
         body: z.object({ email: z.email(), age: z.number().int().min(0) }),
         response: { 200: z.object({ ok: z.literal(true) }) },
@@ -55,7 +57,7 @@ function registerThrowingRoutes(app: FastifyInstance): void {
   } as const;
 
   for (const [name, create] of Object.entries(thrown)) {
-    routes.get(`/test/throw/${name}`, () => {
+    routes.get(`/test/throw/${name}`, { config: { auth: 'public' } }, () => {
       throw create();
     });
   }
@@ -63,7 +65,7 @@ function registerThrowingRoutes(app: FastifyInstance): void {
   // `throw 'string'` is legal JavaScript and a rejected promise can carry any
   // value. The handler must still produce the envelope rather than throwing
   // inside itself.
-  routes.get('/test/throw/primitive', () => {
+  routes.get('/test/throw/primitive', { config: { auth: 'public' } }, () => {
     // Throwing a non-Error is the entire point of this route: the adapter's
     // own type guards use `in` without a typeof check and would throw a
     // TypeError inside the error handler.
@@ -134,8 +136,10 @@ describe('error envelope', () => {
   });
 
   it('reports Zod request-validation failures per field', async () => {
-    const response = await supertest(harness.app.server)
-      .post('/test/validate')
+    const response = await withAgent(
+      supertest(harness.app.server).post('/test/validate'),
+      await anonymousAgent(harness),
+    )
       .send({ email: 'not-an-email', age: -1 })
       .expect(400);
 
@@ -150,8 +154,10 @@ describe('error envelope', () => {
   });
 
   it('accepts a body that satisfies the schema', async () => {
-    await supertest(harness.app.server)
-      .post('/test/validate')
+    await withAgent(
+      supertest(harness.app.server).post('/test/validate'),
+      await anonymousAgent(harness),
+    )
       .send({ email: 'anna@example.se', age: 42 })
       .expect(200, { ok: true });
   });
@@ -167,8 +173,10 @@ describe('error envelope', () => {
   });
 
   it('returns the envelope for a malformed JSON body', async () => {
-    const response = await supertest(harness.app.server)
-      .post('/test/validate')
+    const response = await withAgent(
+      supertest(harness.app.server).post('/test/validate'),
+      await anonymousAgent(harness),
+    )
       .set('content-type', 'application/json')
       .send('{"email":')
       .expect(400);

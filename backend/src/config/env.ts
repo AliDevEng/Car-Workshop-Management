@@ -40,6 +40,23 @@ const envShapeSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
   LOG_LEVEL: logLevelSchema.default('info'),
 
+  /**
+   * Whether to read the client address from `X-Forwarded-For`.
+   *
+   * This is load-bearing rather than cosmetic. §2.3 puts Caddy in front of the
+   * backend, and without it every request appears to come from the proxy —
+   * which silently collapses §5.1's per-IP login limit and §5.4's global limit
+   * into one bucket shared by every visitor on the internet, and stores one
+   * `ipHash` for all of them (§5.5). The control would still be there, and it
+   * would do nothing.
+   *
+   * Off by default because trusting the header when nothing strips it lets a
+   * caller pick their own rate-limit bucket. It is turned on only where a
+   * proxy that overwrites `X-Forwarded-For` is genuinely in front — which is
+   * the deployment B12 builds.
+   */
+  TRUST_PROXY: z.stringbool().default(false),
+
   DATABASE_URL: z
     .string()
     .min(1)
