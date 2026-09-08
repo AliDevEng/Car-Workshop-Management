@@ -1080,8 +1080,13 @@ decoration there.
 
 ### 9.3 Typography
 
-- Display: **Archivo Expanded** — an industrial grotesque with real width,
-  drawn from signage rather than from a UI kit.
+- Display: **Archivo at an expanded width** — an industrial grotesque with real
+  width, drawn from signage rather than from a UI kit.
+  *Corrected 2026-09-07 (decision log).* This said "Archivo Expanded". No such
+  family is published: Google Fonts ships the single variable **Archivo**
+  family with `wght` and `wdth` axes, and "Expanded" is a named width inside
+  it. The display role therefore uses the same file with `font-stretch`
+  pulling the `wdth` axis, not a second download.
 - Body: **Source Serif 4** on the public site, for readable service
   descriptions; **Archivo** on the admin side, where density wins.
 - **Tabular figures (`font-variant-numeric: tabular-nums`) are mandatory** on
@@ -1091,6 +1096,13 @@ decoration there.
 - Self-hosted via `next/font/local`. No external font requests — it is faster
   and it avoids a third-party dependency on a page that must load in a garage on
   mobile data.
+- Both faces are the **variable** `.ttf`, subset to `latin` + `latin-ext` with
+  `pyftsubset`. Each **must declare its `fvar` weight range** to
+  `next/font/local` (`weight: '100 900'` for Archivo, `'200 900'` for Source
+  Serif 4). An omitted `font-weight` descriptor defaults to a single `400`,
+  which makes the browser synthesise every other weight instead of moving the
+  axis — see the decision log, 2026-09-08. This is a browser concern only; the
+  backend PDF renderer registers its own fonts under §8.3.
 
 ### 9.4 Layout
 

@@ -172,6 +172,13 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
+**7/83 frontend milestones are complete as of 2026-09-08:** all seven of F0's.
+F0 is Done — its Definition of Done was verified against a running B0/B2
+backend and PostgreSQL rather than fixtures, which is what surfaced the three
+foundation defects in the decision log below.
+
+**Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
+(branch protection, and the workflow running on a pull request), not code.
 
 | Phase | Status | Started | Completed |
 |---|---|---|---|
@@ -209,7 +216,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 
 | Frontend | Title | Phase | Status |
 |---|---|---|---|
-| F0 | Next.js foundation | 0 | 🟨 (3/7 milestones; see frontend/README.md) |
+| F0 | Next.js foundation | 0 | ✅ (7/7 — typed API client against a live backend, Tailwind 4 tokens, scoped admin surface, subset self-hosted fonts, TanStack Query, formatters; `pnpm check`/`pnpm build` clean, 7 Playwright tests green) |
 | F1 | Design system | 1 | ⬜ |
 | F4 | Admin shell and authentication | 1 | ⬜ |
 | F6 | Customers and vehicles | 1 | ⬜ |
@@ -247,7 +254,7 @@ past row.
 | 2026-09-07 | ESLint **9.39.5**, not 10.10.0 | `eslint-config-next@16` pulls `eslint-plugin-import`/`-react`/`-jsx-a11y`, all capped at ESLint 9. npm marks 9.x deprecated; accepted, revisit when those plugins support 10 |
 | 2026-09-07 | `@types/node` pinned to **22.x**, not 26.x | Types must match the Node 22 runtime, or they describe APIs that do not exist at runtime |
 | 2026-09-07 | `allowBuilds` in `pnpm-workspace.yaml` is an explicit allow-list | pnpm 12 blocks lifecycle scripts by default. Prisma, esbuild and unrs-resolver need theirs; testcontainers' native extras (ssh2, cpu-features, protobufjs) are denied and fall back to pure JS |
-| 2026-09-07 | **Needs a §9 correction:** "Archivo Expanded" does not exist as a Google Fonts family | Google Fonts publishes only the single variable "Archivo" (`wght`+`wdth` axes); "Expanded" is a named width within it. Both display and admin-body roles self-host that one variable file (`frontend/src/fonts/index.ts`); display activates the `wdth` axis via `font-stretch`. Not yet reflected in `PROJECT_SPEC.md` §9 |
+| 2026-09-07 | ~~Needs a §9 correction:~~ **§9.3 corrected 2026-09-08.** "Archivo Expanded" does not exist as a Google Fonts family | Google Fonts publishes only the single variable "Archivo" (`wght`+`wdth` axes); "Expanded" is a named width within it. Both display and admin-body roles self-host that one variable file (`frontend/src/fonts/index.ts`); display activates the `wdth` axis via `font-stretch`. Not yet reflected in `PROJECT_SPEC.md` §9 |
 | 2026-09-07 | Frontend fonts are the full (unsubsetted) variable `.ttf` files, not Latin-Extended subsets | Google Fonts' canonical repo no longer ships static per-weight files for Archivo or Source Serif 4, only variable ones, and no font-subsetting tool (`fonttools`/`pyftsubset`) was available to cut them to `latin-ext`. Functionally correct (glyph coverage confirmed) but larger than necessary; revisit before F2.6's Lighthouse budget |
 | 2026-09-07 | `shared/tsconfig.json` sets `ignoreDeprecations: "6.0"`, scoped to that package only | `tsup`'s dts bundler (`rollup-plugin-dts`) injects a `baseUrl` into the program it builds for declaration bundling; TS 6 deprecates the flag ahead of TS 7 removal. Affects only that generated program, not an actual relaxation of strictness |
 | 2026-09-07 | Frontend depends on `date-fns`/`date-fns-tz` directly, not only via `shared` | F0.6's `formatDate`/`formatDateTime`/`formatRelative` need them directly; both are already approved in §2.2 for `shared`, so this extends an existing choice rather than introducing a new one |
@@ -278,6 +285,12 @@ past row.
 | 2026-09-08 | The argon2 dummy hash is derived at **boot**, not on first use | §5.1 requires a failed lookup and a wrong password to be indistinguishable. Deriving it lazily made exactly the first unknown-email request ~40 ms slower than a known-email one, restoring the timing difference for the first probe an attacker sends |
 | 2026-09-08 | `assertNotLastActiveAdmin` takes `SELECT ... FOR UPDATE` before counting — the one raw statement outside §5.4's allowances | Counting and then acting is the check-then-act race in CLAUDE.md's trap table: two admins deactivating each other both read "there is another one", and the workshop ends up locked out of its own settings with no route left to fix it. The lock is the same pattern §8.2 requires of B4's stock ledger, and it carries no interpolation |
 | 2026-09-08 | A concurrency test that passes with its safeguard removed is not a regression test | The HTTP-level "two admins at once" test still passed after the row lock was deleted — two requests fired together usually finish one after the other. `backend/tests/admin-lock.test.ts` forces the interleaving instead; the HTTP test is kept and relabelled as the outcome check it is. Worth applying to B4.3's 50-parallel-consumption test, which faces the same trap |
+| 2026-09-08 | **`INTERNAL_API_URL` is an origin; the frontend appends `/api` itself.** Both base-URL branches must end in the same prefix | Found completing F0.7. The variable is documented as `http://backend:3001` while every route is mounted under `/api`, and the resolver returned it verbatim — so server components asked for `/health`, got a 404, and rendered "backend unreachable". Indistinguishable from the backend being down, which is exactly how it survived. The client test had stubbed the variable with an `/api` suffix the documentation never uses, so it agreed with the bug |
+| 2026-09-08 | **`frontend/next.config.ts` loads the repository-root `.env`**, mirroring `backend/src/config/dotenv.ts` | Next.js reads `.env` files from its own project directory, and this workspace deliberately keeps one `.env` at the root. Nothing bridged the two, so `INTERNAL_API_URL` was undefined in every `next dev` and `next start` process and no server component could ever reach the backend. A missing file stays non-fatal (production supplies real variables) and existing environment values win |
+| 2026-09-08 | **A variable font registered with `next/font/local` must declare an explicit `weight` range** | An omitted `font-weight` descriptor defaults to the single value `400`, so the browser treats the file as a one-weight face and *synthesises* every other weight instead of moving the `wght` axis. Archivo made it visible — its `fvar` default is 600, so body text rendered as faux-emboldened 600. Now `'100 900'` and `'200 900'`, matching each `fvar`. The advance-width check does **not** catch this (synthetic bold also changes widths); `e2e/typography.spec.ts` asserts the declared descriptor, and was verified to fail without the fix |
+| 2026-09-08 | Frontend fonts **are** subset to `latin` + `latin-ext`, superseding the 2026-09-07 row | `fonttools` 4.64.0 installed after all, so `pyftsubset` cut both variable files to Google Fonts' published ranges: Archivo −25 %, Source Serif 4 −51 %, with `fvar`/`gvar`/`avar`/`HVAR`/`STAT` and both axes intact and `--name-IDs='*'` keeping the OFL records inside the file. Removes the caveat flagged against F2.6's Lighthouse budget |
+| 2026-09-08 | The frontend takes cookie and header names from `shared`, never from local literals | B2 issues `verkstad_session` and `verkstad_csrf`; the F0 client still carried its `sessionId`/`csrfToken` placeholders, which would have been a 403 on every save presenting as a permissions bug. `SESSION_COOKIE_NAME`, `CSRF_COOKIE_NAME` and `CSRF_TOKEN_HEADER` already existed in `shared` and the backend already imported them — CLAUDE.md's "types are defined once, in `shared/`" applies to protocol constants too |
+| 2026-09-08 | Playwright drives the machine's installed Chrome (`channel: 'chrome'`) rather than its bundled Chromium | `playwright install chromium` times out reaching `cdn.playwright.dev` from this network, which left the E2E suite configured but never executed — and an unexecuted suite hid a smoke test that asserted `getByRole('alert')` unscoped, satisfied on every page by Next's permanently-present `__next-route-announcer__`. Both are Chromium; CI can reach the CDN and may drop the channel |
 
 ---
 

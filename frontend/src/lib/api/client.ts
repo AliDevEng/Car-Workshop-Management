@@ -1,4 +1,4 @@
-import { apiErrorSchema } from 'shared';
+import { apiErrorSchema, CSRF_COOKIE_NAME, CSRF_TOKEN_HEADER } from 'shared';
 import type { z } from 'zod';
 import { getApiBaseUrl } from './base-url';
 import { ApiError } from './errors';
@@ -10,8 +10,12 @@ function readCookie(name: string): string | undefined {
     return undefined;
   }
   const prefix = `${name}=`;
+  // Split on `;` and trim rather than on `'; '`: the separator is only
+  // conventionally spaced, and `verkstad_csrf_binding` sitting next to
+  // `verkstad_csrf` makes a near-miss here look like a CSRF rejection.
   const row = document.cookie
-    .split('; ')
+    .split(';')
+    .map((entry) => entry.trim())
     .find((entry) => entry.startsWith(prefix));
   return row?.slice(prefix.length);
 }
@@ -60,10 +64,14 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
   if (hasBody && !headers.has('content-type')) {
     headers.set('content-type', 'application/json');
   }
+  // The cookie name and the header name are the backend's contract, not this
+  // file's choice — B2 issues `CSRF_COOKIE_NAME` non-httpOnly precisely so
+  // the page can copy it into `CSRF_TOKEN_HEADER`. Both come from `shared`,
+  // so a rename there cannot leave the two halves disagreeing.
   if (!isServer && UNSAFE_METHODS.has(method)) {
-    const csrfToken = readCookie('csrfToken');
-    if (csrfToken) {
-      headers.set('x-csrf-token', csrfToken);
+    const csrfToken = readCookie(CSRF_COOKIE_NAME);
+    if (csrfToken !== undefined && csrfToken !== '') {
+      headers.set(CSRF_TOKEN_HEADER, csrfToken);
     }
   }
 

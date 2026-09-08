@@ -37,11 +37,11 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 3/83 milestones complete; 0/13 iterations Done.**
+**Overall: 7/83 milestones complete; 1/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
-| [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 3/7             | In progress |
+| [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 7/7             | Done        |
 | [F1](#f1)   | Design system                             | 1     | F0                                 | 0/6             | Not started |
 | [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 0/6             | Not started |
 | [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 0/6             | Not started |
@@ -87,9 +87,11 @@ Keep TypeScript 6.0.3: the installed `typescript-eslint@8.69.0` accepts
 accessibility plugins do not accept ESLint 10. These are the compatibility
 exceptions already recorded in the root decision log.
 
-The baseline is **installed and metadata-checked**, not yet verified as a
-working application: source entry points, Next/TypeScript/test configurations
-and backend endpoints are still to be built. F0.7 owns that verification.
+**Updated 2026-09-08: the baseline is now verified as a working application.**
+F0.7 completed its checks against a running B0 backend and PostgreSQL — the
+build, both test suites and the quality gate all pass, and the typed API
+client reaches a real endpoint. The earlier note that this was only
+"installed and metadata-checked" no longer applies.
 
 | Frontend package                 | Installed version |
 | -------------------------------- | ----------------- |
@@ -291,15 +293,15 @@ call; `pnpm build` and `pnpm typecheck` pass.
 B0 supplies the API/test infrastructure and B1 supplies shared contracts.
 Interleave those backend steps within Phase 0 before signing off F0.
 
-**Milestone checklist — 3/7 complete:**
+**Milestone checklist — 7/7 complete:**
 
-- [ ] **[F0.1](#f0-1)** ? — Project setup
-- [ ] **[F0.2](#f0-2)** ? — Tailwind and tokens
-- [ ] **[F0.3](#f0-3)** ? — Fonts
+- [x] **[F0.1](#f0-1)** ? — Project setup
+- [x] **[F0.2](#f0-2)** ? — Tailwind and tokens
+- [x] **[F0.3](#f0-3)** ? — Fonts
 - [x] **[F0.4](#f0-4)** ? — Typed API client
 - [x] **[F0.5](#f0-5)** ? — TanStack Query
 - [x] **[F0.6](#f0-6)** ? — Formatting helpers
-- [ ] **[F0.7](#f0-7)** ? — Toolchain and foundation verification
+- [x] **[F0.7](#f0-7)** ? — Toolchain and foundation verification
 
 <a id="f0-1"></a>
 
@@ -321,14 +323,18 @@ package.
       `pnpm lint`; `next build` does not run linting.
 - [x] **F0.1.4** Verify the existing `shared: workspace:*` dependency resolves
       its built ESM and declaration files in the frontend.
-- [ ] **F0.1.5** Keep `transpilePackages: ['shared']` in `next.config.ts`
+- [x] **F0.1.5** Keep `transpilePackages: ['shared']` in `next.config.ts`
       alongside the shared `tsup` watch build, as required by §2.1. Verify
       cross-package hot reload; record the result with B0.10 instead of assuming
       it works.
-      **Partial:** `transpilePackages: ['shared']` is set and `next build`
-      successfully resolves `shared`'s built output. Live concurrent
-      `pnpm dev` hot-reload across the package boundary is not yet
-      demonstrated, and B0.10.4 (owned by backend) has not recorded a result.
+      **Demonstrated live 2026-09-08.** B0.10.4 recorded the result, and it
+      was reproduced from the frontend side with all three watchers running:
+      with `tsup --watch` active, changing `WORKSHOP_TIMEZONE` in
+      `shared/src/time.ts` from `Europe/Stockholm` to a probe value changed
+      the value rendered by a server component at `/admin` **without
+      restarting the Next dev server**, and `tsx watch` restarted the backend
+      on the same rebuilt output. Both halves of §2.1 are required and both
+      work. The probe was reverted afterwards.
 - [x] **F0.1.6** Confirm no `app/api/` directory exists. Caddy routes `/api/*`
       to the backend, so a Next route handler there works locally and silently
       returns the wrong thing in production
@@ -341,10 +347,15 @@ package.
 - [x] **F0.1.9** Configure Vitest for pure frontend helpers and Playwright for
       browser flows before implementing the tests in subsequent milestones; use
       the B0 test backend and shared fixtures.
-      **Note:** no B0 test backend exists yet; Vitest tests use mocked
-      `fetch` fixtures instead (F0.4.8). A real Playwright browser could not
-      be downloaded in this environment (the `cdn.playwright.dev` install
-      times out) — the config and one smoke spec exist but are unexecuted.
+      **Both suites run for real (2026-09-08).** Vitest: 25 tests over the
+      API client, the base-URL resolver and the four formatters, using mocked
+      `fetch` fixtures (F0.4.8). Playwright: 7 tests passing against the
+      running app and a live B0 backend.
+      `playwright install chromium` still times out reaching
+      `cdn.playwright.dev` from this network, so `playwright.config.ts` sets
+      `channel: 'chrome'` and drives the Chrome already installed on the
+      machine. Both are Chromium, and an E2E suite that cannot start is an
+      E2E suite nobody runs. CI can reach the CDN and may drop the channel.
 
 <a id="f0-2"></a>
 
@@ -362,11 +373,17 @@ package.
 - [x] **F0.2.4** Reset and base styles; `tabular-nums` utility defined
       (Tailwind 4 ships `tabular-nums` as a built-in utility; documented in
       `globals.css` rather than redefined).
-- [ ] **F0.2.5** Dark surfaces reachable via a scoped class on the admin layout,
+- [x] **F0.2.5** Dark surfaces reachable via a scoped class on the admin layout,
       not a global theme toggle — the two interfaces are simply different
-      **Partial:** the `.admin-scope` class exists in `globals.css` using the
-      `--color-steel`/`--color-concrete-2` tokens, but no `(admin)` layout
-      exists yet to apply it to — that lands with F4.3.1.
+      `src/app/(admin)/layout.tsx` applies `.admin-scope` (defined in
+      `globals.css` from the `--color-steel`/`--color-concrete-2` tokens).
+      `src/app/(admin)/admin/page.tsx` is the admin counterpart of the root
+      `page.tsx`: a foundation-verification page that renders the surface and
+      the four type weights and fetches nothing. F4.3 replaces it with the
+      real shell and mounts the F0.5 QueryProvider; F4.2 adds route
+      protection, which has nothing to guard until then. Verified by
+      `e2e/typography.spec.ts`: the scope paints `rgb(28, 43, 51)` while the
+      public `body` keeps `rgb(230, 232, 229)`.
 
 <a id="f0-3"></a>
 
@@ -374,30 +391,45 @@ package.
 
 **Acceptance:** All required Swedish glyphs render in each selected weight.
 
-- [ ] **F0.3.1** Commit the required web font files under `src/fonts/`, with
+- [x] **F0.3.1** Commit the required web font files under `src/fonts/`, with
       their licence files, subset to Latin Extended. Keep PDF static `.ttf`
       files in the backend as a separate asset set.
-      **Spec correction needed:** "Archivo Expanded" is not a font Google
-      Fonts publishes — only the single variable "Archivo" family (`wght` +
-      `wdth` axes) exists, and Expanded is a named width within it, not a
-      separate download. Google Fonts also no longer ships static per-weight
-      `.ttf` files for either Archivo or Source Serif 4 in its canonical
-      repository, only variable files. Committed: the full (unsubsetted)
-      variable `.ttf` for Archivo and for Source Serif 4, each with its
-      `OFL.txt`, under `src/fonts/`; both files include the `latin-ext`
-      subset. Not done: actual glyph subsetting (no `fonttools`/`pyftsubset`
-      available in this environment) — the committed files carry Cyrillic,
-      Greek and Vietnamese glyphs the product does not need. See
-      `frontend/src/fonts/index.ts` for the full reasoning; this needs a
-      `PROJECT_SPEC.md` §9 correction and a root README decision-log row
-      before F1 builds on top of it.
+      **Spec correction still needed for the family name:** "Archivo
+      Expanded" is not a font Google Fonts publishes — only the single
+      variable "Archivo" family (`wght` + `wdth` axes) exists, and Expanded
+      is a named width within it, not a separate download. Google Fonts also
+      no longer ships static per-weight `.ttf` files for either Archivo or
+      Source Serif 4, only variable files. See `src/fonts/index.ts`; the
+      `PROJECT_SPEC.md` §9 correction and its decision-log row are recorded
+      in the root README.
+      **Subsetting is now done (2026-09-08).** `fonttools` 4.64.0 installed
+      after all, so both files were cut to Google Fonts' published `latin` +
+      `latin-ext` unicode ranges with `pyftsubset`, dropping the Cyrillic,
+      Greek and Vietnamese glyphs the product does not need:
+      Archivo 658 596 → 495 584 bytes (−25 %), Source Serif 4 1 209 508 →
+      599 728 bytes (−51 %). `fvar`, `gvar`, `avar`, `HVAR` and `STAT`
+      survive, so `wght 100–900` / `wdth 62–125` and `wght 200–900` /
+      `opsz 8–60` are still the real axes. Each file keeps its `OFL.txt`
+      alongside, and `--name-IDs='*'` keeps the licence records inside the
+      font. `ÅÄÖ åäö` coverage is asserted by the subsetting run and again
+      in the browser (F0.3.3).
 - [x] **F0.3.2** Registered with `next/font/local`, `display: 'swap'`
-- [ ] **F0.3.3** Verify å, ä and ö render in every weight
-      **Partial:** the source files' metadata declares `latin-ext` subset
-      coverage (confirmed via `METADATA.pb`, which includes å/ä/ö), and the
-      built page applies the font variable classes correctly. No visual
-      screenshot was taken — Playwright's browser could not be downloaded in
-      this environment (see F0.1.9).
+- [x] **F0.3.3** Verify å, ä and ö render in every weight
+      **Verified in a real browser, and it found a defect.** Neither
+      `@font-face` carried a `font-weight` descriptor. An omitted descriptor
+      defaults to the single value `400`, so the browser treated both
+      variable files as one-weight faces and **synthesised** every other
+      weight instead of moving the `wght` axis — with Archivo, whose `fvar`
+      default is 600, that meant body text rendered as a faux-emboldened 600.
+      `src/fonts/index.ts` now declares `weight: '100 900'` and
+      `weight: '200 900'`, matching each file's `fvar`.
+      `e2e/typography.spec.ts` asserts the declared ranges, and that
+      `document.fonts.check()` can render `ÅÄÖåäö` at 400/500/600/700 for
+      both families. Removing the descriptors was confirmed to fail that test
+      (`Expected: "100 900"`, `Received: "normal"`), so the assertion is
+      load-bearing. Note that the accompanying advance-width test still
+      passes without the fix — synthetic bold also changes widths — so the
+      descriptor assertion is the one that protects this.
 
 <a id="f0-4"></a>
 
@@ -408,13 +440,30 @@ paths.
 
 - [x] **F0.4.1** Create `lib/api/client.ts` with a typed `fetch` wrapper;
       browser requests include credentials and the CSRF header on authenticated
-      unsafe methods, using the readable `csrfToken` cookie. Public form calls
-      use their HMAC form token.
+      unsafe methods, using the readable CSRF cookie. Public form calls use
+      their HMAC form token.
       (The HMAC form-token header itself is F2.2.3's job, on top of this
       client.)
+      **Corrected 2026-09-08:** this step named a `csrfToken` cookie, which
+      is not what B2 issues. The real names are `CSRF_COOKIE_NAME`
+      (`verkstad_csrf`) and `CSRF_TOKEN_HEADER`, both exported from `shared`,
+      and the client now imports them rather than repeating string literals —
+      CLAUDE.md's "types are defined once, in `shared/`". A mismatch here is a
+      403 on every save that reads as a permissions bug. Covered by two new
+      browser-branch tests in `client.test.ts`.
 - [x] **F0.4.2** Two base URLs, chosen automatically: server components use
       `INTERNAL_API_URL`, browser code uses the relative `/api`. Getting this
       wrong fails only in the container, where `localhost` is not the backend
+      **Fixed 2026-09-08 — this was broken, and it was why the health page
+      never succeeded.** `INTERNAL_API_URL` is documented as a bare origin
+      (`http://backend:3001`), while every backend route is mounted under
+      `/api`; the resolver returned the variable verbatim, so a server
+      component asked for `http://127.0.0.1:3001/health` and got a 404 that
+      surfaced only as "backend unreachable". Both branches now end in the
+      same `/api` prefix. The existing test hid it by stubbing the variable
+      with a `/api` suffix the documentation never uses; it now stubs the
+      documented form, and `base-url.test.ts` covers the bare origin, an
+      already-prefixed value, a trailing slash and the missing/empty cases.
 - [x] **F0.4.3** Parse every response with the matching `shared` Zod schema;
       never cast it. Runtime parsing detects malformed responses, while shared
       inferred types catch incompatible code changes during typecheck.
@@ -425,10 +474,17 @@ paths.
 - [x] **F0.4.7** For authenticated server-side reads, forward only the required
       session cookie to the trusted internal API and use `cache: "no-store"`;
       never share one user's response through a public cache.
-      (`lib/api/server.ts`; the session cookie name is a placeholder until
-      B2/F4 define the real session mechanism.)
+      (`lib/api/server.ts`.) The placeholder name is gone: B2 is Done, so the
+      module imports `SESSION_COOKIE_NAME` (`verkstad_session`) from `shared`
+      — the same constant `backend/src/modules/auth/service.ts` sets the
+      cookie with.
 - [x] **F0.4.8** Verify typed success, API validation error, non-JSON response
       and network failure with fixtures; no paid provider calls.
+      Extended with a schema-mismatch case and, new on 2026-09-08, the
+      **browser branch** — previously unexercised, which is how the wrong
+      CSRF cookie name survived. `window`/`document` are stubbed rather than
+      switching the suite to jsdom, since the client only branches on
+      `typeof`.
 
 <a id="f0-5"></a>
 
@@ -468,51 +524,86 @@ consistently.
 
 **Acceptance:** The implemented foundation passes its build and quality gates.
 
-- [ ] **F0.7.1** Run frontend typecheck, shared/frontend builds and root
+- [x] **F0.7.1** Run frontend typecheck, shared/frontend builds and root
       `pnpm check` after B0/B1 supply their configurations. Verify the health
       endpoint renders through the API client.
-      **Partial:** `pnpm --filter frontend typecheck/build/test` and
-      `pnpm --filter shared typecheck/build/test` all pass; root `pnpm check`
-      cannot pass until backend exists (B0 not started — expected, not a
-      frontend defect). The health page correctly renders the "backend
-      unreachable" error state (verified against `next start`); the typed
-      success path is exercised only in `client.test.ts` fixtures, not
-      against a live backend.
-- [ ] **F0.7.2** Check the repository Node engine range against Vitest 5 and
+      **Complete 2026-09-08.** Root `pnpm check` is clean across all three
+      packages (see the acceptance record below), and `pnpm build` succeeds
+      in dependency order.
+      **The health endpoint now renders its success path — for the first
+      time.** The previous "backend unreachable" result was not only B0's
+      absence: two frontend defects made the success path unreachable
+      regardless of whether a backend was running (the missing `/api` prefix
+      in F0.4.2, and `INTERNAL_API_URL` never being loaded into the frontend
+      process — see F0.7.5). With both fixed and B0/B2 running against
+      Postgres, `GET /` server-renders
+      `Status ok · Version 0.1.0 · Upptid … s` from a schema-parsed typed
+      call, and the development rewrite serves the same data at
+      `/api/health` for the browser path.
+- [x] **F0.7.2** Check the repository Node engine range against Vitest 5 and
       Vite 8: the current lower bound 22.11.0 is too low for their 22.12.0
       minimum. Align it during tooling setup; use the pinned Node 22.21.1 for
       this baseline.
-      Not done here — tracked under backend's B0.1.3, which also touches CI
-      and containers. Local Node is 22.21.1, already above the 22.12.0 floor
-      in practice.
+      **Aligned by backend B0.1.3.** Root `engines` is now
+      `>=22.22.0 <23.0.0` (raised past 22.12.0 by Testcontainers 12.1.0's own
+      floor), `.nvmrc` pins 22.23.2, and CI reads the version from `.nvmrc`.
+      The task text above is itself superseded: 22.21.1 is no longer the pin.
+      **Open, and not a frontend item:** the machine this was verified on
+      still runs Node 22.21.1, one patch below the declared floor. The whole
+      workspace suite passes there, but the local runtime should be moved to
+      22.23.2 to match — `nvm` is installed on this machine, so it is one
+      command. Already recorded under backend B0's verification note.
 - [x] **F0.7.3** Verify the configured Vitest and Playwright suites discover
       real tests; remove `--passWithNoTests` when real unit tests are introduced
       so a missing suite cannot look green.
-      Vitest: done, flag removed, 18 real tests pass (`pnpm --filter frontend
-      test`). Playwright: config and one smoke spec exist but could not run —
-      `playwright install chromium` times out reaching
-      `cdn.playwright.dev` from this environment.
+      Vitest: flag removed, 25 real tests pass. Playwright: 7 tests pass
+      against system Chrome (see F0.1.9).
+      **A test that cannot fail is worse than no test, and there was one.**
+      The F0 smoke spec asserted `getByRole('alert').or(getByText('Status'))`
+      unscoped — and Next.js renders a permanently-present
+      `__next-route-announcer__` with `role="alert"` on every page, so that
+      assertion was satisfied by something the app did not render. It only
+      surfaced once the success path started working and the locator matched
+      two elements (strict-mode violation). Now scoped to `<main>`.
 - [x] **F0.7.4** Run `next dev` and `next build` with their default Turbopack
       setup; verify aliases, local fonts and shared-package resolution.
       `next build` and `next start` both succeeded; `@/*` alias, the two
       self-hosted font variables and the `shared` import all resolved
       correctly (verified by inspecting the rendered `<html>` output).
-- [ ] **F0.7.5** Record command results, Node/pnpm versions and the shared
+- [x] **F0.7.5** Record command results, Node/pnpm versions and the shared
       hot-reload evidence before marking F0 complete.
-      Node 22.21.1, pnpm 12.3.4. Command results recorded inline above;
-      concurrent `shared` watch + frontend hot-reload was not demonstrated
-      live in this session.
+      Node 22.21.1, pnpm 12.3.4, Docker 28.5.1, PostgreSQL 16.15, Chrome
+      stable, Windows 11. Command results are in the acceptance record below;
+      the live hot-reload evidence is under F0.1.5.
+      **One defect found while producing this evidence, and it is the reason
+      the success path had never been seen.** Nothing loaded the repository
+      root `.env` into the frontend process. Next.js reads `.env` files from
+      its own project directory, and this workspace deliberately keeps a
+      single `.env` at the root, so `INTERNAL_API_URL` was *always* undefined
+      under `next dev` and `next start` — `getApiBaseUrl()` threw, the page
+      caught it, and the result was indistinguishable from the backend being
+      down. `next.config.ts` now loads it the same way
+      `backend/src/config/dotenv.ts` does: a missing file is not an error
+      (production supplies real variables) and values already in the
+      environment win.
+      Also corrected there: the development rewrite target defaulted to
+      `http://localhost:3001`, which resolves to `::1` first on Node 18+
+      while the backend binds the IPv4 `HOST` from `.env`. Now `127.0.0.1`.
 
 **Iteration acceptance record**
 
-- [ ] **F0 Done** — every milestone and the iteration Definition of Done pass;
+- [x] **F0 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
+
+**Definition of done:** "the health endpoint is rendered from a fully typed
+API call; `pnpm build` and `pnpm typecheck` pass." All three now hold, against
+a live B0 backend and PostgreSQL rather than fixtures.
 
 | Field                       | Record                                                                                                                                                                                                                       |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Current milestone / blocker | F0.1/F0.2/F0.3/F0.7 partially done; blocked on a real backend (B0) for the health-endpoint success path and root `pnpm check`, and on a font-subsetting tool for true Latin-Extended-only font files. F0.4/F0.5/F0.6 are complete. |
-| Verification evidence        | `pnpm --filter shared {typecheck,test,build}` and `pnpm --filter frontend {typecheck,test,build}` all pass (35 + 18 tests); `pnpm exec eslint .` clean workspace-wide; `type-coverage` 100% on both packages; `next build`/`next start` verified manually. |
-| Completed on                 | —                                                                                                                                                                                                                             |
+| Current milestone / blocker | None. F0 is complete; F1 (design system) is next and depends only on F0. Two items carried forward deliberately, neither blocking: the local Node runtime is 22.21.1 against a 22.22.0 pin (F0.7.2, backend-owned), and Playwright uses the installed Chrome because `cdn.playwright.dev` is unreachable from this network (F0.1.9). |
+| Verification evidence        | 2026-09-08, Node 22.21.1, pnpm 12.3.4, Docker 28.5.1, PostgreSQL 16.15, Windows 11. `pnpm build` clean in dependency order. `pnpm check` clean — typecheck, ESLint at `--max-warnings 0`, 403 tests (167 backend, 211 shared, 25 frontend), `type-coverage` 99.96 % against a 99.5 % floor. `pnpm format:check` clean. `pnpm exec playwright test` — 7 passed. Live: `GET /` server-renders `status ok, version 0.1.0` through the typed client; `GET /api/health` returns the same via the dev rewrite; `GET /api/health/ready` reports `database: up`. `shared` hot reload demonstrated across both consumers (F0.1.5). Font subsetting and glyph coverage under F0.3.1/F0.3.3. |
+| Completed on                 | 2026-09-08                                                                                                                                                                                                                    |
 
 ---
 

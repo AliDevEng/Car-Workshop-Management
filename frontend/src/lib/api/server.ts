@@ -1,12 +1,7 @@
 import { cookies } from 'next/headers';
+import { SESSION_COOKIE_NAME } from 'shared';
 import type { z } from 'zod';
 import { apiFetch, type ApiFetchOptions } from './client';
-
-/**
- * The session cookie name is a placeholder until B2/F4 define the real
- * session mechanism; kept in one place so that wiring is a one-line change.
- */
-const SESSION_COOKIE_NAME = 'sessionId';
 
 /**
  * Server-component variant of {@link apiFetch} (F0.4.7). Forwards only the

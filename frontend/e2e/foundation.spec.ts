@@ -17,7 +17,13 @@ test('the home page renders in Swedish and shows a connectivity state', async ({
 
   // Either the backend answered (a status list) or it didn't (an alert) —
   // both are valid, explicitly-handled outcomes for this stage.
+  //
+  // Scoped to <main> on purpose. Next.js renders its own permanently-present
+  // `__next-route-announcer__` with `role="alert"`, so an unscoped
+  // `getByRole('alert')` is satisfied on every page by something this app
+  // did not render — an assertion that can never fail is not a test.
+  const content = page.getByRole('main');
   await expect(
-    page.getByRole('alert').or(page.getByText('Status')),
+    content.getByText('Status').or(content.getByRole('alert')),
   ).toBeVisible();
 });

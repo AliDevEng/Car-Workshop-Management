@@ -1,4 +1,8 @@
-import { healthResponseSchema } from 'shared';
+import {
+  CSRF_COOKIE_NAME,
+  CSRF_TOKEN_HEADER,
+  healthResponseSchema,
+} from 'shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from './client';
 import { ApiError } from './errors';
@@ -17,7 +21,9 @@ describe('apiFetch', () => {
     // This suite runs under Vitest's Node environment, where `window` is
     // undefined — the same "server" branch a Server Component takes — so
     // the client needs INTERNAL_API_URL, exactly as it would in production.
-    process.env['INTERNAL_API_URL'] = 'http://backend.internal:3001/api';
+    // The value is a bare origin, as .env.example and the root README
+    // document it; getApiBaseUrl adds the /api prefix the routes live under.
+    process.env['INTERNAL_API_URL'] = 'http://backend.internal:3001';
   });
 
   afterEach(() => {
@@ -106,5 +112,58 @@ describe('apiFetch', () => {
     );
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).code).toBe('INVALID_RESPONSE');
+  });
+});
+
+/**
+ * The browser branch was previously unexercised, which is how the client kept
+ * reading a `csrfToken` cookie that B2 never issues: the backend's real name
+ * is `CSRF_COOKIE_NAME`, and a mismatch here is a 403 on every save with no
+ * clue as to why. `window`/`document` are stubbed rather than switching the
+ * whole suite to jsdom — the client only branches on `typeof`.
+ */
+describe('apiFetch (browser branch)', () => {
+  function inBrowser(cookie: string): void {
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('document', { cookie });
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('sends the CSRF header from the backend cookie on an unsafe method', async () => {
+    inBrowser(`other=1; ${CSRF_COOKIE_NAME}=abc123; verkstad_csrf_binding=zz`);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse(200, { status: 'ok', version: '0.1.0', uptime: 1 }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiFetch('/health', healthResponseSchema, {
+      method: 'POST',
+      body: {},
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/health');
+    expect(new Headers(init.headers).get(CSRF_TOKEN_HEADER)).toBe('abc123');
+    expect(init.credentials).toBe('include');
+  });
+
+  it('does not send a CSRF header on a safe method', async () => {
+    inBrowser(`${CSRF_COOKIE_NAME}=abc123`);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse(200, { status: 'ok', version: '0.1.0', uptime: 1 }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiFetch('/health', healthResponseSchema);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).has(CSRF_TOKEN_HEADER)).toBe(false);
   });
 });
