@@ -1,5 +1,5 @@
 import { Decimal } from 'decimal.js';
-import { parseDecimal } from './units.js';
+import { isValidDecimalString, parseDecimal } from './units.js';
 
 /**
  * Article quantities — PROJECT_SPEC.md §3.4.
@@ -25,27 +25,51 @@ const MAX_QUANTITY = new Decimal(10)
   .toPower(QUANTITY_PRECISION - QUANTITY_SCALE)
   .minus(new Decimal(10).toPower(-QUANTITY_SCALE));
 
-function assertStorable(value: Decimal, label: string): void {
+/**
+ * Why the value cannot be stored, or `null` when it can. Returning the reason
+ * rather than throwing lets both callers below share one rule: `quantity()`
+ * turns it into a `RangeError`, and `isStorableQuantity` into a boolean a Zod
+ * schema can use at the API boundary.
+ */
+function storageProblem(value: Decimal): string | null {
   if (!value.isFinite()) {
-    throw new RangeError(
-      `${label} must be a finite quantity, got ${value.toString()}`,
-    );
+    return 'must be a finite quantity';
   }
 
   // Rejected, not rounded. A stock quantity silently rounded on the way in is
   // how a ledger and its cached balance drift apart, and §4.2 makes the ledger
   // the truth — it has to be exactly what the caller meant.
   if (value.decimalPlaces() > QUANTITY_SCALE) {
-    throw new RangeError(
-      `${label} must have at most ${QUANTITY_SCALE} decimal places, got ${value.toString()}`,
-    );
+    return `must have at most ${QUANTITY_SCALE} decimal places`;
   }
 
   if (value.absoluteValue().greaterThan(MAX_QUANTITY)) {
-    throw new RangeError(
-      `${label} must be within ±${MAX_QUANTITY.toString()}, got ${value.toString()}`,
-    );
+    return `must be within ±${MAX_QUANTITY.toString()}`;
   }
+
+  return null;
+}
+
+function assertStorable(value: Decimal, label: string): void {
+  const problem = storageProblem(value);
+  if (problem !== null) {
+    throw new RangeError(`${label} ${problem}, got ${value.toString()}`);
+  }
+}
+
+/** True when the `Decimal` fits the `Decimal(12, 3)` column's scale and range. */
+export function isStorableQuantity(value: Decimal): boolean {
+  return storageProblem(value) === null;
+}
+
+/**
+ * True for a JSON-boundary string that `parseQuantity` will accept — correct
+ * decimal syntax *and* within the column's limits. Both halves matter: a Zod
+ * schema that only checks the syntax lets `999999999999` through to a database
+ * error, which reaches the client as a 500 rather than a field-level message.
+ */
+export function isValidQuantityString(value: string): boolean {
+  return isValidDecimalString(value) && isStorableQuantity(new Decimal(value));
 }
 
 /**

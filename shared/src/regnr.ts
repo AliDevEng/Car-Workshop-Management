@@ -36,6 +36,25 @@ export function isNonStandardPlate(input: string): boolean {
 }
 
 /**
+ * The stored form's own invariant: already normalised, and containing nothing
+ * but the characters a plate can carry.
+ *
+ * Checking `input === normaliseRegNr(input)` alone is not enough — it passes
+ * `ABC_12D`, because an underscore is neither lower case nor a separator that
+ * normalisation strips. The unique index in §4.2 is built on this column, so
+ * anything that reaches it has to be a plausible plate rather than merely a
+ * canonical spelling of arbitrary text.
+ */
+export function isNormalisedRegNr(input: string): boolean {
+  return (
+    ALLOWED_CHARS_PATTERN.test(input) &&
+    input.length >= 2 &&
+    input.length <= 10 &&
+    input === normaliseRegNr(input)
+  );
+}
+
+/**
  * Inserts the space Swedish plates are physically printed with, e.g.
  * `ABC123` → `ABC 123`. Falls back to the unspaced canonical form for
  * non-standard lengths rather than producing a malformed split.

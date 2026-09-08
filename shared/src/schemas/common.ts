@@ -15,14 +15,6 @@ export const apiErrorSchema = z.object({
 export type ApiErrorBody = z.infer<typeof apiErrorSchema>;
 
 /**
- * An opaque resource identifier. Deliberately not constrained to a specific
- * format (uuid/cuid) here — the concrete generator is chosen when B2's
- * Prisma models are defined; every schema in `shared/` treats an id as an
- * opaque string.
- */
-export const idSchema = z.string().min(1);
-
-/**
  * Cursor pagination query params — PROJECT_SPEC.md §8.1. `cursor` is an
  * opaque, endpoint-defined base64 string; callers never construct one.
  */
@@ -44,3 +36,35 @@ export function paginatedResponseSchema<Item extends z.ZodTypeAny>(
     nextCursor: z.string().nullable(),
   });
 }
+
+/**
+ * Sort direction for the endpoints that declare a sortable column. §8.1 is
+ * explicit that a cursor is only stable against a unique, monotonic sort key,
+ * so an endpoint states which columns it will sort by and rejects the rest;
+ * the frontend `DataTable` must not offer a sort the API has not declared.
+ */
+export const sortDirectionSchema = z.enum(['asc', 'desc']);
+export type SortDirection = z.infer<typeof sortDirectionSchema>;
+
+/**
+ * The header carrying an idempotency key on money- and stock-affecting
+ * mutations (§8.1). Lower-case because Node normalises incoming header names,
+ * and comparing against a capitalised literal is a bug that only shows up
+ * under a proxy.
+ */
+export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
+
+/**
+ * A replay within 24 hours returns the original result; the same key with a
+ * *different* request body is a `409`, because that means a bug rather than a
+ * retry (§4.2).
+ */
+export const idempotencyKeySchema = z.string().min(8).max(200);
+
+/**
+ * A non-blocking advisory returned alongside a successful write — a stock
+ * balance that went negative (§6.4), an odometer reading below the previous
+ * highest (§3.5). Warnings never replace an error: if the request failed, it
+ * failed with the §3.7 envelope.
+ */
+export const warningsSchema = z.array(z.string());

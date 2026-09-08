@@ -163,8 +163,8 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **13/92 backend milestones are complete as of 2026-09-08**: nine
-of B0's ten, and four of B1's six.
+is complete. **15/92 backend milestones are complete as of 2026-09-08**: nine
+of B0's ten, and all six of B1's. B1 is the first iteration to reach Done.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion
@@ -192,7 +192,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | Backend | Title | Phase | Status |
 |---|---|---|---|
 | B0 | Workspace and tooling | 0 | 🟨 (9/10 milestones; everything but B0.9 — CI has not yet run on a PR and branch protection needs a repository owner) |
-| B1 | Shared domain primitives | 0 | 🟨 (4/6 — money, quantities, units, regnr, the work-order state machine and the error hierarchy are done; the full per-domain schema set remains, by design) |
+| B1 | Shared domain primitives | 0 | ✅ (6/6 — money, quantities, units, regnr, the work-order state machine, the error hierarchy and the 21-file per-domain schema set; 100% coverage of `shared/src`, verified from both consumers) |
 | B2 | Authentication and users | 1 | ⬜ |
 | B3 | Customers and vehicles | 1 | ⬜ |
 | B4 | Inventory and stock ledger | 2 | ⬜ |
@@ -266,6 +266,12 @@ past row.
 | 2026-09-08 | `Quantity` is a branded `Decimal` that **rejects** a fourth decimal place rather than rounding it | §4.2 makes the stock ledger the truth and `Article.stockQuantity` a cache. A quantity silently rounded on the way in is precisely how the two drift apart, and the drift is only discovered by a nightly reconciliation job weeks later |
 | 2026-09-08 | Work orders cannot go from `COMPLETED` straight to `CANCELLED`, and no status transitions to itself | Reverting from `COMPLETED` is what writes the compensating `RETURN` stock movements (B6.6.4); a direct cancellation would strand the deducted parts. Refusing a self-transition means a double-tapped **Slutför** is rejected by the state machine rather than relying on the `stockDeducted` guard |
 | 2026-09-08 | `shared` coverage thresholds raised to 100% (statements, branches, functions, lines), enforced in `vitest.config.ts` | B1's Definition of Done asks for it, and the package is pure functions with no I/O — an unreachable line here is a line that should not exist. `src/schemas/**` stays excluded: asserting that `z.string()` is a string tests Zod, not us |
+| 2026-09-08 | **B1.5 defines the full per-domain schema set now**, superseding B1's "only define contracts for implemented areas as they become needed" | The instruction existed to stop endpoints being guessed at, and that still holds — so the line is drawn between what the specification settles and what an iteration decides. §4.2 states its field lists are complete, so every enum, entity shape and settled input schema is transcribed rather than invented; response envelopes for endpoints that do not exist are not. Without this, B2–B9 each redeclare the same status enums, and CLAUDE.md's "types are defined once, in `shared/`" stays aspirational |
+| 2026-09-08 | **No type-changing transform in any DTO schema:** `z.input` and `z.output` are identical, asserted at compile time over 20 entity schemas | `fastify-type-provider-zod` types a response from the output side and encodes against it. A branding transform would make every response schema demand an `Ore` or `Quantity` the repository does not have, and one schema could no longer serve both a request and a response. Branded types stay in the layer that does arithmetic: a handler parses a plain value, then calls `ore()` or `parseQuantity()`. The assertion was verified to fail the build by pointing it at a transforming schema |
+| 2026-09-08 | Validation *rules* live in `shared/src/*.ts` as pure predicates; `shared/src/schemas/**` only declares | `src/schemas/**` is excluded from the 100% coverage threshold because it should hold declarations. Logic hidden there would be untested by construction. Added: `isValidOre`, `isStorableQuantity`, `isValidQuantityString`, `isValidOdometerKm`, `isNormalisedRegNr`, `isWithinDayRange` — each sharing its rule with the constructor it guards, and each existing so a bad value produces a Swedish field-level message rather than a `RangeError` that becomes a 500 |
+| 2026-09-08 | **Work-order and quote `number` are nullable while the record is a `DRAFT`** | §4.2 lists `number` plainly, but §4.4 assigns it when the document is *finalised* rather than when the draft is created, so abandoned drafts leave no gaps — and §4.3 permits deleting a `DRAFT` work order, which is exactly such a gap. A required field would have made draft creation impossible. B6 and B7 should confirm when they implement the sequences |
+| 2026-09-08 | `normalisedRegistrationNumberSchema` checks the plate character set, not only that the value is canonical | Found while testing B1.5: `value === normaliseRegNr(value)` **passes `ABC_12D`**, because an underscore is neither lower case nor a separator normalisation strips. That column carries §4.2's unique index, so arbitrary text could have masqueraded as a plate |
+| 2026-09-08 | The service-protocol checklist result enum (`OK` / `ATTENTION` / `NOT_APPLICABLE`) is **provisional pending B8** | §6.7 fixes that a checklist is copied into each protocol with its answers, but not the answer vocabulary. Declared so the contract is usable and the UI has something to render; B8 owns confirming or replacing it. The surrounding `checklistJson`-style snapshots stay `z.unknown()`, which is the honest type for a shape that is allowed to change |
 
 ---
 

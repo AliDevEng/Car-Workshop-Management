@@ -8,8 +8,18 @@ import { Decimal } from 'decimal.js';
  */
 export type Ore = number & { readonly __brand: 'Ore' };
 
+/**
+ * True for a value that can be stored as öre: a whole number, within the range
+ * JavaScript represents exactly. The predicate is separate from `ore()` so a
+ * Zod schema can reject the value at the API boundary and produce a Swedish
+ * field-level message, instead of letting a `RangeError` become a 500.
+ */
+export function isValidOre(value: number): boolean {
+  return Number.isSafeInteger(value);
+}
+
 function assertSafeInteger(value: number, label: string): void {
-  if (!Number.isInteger(value) || !Number.isSafeInteger(value)) {
+  if (!isValidOre(value)) {
     throw new RangeError(`${label} must be a safe integer, got ${value}`);
   }
 }

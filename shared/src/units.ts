@@ -6,6 +6,21 @@ import { Decimal } from 'decimal.js';
  * This is the only place that conversion happens — PROJECT_SPEC.md §3.5,
  * CLAUDE.md "Traps specific to this project".
  */
+export const ODOMETER_MIN_KM = 1;
+export const ODOMETER_MAX_KM = 2_000_000;
+
+/**
+ * The `1..2 000 000` km range from PROJECT_SPEC.md §3.5. A reading *below* the
+ * vehicle's previous highest is deliberately not covered here: that is legal
+ * (clusters get replaced, imports happen) and is flagged for a human rather
+ * than rejected, which needs the vehicle's history and so belongs in a service.
+ */
+export function isValidOdometerKm(km: number): boolean {
+  return (
+    Number.isSafeInteger(km) && km >= ODOMETER_MIN_KM && km <= ODOMETER_MAX_KM
+  );
+}
+
 export function kmToMil(km: number): string {
   if (!Number.isInteger(km)) {
     throw new RangeError(`kmToMil expects an integer number of km, got ${km}`);

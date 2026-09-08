@@ -33,12 +33,12 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 13/92 milestones complete; 0/14 iterations Done.**
+**Overall: 15/92 milestones complete; 1/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
 | [1](#b0)   | B0        | 0       | 9/10            | In progress |
-| [2](#b1)   | B1        | 0       | 4/6             | In progress |
+| [2](#b1)   | B1        | 0       | 6/6             | Done        |
 | [3](#b2)   | B2        | 1       | 0/7             | Not started |
 | [4](#b3)   | B3        | 1       | 0/6             | Not started |
 | [5](#b4)   | B4        | 2       | 0/6             | Not started |
@@ -56,6 +56,11 @@ Entry points, schema, migrations and test configuration are implemented as of
 2026-09-08. B0.9 remains open because branch protection is a repository setting
 that cannot be applied from the working tree, and because the workflow has not
 yet run on a pull request.
+
+**Iteration 2 (B1) is Done as of 2026-09-08.** The shared domain primitives and
+the full per-domain schema set are in place, verified from both consumers.
+Phase 0 therefore has one open item in total — B0.9, which needs a repository
+owner rather than code.
 
 ## Package review
 
@@ -561,10 +566,10 @@ be moved to 22.23.2 to match the pin.
 - [x] Creating quantity and mileage helpers (`B1.2`)
 - [x] Normalising registration numbers (`B1.3`)
 - [x] Creating the work-order state machine (`B1.4`)
-- [ ] Creating shared schemas and types (`B1.5`)
-- [ ] Verifying shared package integration (`B1.6`)
+- [x] Creating shared schemas and types (`B1.5`)
+- [x] Verifying shared package integration (`B1.6`)
 
-**Reference:** B1 · **Phase:** 0 · **Progress:** 4/6 · **Status:** In progress
+**Reference:** B1 · **Phase:** 0 · **Progress:** 6/6 · **Status:** Done
 
 B1.1, B1.3 and most of B1.2 were built while completing frontend F0, which
 needed `shared/money.ts`, `shared/units.ts` and `shared/regnr.ts` to exist for
@@ -573,14 +578,29 @@ living only in `shared/`) and needed a health/error schema for F0.4's typed API
 client.
 
 B1.2's `Quantity` wrapper and B1.4's state machine were completed on
-2026-09-08. Only B1.5 (the full per-domain schema set) and B1.6 (final
-verification) remain, and both are deliberately incremental: schemas arrive
-with the iteration that needs them.
+2026-09-08. B1.5 and B1.6 were completed the same day.
 
 **Depends on:** B0.
 
-Only define contracts for implemented areas as they become needed. Domain
-helpers remain independent of Fastify and Prisma.
+**The "define contracts as they become needed" instruction is superseded, and
+this is the one substantive change B1.5 makes to the plan.** It was written to
+avoid guessing at endpoints that do not exist, which remains right — so the
+line B1.5 draws is between *what the specification settles* and *what an
+iteration decides*:
+
+- **In `shared/` now:** every enum in §4.2 with its Swedish label, the entity
+  shape of every core entity, the field-level primitives (§3.2–§3.5, §4.4), and
+  the input schemas whose contents §4.2 or §6 already fix. §4.2 states that its
+  field lists are complete, so these are transcribed rather than invented.
+- **Still owned by the iteration that builds it:** anything a route decides
+  rather than the domain — response envelopes for endpoints that do not exist,
+  filters nobody has specified, and the shape of a `*Json` column.
+
+The gain is that B2–B9 assemble contracts from a vocabulary that already exists
+instead of each redeclaring a status enum, and the CLAUDE.md rule "types are
+defined once, in `shared/`" becomes enforceable rather than aspirational.
+
+Domain helpers remain independent of Fastify and Prisma.
 
 **Goal:** the units and rules that everything else depends on, implemented as
 pure functions with heavy test coverage. Nothing here touches I/O.
@@ -635,6 +655,18 @@ import from `shared` and typecheck.
 - [x] **B1.2.4** A test asserting no money or quantity helper accepts a `number`
       where a `Decimal` is required
 
+      **Extended by B1.5 (2026-09-08).** Four pure predicates were added
+      alongside the constructors, because a Zod schema needs to *ask* whether a
+      value is storable rather than catch the `RangeError` that `quantity()` or
+      `ore()` throws — an exception at the API boundary becomes a `500`, not a
+      field-level Swedish message. They are `isValidOre` (`money.ts`),
+      `isStorableQuantity` and `isValidQuantityString` (`quantity.ts`), and
+      `isValidOdometerKm` with `ODOMETER_MIN_KM`/`ODOMETER_MAX_KM` (`units.ts`,
+      §3.5's `1..2 000 000` range). Each shares its rule with the constructor
+      it guards rather than restating it, so the two cannot disagree.
+      `isValidQuantityString` checks syntax **and** range: syntax alone lets
+      `999999999999` reach the database, and the error arrives as a 500.
+
 <a id="b1-3"></a>
 
 ### B1.3 Registration numbers
@@ -644,6 +676,14 @@ import from `shared` and typecheck.
 - [x] **B1.3.2** `formatRegNrSpaced` for partner templates
 - [x] **B1.3.3** Tests: `abc 12d` → `ABC12D`, `ABC-123`, `ÅÄÖ 123`, empty, too
       long, a personalised plate falling back to `isNonStandardPlate`
+
+      **`isNormalisedRegNr` added by B1.5 (2026-09-08), and it fixed a real
+      hole.** The stored-form schema first checked only
+      `value === normaliseRegNr(value)`, which **passes `ABC_12D`** — an
+      underscore is neither lower case nor a separator normalisation strips, so
+      arbitrary text could reach the column §4.2's unique index is built on.
+      The predicate now also requires the plate character set and a 2–10
+      length, and a test asserts `ABC_12D` and `AB!` are rejected.
 
 <a id="b1-4"></a>
 
@@ -687,21 +727,59 @@ import from `shared` and typecheck.
 
 ### B1.5 Shared schemas and types
 
-- [ ] **B1.5.1** `schemas/` folder, one file per domain area, all exported from
-      `index.ts`
-      **Partial by design:** `schemas/common.ts` (pagination, error envelope,
-      id) and `schemas/health.ts` exist; per B1's own instruction to "only
-      define contracts for implemented areas as they become needed", the
-      customer/vehicle/booking/etc. domain files are not created yet.
-      B0.5.5 added `healthReadyResponseSchema` to `schemas/health.ts` for the
-      readiness probe.
+- [x] **B1.5.1** `schemas/` folder, one file per domain area, all exported from
+      `index.ts` — **21 files, completed 2026-09-08.**
+
+      `primitives.ts` first, then one file per §4.2 area: `common`, `health`,
+      `user`, `auth`, `customer`, `vehicle`, `odometer`, `article`, `stock`,
+      `booking`, `work-order`, `document`, `quote`, `service-rule`,
+      `service-protocol`, `partner-link`, `settings`, `vehicle-data`, `audit`,
+      `search`.
+
+      Four decisions are worth keeping, because each is easy to get wrong later:
+
+      - **`primitives.ts` declares; the domain modules decide.** A schema never
+        contains a rule — it calls `isValidOre`, `isValidQuantityString`,
+        `isValidOdometerKm`, `isNormalisedRegNr` or `isWithinDayRange`. Those
+        live in `src/*.ts` under the 100 % coverage threshold, whereas
+        `src/schemas/**` is excluded from it *because* it is meant to hold
+        nothing but declarations. Validation logic hidden in an excluded file
+        would be untested by construction.
+      - **`z.input` and `z.output` are identical for every entity schema, and
+        this is asserted at compile time.** `fastify-type-provider-zod` types a
+        response from the output side and encodes against it, so a schema whose
+        two sides differ demands one shape from the repository and describes
+        another to the client. That rules out branding transforms: a handler
+        parses a plain validated value and *then* calls `ore()` or
+        `parseQuantity()`, keeping `Ore` and `Quantity` in the layer that does
+        arithmetic. `shared/tests/schema-io-invariant.test.ts` encodes the
+        invariant as a `satisfies` assertion over 20 entity schemas — verified
+        to fail the build by pointing it at a transforming schema. The single
+        exception is query-string coercion, which is input-only.
+      - **`z.stringbool()`, never `z.coerce.boolean()`,** for a boolean query
+        parameter. The latter is `Boolean(value)`, which reads the string
+        `'false'` as `true` — a filter that silently means the opposite of what
+        the URL says.
+      - **A `*Json` column is typed `z.unknown()`, deliberately.**
+        `payloadJson`, `ruleSnapshotJson`, and the audit log's
+        `beforeJson`/`afterJson` are snapshots of shapes that are *allowed* to
+        change; pinning a shape in `shared` would make a three-year-old
+        document fail to parse the day its template changed, which is precisely
+        what §4.2 says the field exists to survive.
+
+      Two readings of the specification were resolved rather than guessed at,
+      and both are in the root decision log: work-order and quote `number` are
+      **nullable while the record is a `DRAFT`** (§4.4 assigns a number on
+      finalisation), and the checklist result enum is **provisional pending
+      B8**, since §6.7 describes a checklist with answers without fixing the
+      answer's vocabulary.
+
 - [x] **B1.5.2** Pagination, error envelope and id schemas
 - [x] **B1.5.3** Types derived with `z.infer` — no hand-written duplicates
-- [ ] **B1.5.4** `shared` builds to ESM with declaration files, consumable by
-      both packages
-      **Partial:** builds to ESM+`.d.ts` via `tsup` and is consumed
-      successfully by `frontend`; `backend` does not exist yet to verify the
-      other side.
+- [x] **B1.5.4** `shared` builds to ESM with declaration files, consumable by
+      both packages — **both sides verified 2026-09-08.** `tsup` emits
+      `dist/index.js` (52 KB) and a bundled `dist/index.d.ts` (111 KB);
+      `next build` resolves it, and the backend resolves it under NodeNext.
 
 <a id="b1-6"></a>
 
@@ -713,48 +791,86 @@ import from `shared` and typecheck.
       `shared`'s dist output. Backend: `tsc --noEmit` under NodeNext resolves
       `shared`'s ESM entry and declarations, and B0.10.4 confirmed a watch-mode
       rebuild reaches both consumers live.
-- [ ] **B1.6.2** Verify quantity serialization, money rounding and unit
-      conversion fixtures on both consumers.
+- [x] **B1.6.2** Verify quantity serialization, money rounding and unit
+      conversion fixtures on both consumers. **Complete 2026-09-08.**
       Frontend verified (`formatCurrency`/`formatOdometer` tests). Backend
-      verified for **quantity serialisation only**
-      (`tests/zod-contract.test.ts` round-trips `decimalToString` through a
-      route). Money rounding and km↔mil have no backend consumer yet; they
-      arrive with B4 and B6.
-- [ ] **B1.6.3** Record shared coverage and the cross-package build result
+      quantity serialisation was already covered by
+      `tests/zod-contract.test.ts`; money rounding and km↔mil are now covered
+      by `backend/tests/shared-contract.test.ts`, which goes through a real
+      route rather than calling the helpers directly — the failure this guards
+      against is not "the arithmetic is wrong" (that is `shared`'s own tests)
+      but "the value changed shape on the way out". Three fixtures:
+      - 33 lines of 33,33 kr: `netOre` 109 989 and `vatOre` 27 489 as summed
+        from already-rounded lines, asserted **not equal** to the 27 497 that
+        recomputing VAT from the document net produces. That öre is the §3.3
+        bug, made visible.
+      - öresavrundning: 137 478 → `roundedGrossOre` 137 500, `roundingOre` 22,
+        every total an integer across the JSON boundary while the quantity is
+        the string `"4.25"`.
+      - `milToKm(12 000)` → 120 000 km → `kmToMil` → `"12000.0"`, round-tripped
+        through the route. Storing the mil value would understate the reading
+        tenfold, which is the failure §3.5 exists to prevent.
+- [x] **B1.6.3** Record shared coverage and the cross-package build result
       before marking B1 Done.
-      `shared`: 123/123 tests pass, **100% line, branch, statement and
-      function coverage of `shared/src`**, 100% type-coverage, `tsup` build
-      clean. That threshold is now enforced in `shared/vitest.config.ts`
-      rather than remembered — every file here is a pure function with no I/O,
-      so an unreachable line is a line that should not exist. `src/schemas/**`
-      stays excluded: asserting that `z.string()` is a string tests the
-      library, not us.
-      Cross-package build recorded for both consumers. Outstanding for B1 as a
-      whole: only B1.5's per-domain schema set, which arrives with the
-      iteration that needs each area.
+      `shared`: **211/211 tests pass across 10 files, at 100 % line, branch,
+      statement and function coverage of `shared/src`** (129/129 statements,
+      53/53 branches, 50/50 functions), 100 % type-coverage, `tsup` build
+      clean. The threshold is enforced in `shared/vitest.config.ts` rather than
+      remembered — every file here is a pure function with no I/O, so an
+      unreachable line is a line that should not exist. `src/schemas/**` stays
+      excluded: asserting that `z.string()` is a string tests the library, not
+      us.
+
+      What that exclusion cannot see is covered explicitly by
+      `shared/tests/schemas.test.ts`: **every module's exports are asserted to
+      be reachable through the barrel**, because a star-export name collision
+      is not a compile error — ESM resolves the ambiguous binding to nothing
+      and the import silently disappears. The same file pins the drift-prone
+      pairs: each enum against its `z.enum`, the search union's discriminators
+      against `SEARCH_RESULT_TYPES`, the §4.4 prefixes against the number
+      format, and `BOOKING_STATUSES_NOT_OCCUPYING_A_SLOT` against the status
+      list B5.4's partial `WHERE` clause has to match.
+
+      Cross-package build recorded for both consumers: `pnpm build` runs
+      `shared` → `backend` → `frontend` clean, with `next build` compiling
+      against the emitted declarations.
 
 </details>
 
-- [ ] **Iteration 2 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 2 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** 2026-09-08. B1.1 (money), B1.2 (quantities and units), B1.3
-(registration numbers) and B1.4 (work-order state machine) are done and tested.
-B1.5 is partial by design (common and health schemas only). B1.6 is no longer
-blocked — both consumers are verified — but stays open until B1.5's schema set
-exists.
+**Verification:** 2026-09-08. All six milestones pass. B1's Definition of Done
+is *"100 % coverage in `shared/src`; both other packages import from `shared`
+and typecheck"* — both halves hold, and both are recorded below.
 
-| Command                                       | Result                                              |
-| --------------------------------------------- | --------------------------------------------------- |
-| `pnpm --filter shared test`                   | 123/123 passing across 7 files                       |
-| `pnpm --filter shared exec vitest run --coverage` | 100% statements, branches, functions and lines   |
-| `pnpm --filter shared build`                  | ESM plus bundled declarations, clean                 |
-| `pnpm check`                                  | Clean — 211 tests workspace-wide, type-coverage 100% |
-| `pnpm build`                                  | All three packages build                             |
+| Command                                           | Result                                                            |
+| ------------------------------------------------- | ----------------------------------------------------------------- |
+| `pnpm --filter shared test`                       | 211/211 passing across 10 files                                    |
+| `pnpm --filter shared exec vitest run --coverage`  | 100% statements (129/129), branches (53/53), functions and lines   |
+| `pnpm --filter shared build`                       | ESM (52 KB) plus bundled declarations (111 KB), clean              |
+| `pnpm --filter backend exec vitest run tests/shared-contract.test.ts` | 4/4 — money rounding, öresavrundning and km↔mil through a route |
+| `pnpm check`                                      | Clean — typecheck, lint (0 warnings), 303 tests, type-coverage 100% |
+| `pnpm format:check`                               | Clean                                                              |
+| `pnpm build`                                      | All three packages; `next build` compiles against `shared`'s `.d.ts` |
+| `pnpm --filter backend test:coverage`             | 89.1% statements, 82.22% branches (floor 80%)                      |
 
-The 36-pair transition test is the acceptance evidence for B1.4; the
-scale-and-range rejection tests are the evidence for B1.2.1.
+Acceptance evidence per milestone: the 36-pair transition test for B1.4; the
+scale-and-range rejection tests for B1.2.1; the compile-time
+`z.input`/`z.output` assertion and the barrel-reachability test for B1.5; and
+the three fixture groups in `backend/tests/shared-contract.test.ts` for B1.6.2.
 
-**Completed on:** —
+**Two defects were found by writing these tests and are fixed:**
+
+1. `normalisedRegistrationNumberSchema` accepted `ABC_12D` and `AB!`. Checking
+   `value === normaliseRegNr(value)` proves a spelling is canonical, not that
+   it is a plate — and this is the column §4.2's unique index is built on. Now
+   guarded by `isNormalisedRegNr`, with both cases tested.
+2. Work-order and quote `number` were required. §4.4 assigns a number when the
+   document is finalised, not when the draft is created, so a `DRAFT` cannot
+   have one and a required field would have made draft creation impossible.
+   Both are nullable, with the reason in the schema.
+
+**Completed on:** 2026-09-08
 
 ---
 

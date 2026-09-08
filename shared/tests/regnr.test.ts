@@ -3,6 +3,7 @@ import {
   formatRegNrForDisplay,
   formatRegNrSpaced,
   isNonStandardPlate,
+  isNormalisedRegNr,
   isValidSwedishRegNr,
   normaliseRegNr,
 } from '../src/regnr.js';
@@ -69,5 +70,35 @@ describe('formatRegNrSpaced / formatRegNrForDisplay', () => {
 
   it('falls back to the unspaced form for a non-standard length', () => {
     expect(formatRegNrSpaced('AB12')).toBe('AB12');
+  });
+});
+
+describe('isNormalisedRegNr', () => {
+  it('accepts the canonical stored form', () => {
+    expect(isNormalisedRegNr('ABC12D')).toBe(true);
+    expect(isNormalisedRegNr('ABC123')).toBe(true);
+    // Non-standard plates are stored too, flagged rather than rejected (§4.2).
+    expect(isNormalisedRegNr('ÅÄÖ123')).toBe(true);
+  });
+
+  it('rejects a spelling normalisation would still change', () => {
+    expect(isNormalisedRegNr('abc12d')).toBe(false);
+    expect(isNormalisedRegNr('ABC 12D')).toBe(false);
+    expect(isNormalisedRegNr('ABC-12D')).toBe(false);
+  });
+
+  it('rejects characters no plate carries', () => {
+    // The reason the check is not merely `value === normaliseRegNr(value)`:
+    // an underscore is neither lower case nor a separator that normalisation
+    // strips, so that check alone lets arbitrary text into the column the
+    // unique index is built on.
+    expect(isNormalisedRegNr('ABC_12D')).toBe(false);
+    expect(isNormalisedRegNr('AB!')).toBe(false);
+  });
+
+  it('rejects lengths no plate has', () => {
+    expect(isNormalisedRegNr('')).toBe(false);
+    expect(isNormalisedRegNr('A')).toBe(false);
+    expect(isNormalisedRegNr('ABCDEFGHIJK')).toBe(false);
   });
 });
