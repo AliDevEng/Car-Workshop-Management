@@ -172,10 +172,12 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**7/83 frontend milestones are complete as of 2026-09-08:** all seven of F0's.
-F0 is Done — its Definition of Done was verified against a running B0/B2
-backend and PostgreSQL rather than fixtures, which is what surfaced the three
-foundation defects in the decision log below.
+**13/83 frontend milestones are complete as of 2026-09-08:** all seven of F0's
+and all six of F1's. F0 is Done — its Definition of Done was verified against a
+running B0/B2 backend and PostgreSQL rather than fixtures, which is what
+surfaced the three foundation defects in the decision log below. F1 is Done,
+and measuring its own contrast ratios in the browser is what surfaced the
+surface-aware ink problem recorded there.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -217,7 +219,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | Frontend | Title | Phase | Status |
 |---|---|---|---|
 | F0 | Next.js foundation | 0 | ✅ (7/7 — typed API client against a live backend, Tailwind 4 tokens, scoped admin surface, subset self-hosted fonts, TanStack Query, formatters; `pnpm check`/`pnpm build` clean, 7 Playwright tests green) |
-| F1 | Design system | 1 | ⬜ |
+| F1 | Design system | 1 | ✅ (6/6 — Radix-based shadcn primitives restyled onto the §9.2 tokens, surface-aware status/link inks, four conversion inputs, DataTable, feedback and a measured `/admin/styleguide`; 26 Playwright checks green) |
 | F4 | Admin shell and authentication | 1 | ⬜ |
 | F6 | Customers and vehicles | 1 | ⬜ |
 | F7 | Inventory | 2 | ⬜ |
@@ -290,6 +292,12 @@ past row.
 | 2026-09-08 | **A variable font registered with `next/font/local` must declare an explicit `weight` range** | An omitted `font-weight` descriptor defaults to the single value `400`, so the browser treats the file as a one-weight face and *synthesises* every other weight instead of moving the `wght` axis. Archivo made it visible — its `fvar` default is 600, so body text rendered as faux-emboldened 600. Now `'100 900'` and `'200 900'`, matching each `fvar`. The advance-width check does **not** catch this (synthetic bold also changes widths); `e2e/typography.spec.ts` asserts the declared descriptor, and was verified to fail without the fix |
 | 2026-09-08 | Frontend fonts **are** subset to `latin` + `latin-ext`, superseding the 2026-09-07 row | `fonttools` 4.64.0 installed after all, so `pyftsubset` cut both variable files to Google Fonts' published ranges: Archivo −25 %, Source Serif 4 −51 %, with `fvar`/`gvar`/`avar`/`HVAR`/`STAT` and both axes intact and `--name-IDs='*'` keeping the OFL records inside the file. Removes the caveat flagged against F2.6's Lighthouse budget |
 | 2026-09-08 | The frontend takes cookie and header names from `shared`, never from local literals | B2 issues `verkstad_session` and `verkstad_csrf`; the F0 client still carried its `sessionId`/`csrfToken` placeholders, which would have been a 403 on every save presenting as a permissions bug. `SESSION_COOKIE_NAME`, `CSRF_COOKIE_NAME` and `CSRF_TOKEN_HEADER` already existed in `shared` and the backend already imported them — CLAUDE.md's "types are defined once, in `shared/`" applies to protocol constants too |
+| 2026-09-08 | shadcn/ui generated on the **Radix** base, not shadcn 4's newer Base UI default | Both are headless, so neither affects how anything looks and the choice is purely about stability: Radix has been shadcn's base since 2023 and is what nearly all its documentation assumes. This project's traps are mostly copied setups that do not match the installed versions, so the option with the most matching material wins. `radix-ui` 1.6.7 pinned |
+| 2026-09-08 | `sonner` 2.0.8 and `tw-animate-css` 1.4.0 added; `next-themes` and `cn` **removed** | Sonner is the toast primitive the chosen registry ships, which F1.1.5 anticipated; `tw-animate-css` is what replaces the Tailwind 3 animate plugin under Tailwind 4. `next-themes` was pulled in by the generated toaster to read a theme this project deliberately does not have (§9.1 — two fixed surfaces, not a user preference). `cn` 0.2.6 is a third-party package for four lines of code when `clsx` and `tailwind-merge` are already direct dependencies. **A future `shadcn add` reintroduces both** and imports `cn` from the package rather than the `@/lib/utils` alias `components.json` declares |
+| 2026-09-08 | **The §9.2 palette needs a per-surface *ink* for status, links and destructive text** | Measured, not guessed, by the styleguide's own contrast table: `signal` reads 6.74:1 on concrete and 1.75:1 on steel, `hivis` is the mirror image at 1.29:1 and 9.18:1, and `moss` fails on both as ink. The same colour cannot be legible on two surfaces. The *meanings* stay fixed system-wide as §9.2 requires and only the ink shifts, so a mechanic still learns the mapping once. The same measurement caught destructive text at 3.49:1 on the raised admin card, and the `link` variant at 2.55:1 — §9.2 gives `signal` both "primary actions" and "links", and a filled button and a text link need opposite things from it |
+| 2026-09-08 | Contrast is **measured from the live document**, never from a table of hex values kept beside the tokens | A hard-coded copy is a second source of truth that drifts on the first token change and then reports passing ratios for colours the application no longer uses. `frontend/src/lib/contrast.ts` computes WCAG luminance and composites the badge tints, because a tinted chip measured against the bare surface flatters itself |
+| 2026-09-08 | A variable font's `wdth` axis needs an explicit `font-stretch`; selecting the family is not enough | §9.3's display role is "Archivo at an expanded width", and `font-display` alone rendered headings at `font-stretch: 100%` — identical to body text, which is the flatness §9.1 exists to avoid. A `.type-display` component class sets family and width together so a heading cannot take one and forget the other |
+| 2026-09-08 | Every generated shadcn primitive carried `outline-none`, silently removing the focus ring | A utility-layer rule beats the global `:focus-visible` outline in the base layer, so focused controls had no visible ring at all — a §9.6 failure across the entire component set, invisible to a mouse user. Stripped from all five files; the ring is now one rule that cannot drift between controls. Found by a browser test, not by eye |
 | 2026-09-08 | Playwright drives the machine's installed Chrome (`channel: 'chrome'`) rather than its bundled Chromium | `playwright install chromium` times out reaching `cdn.playwright.dev` from this network, which left the E2E suite configured but never executed — and an unexecuted suite hid a smoke test that asserted `getByRole('alert')` unscoped, satisfied on every page by Next's permanently-present `__next-route-announcer__`. Both are Chromium; CI can reach the CDN and may drop the channel |
 
 ---

@@ -9,7 +9,7 @@ import { Fragment } from 'react';
 export default function AdminFoundationPage() {
   return (
     <main className="mx-auto max-w-md p-8">
-      <h1 className="font-display text-2xl font-semibold">Adminpanelen</h1>
+      <h1 className="type-display text-2xl font-semibold">Adminpanelen</h1>
       <p className="mt-2 text-mist">Grundinställning — F0</p>
       <section className="mt-6 rounded-[var(--radius-sharp)] bg-steel-2 p-4">
         <p>Mörk yta via en avgränsad klass, inte ett globalt temaval.</p>

@@ -1,0 +1,145 @@
+import {
+  BOOKING_REQUEST_STATUS_LABELS,
+  BOOKING_STATUS_LABELS,
+  QUOTE_STATUS_LABELS,
+  WORK_ORDER_STATUS_LABELS,
+  type BookingRequestStatus,
+  type BookingStatus,
+  type QuoteStatus,
+  type WorkOrderStatus,
+} from 'shared';
+
+/**
+ * The fixed status system (F1.4.3, frontend/README.md "Status colours").
+ *
+ * §9.2: "Colour in the admin panel is **information**: status is
+ * colour-coded and the mapping is fixed system-wide, so a mechanic learns it
+ * once." That only holds if there is exactly one place the mapping lives.
+ * This is it. A screen that picks `tone="hivis"` for its own reasons has
+ * broken the promise for every other screen.
+ *
+ * Five meanings, and only five:
+ */
+export const STATUS_MEANINGS = [
+  'neutral', // draft, unassigned — nothing is wrong, nothing is happening
+  'active', // in progress, scheduled
+  'attention', // awaiting parts, due soon, low stock
+  'error', // overdue, cancelled, negative stock
+  'done', // completed, ready for pickup, accepted
+] as const;
+
+export type StatusMeaning = (typeof STATUS_MEANINGS)[number];
+
+/**
+ * Each meaning's tone and icon. The icon is not decoration: colour is never
+ * the only signal, both for colourblind users and for a tablet held in
+ * daylight in a garage doorway (frontend/README.md, §9.6).
+ */
+export const STATUS_PRESENTATION: Readonly<
+  Record<StatusMeaning, { readonly tone: StatusTone; readonly icon: IconName }>
+> = {
+  neutral: { tone: 'neutral', icon: 'circle-dashed' },
+  active: { tone: 'signal', icon: 'circle-dot' },
+  attention: { tone: 'hivis', icon: 'triangle-alert' },
+  error: { tone: 'oxide', icon: 'circle-x' },
+  done: { tone: 'moss', icon: 'circle-check' },
+};
+
+export type StatusTone = 'neutral' | 'signal' | 'hivis' | 'oxide' | 'moss';
+export type IconName =
+  | 'circle-dashed'
+  | 'circle-dot'
+  | 'triangle-alert'
+  | 'circle-x'
+  | 'circle-check';
+
+/**
+ * Domain status → meaning. Written out per enum rather than inferred from
+ * the status name, because the mapping is a product decision:
+ * `READY_FOR_PICKUP` is `done` from the workshop's point of view even though
+ * the job is not invoiced, and `NO_SHOW` is an `error` even though nothing
+ * technically failed.
+ *
+ * `Record<Status, …>` on each is deliberate — adding a status to `shared`
+ * then fails the typecheck here until somebody decides what colour it is,
+ * rather than defaulting it to grey silently.
+ */
+export const WORK_ORDER_STATUS_MEANING: Readonly<
+  Record<WorkOrderStatus, StatusMeaning>
+> = {
+  DRAFT: 'neutral',
+  IN_PROGRESS: 'active',
+  AWAITING_PARTS: 'attention',
+  READY_FOR_PICKUP: 'done',
+  COMPLETED: 'done',
+  CANCELLED: 'error',
+};
+
+export const BOOKING_STATUS_MEANING: Readonly<
+  Record<BookingStatus, StatusMeaning>
+> = {
+  SCHEDULED: 'active',
+  IN_PROGRESS: 'active',
+  DONE: 'done',
+  CANCELLED: 'error',
+  NO_SHOW: 'error',
+};
+
+export const BOOKING_REQUEST_STATUS_MEANING: Readonly<
+  Record<BookingRequestStatus, StatusMeaning>
+> = {
+  PENDING: 'attention', // an unhandled request is work waiting to be lost
+  CONFIRMED: 'done',
+  REJECTED: 'neutral',
+  SPAM: 'neutral',
+};
+
+export const QUOTE_STATUS_MEANING: Readonly<
+  Record<QuoteStatus, StatusMeaning>
+> = {
+  DRAFT: 'neutral',
+  SENT: 'active',
+  ACCEPTED: 'done',
+  DECLINED: 'error',
+  EXPIRED: 'attention',
+};
+
+/**
+ * The label and meaning for one domain status. Overloaded per enum rather
+ * than taking a `string`, so a booking status cannot be passed where a work
+ * order status is expected and quietly render the wrong Swedish word.
+ */
+export interface StatusDescriptor {
+  readonly label: string;
+  readonly meaning: StatusMeaning;
+}
+
+export function workOrderStatus(status: WorkOrderStatus): StatusDescriptor {
+  return {
+    label: WORK_ORDER_STATUS_LABELS[status],
+    meaning: WORK_ORDER_STATUS_MEANING[status],
+  };
+}
+
+export function bookingStatus(status: BookingStatus): StatusDescriptor {
+  return {
+    label: BOOKING_STATUS_LABELS[status],
+    meaning: BOOKING_STATUS_MEANING[status],
+  };
+}
+
+export function bookingRequestStatus(
+  status: BookingRequestStatus,
+): StatusDescriptor {
+  return {
+    label: BOOKING_REQUEST_STATUS_LABELS[status],
+    meaning: BOOKING_REQUEST_STATUS_MEANING[status],
+  };
+}
+
+export function quoteStatus(status: QuoteStatus): StatusDescriptor {
+  return {
+    label: QUOTE_STATUS_LABELS[status],
+    meaning: QUOTE_STATUS_MEANING[status],
+  };
+}

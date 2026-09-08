@@ -37,12 +37,12 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 7/83 milestones complete; 1/13 iterations Done.**
+**Overall: 13/83 milestones complete; 2/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
 | [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 7/7             | Done        |
-| [F1](#f1)   | Design system                             | 1     | F0                                 | 0/6             | Not started |
+| [F1](#f1)   | Design system                             | 1     | F0                                 | 6/6             | Done        |
 | [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 0/6             | Not started |
 | [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 0/6             | Not started |
 | [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 0/6             | Not started |
@@ -115,7 +115,10 @@ client reaches a real endpoint. The earlier note that this was only
 | `@types/react-dom`               | 19.2.7            |
 | `eslint-config-next`             | 16.3.4            |
 | `postcss`                        | 8.5.28            |
+| `radix-ui`                       | 1.6.7             |
 | `shadcn`                         | 4.21.0            |
+| `sonner`                         | 2.0.8             |
+| `tw-animate-css`                 | 1.4.0             |
 | `tailwindcss`                    | 4.3.3             |
 | `typescript`                     | 6.0.3             |
 | `vitest`                         | 5.0.0             |
@@ -622,14 +625,14 @@ page.
 Build primitives in dependency order; assemble the styleguide as they become
 available. Its production access check is owned by F4.6.
 
-**Milestone checklist — 0/6 complete:**
+**Milestone checklist — 6/6 complete:**
 
-- [ ] **[F1.1](#f1-1)** ? — shadcn/ui base
-- [ ] **[F1.2](#f1-2)** ? — Buttons and actions
-- [ ] **[F1.3](#f1-3)** ? — Forms
-- [ ] **[F1.4](#f1-4)** ? — Data display
-- [ ] **[F1.5](#f1-5)** ? — Feedback
-- [ ] **[F1.6](#f1-6)** ? — Styleguide page
+- [x] **[F1.1](#f1-1)** ? — shadcn/ui base
+- [x] **[F1.2](#f1-2)** ? — Buttons and actions
+- [x] **[F1.3](#f1-3)** ? — Forms
+- [x] **[F1.4](#f1-4)** ? — Data display
+- [x] **[F1.5](#f1-5)** ? — Feedback
+- [x] **[F1.6](#f1-6)** ? — Styleguide page
 
 <a id="f1-1"></a>
 
@@ -638,19 +641,72 @@ available. Its production access check is owned by F4.6.
 **Acceptance:** The selected primitives are available in the repository and
 styled.
 
-- [ ] **F1.1.1** Initialise shadcn with the installed CLI
+- [x] **F1.1.1** Initialise shadcn with the installed CLI
       (`pnpm --filter frontend exec shadcn init`), review `components.json`, and
       copy the selected primitives into `components/ui/`.
-- [ ] **F1.1.2** Restyled to the tokens above — not left on shadcn defaults
-- [ ] **F1.1.3** Add and style Button, Input and Select, including focus,
+      Run as `shadcn init --base radix --preset nova`. **Radix** was chosen
+      over shadcn 4's newer Base UI default: both are headless, so neither
+      affects how anything looks, and Radix is the mature option nearly all
+      shadcn documentation assumes — which matters in a project whose traps
+      are mostly copied setups that do not match the installed versions.
+      Recorded in the root decision log.
+      **Reviewing the generated diff was not a formality — it had to be
+      substantially undone.** See F1.1.2 and F1.1.6.
+- [x] **F1.1.2** Restyled to the tokens above — not left on shadcn defaults
+      The preset wrote a neutral greyscale `oklch` palette into
+      `globals.css` — precisely the uniform SaaS-kit look §9.1 rejects. It was
+      replaced with a semantic layer that resolves every shadcn name
+      (`--background`, `--primary`, `--border`, `--ring`, …) from the §9.2
+      tokens, declared **twice**: once on `:root` for the public surface and
+      once on `.admin-scope` for the admin one. Because `@theme inline` makes
+      each utility resolve `var(--…)` at the point of use, the single class
+      from F0.2.5 now re-themes every primitive beneath it — no variant prop
+      threaded through the tree, and no way for a screen to be half-themed.
+      shadcn's radius scale is collapsed onto the project's two radii: `sm`
+      and `md` sharp for controls and data, `lg` and above soft for cards and
+      dialogs.
+      Also removed: a `Geist` face the preset added from
+      `next/font/google`, which §9.3 forbids outright ("No external font
+      requests"), and a `.dark` block. The `@custom-variant dark` line is
+      **kept** — it re-points Tailwind's `dark:` variant at a class this
+      project never sets, so shadcn's `dark:` utilities compile and never
+      apply. Deleting it would hand the palette to the visitor's OS setting,
+      which is the global theme toggle §9 rules out.
+- [x] **F1.1.3** Add and style Button, Input and Select, including focus,
       disabled and invalid states.
-- [ ] **F1.1.4** Add Dialog and Sheet, checking focus trapping, dismissal and
+      `Input` went from 32 px to **44 px** (the admin touch-target floor) and
+      from a soft to a sharp radius, since it holds data.
+      **A real defect came out of this.** Every generated primitive carried
+      `outline-none`, a utility-layer rule that beat the global
+      `:focus-visible` outline in the base layer — so focused buttons had
+      **no visible focus ring at all**. Removed from all five files; the ring
+      is now one rule in `globals.css` that cannot drift between controls.
+      Caught by `e2e/design-system.spec.ts`, not by eye.
+- [x] **F1.1.4** Add Dialog and Sheet, checking focus trapping, dismissal and
       focus return.
-- [ ] **F1.1.5** Add Tabs, Badge, Table and Card, then the current toast
+      Both verified in the browser: focus is trapped, `Escape` dismisses, and
+      focus returns to the opener. **The return was broken for the
+      controlled case** — see F1.5.2.
+- [x] **F1.1.5** Add Tabs, Badge, Table and Card, then the current toast
       primitive supported by the chosen shadcn registry.
-- [ ] **F1.1.6** Review and pin dependencies introduced by each generated
+      The registry's toast is **Sonner**; its generated wrapper pulled in
+      `next-themes` to read a theme this project does not have, so that
+      dependency was removed and the toaster pinned to a fixed palette which
+      `.admin-scope` then repaints. `Badge` was made rectangular rather than
+      a pill: the concept is workshop signage, and a square chip reads as
+      equipment labelling.
+- [x] **F1.1.6** Review and pin dependencies introduced by each generated
       component. The installed `shadcn` CLI alone does not install the component
       source or its runtime dependencies.
+      Added and pinned exactly: `radix-ui` 1.6.7, `sonner` 2.0.8,
+      `tw-animate-css` 1.4.0. All three recorded in the root decision log.
+      **Removed two the CLI added:** `next-themes` (see F1.1.5) and `cn`
+      0.2.6 — a third-party package for four lines of code, when `clsx` and
+      `tailwind-merge` were already direct dependencies and are what
+      shadcn's canonical `cn` composes. The generated components import from
+      `"cn"` rather than the `@/lib/utils` alias `components.json` declares,
+      so **a future `shadcn add` will reintroduce both**; normalise the
+      import and drop the dependency again.
 
 <a id="f1-2"></a>
 
@@ -659,12 +715,34 @@ styled.
 **Acceptance:** Each action remains usable across idle, pending, disabled and
 focus states.
 
-- [ ] **F1.2.1** Variants: primary, secondary, ghost, destructive
-- [ ] **F1.2.2** Sizes: `sm`, `md`, `lg` — `lg` is 44 px minimum for tablet use
-- [ ] **F1.2.3** Loading state that disables and shows a spinner without
+- [x] **F1.2.1** Variants: primary, secondary, ghost, destructive
+      Plus `outline` and `link`, which are genuinely distinct. The generated
+      `default` variant was renamed to `primary` — a name that says nothing
+      invites a component to pick one by accident — and `destructive` was
+      changed from a 10 % tinted wash to **filled oxide**: §9.2 makes oxide
+      mean destructive, and an action that deletes a customer's record should
+      look like one.
+- [x] **F1.2.2** Sizes: `sm`, `md`, `lg` — `lg` is 44 px minimum for tablet use
+      32 / 38 / 44 px, asserted in the browser. The generated scale topped out
+      at 36 px, which is below the floor this README sets for the whole admin
+      panel.
+- [x] **F1.2.3** Loading state that disables and shows a spinner without
       changing width (a button that shrinks moves everything next to it)
-- [ ] **F1.2.4** Visible focus ring on all variants, tested against both
+      `isPending` keeps the label in the layout with `invisible` and overlays
+      the spinner absolutely, so the box is unchanged: measured at
+      **148.91 px both before and during**. The button is also disabled and
+      carries `aria-busy`, so a double-tapped **Slutför** cannot submit twice.
+- [x] **F1.2.4** Visible focus ring on all variants, tested against both
       backgrounds
+      One `:focus-visible` rule in `globals.css`, not per-component ring
+      utilities, so it cannot drift. `--ring` is surface-aware: signal on
+      concrete (6.74:1), near-white concrete-2 on steel (13.08:1). Hi-vis
+      would be brighter still and was rejected — §9.2 makes colour
+      *information* in the admin panel, and hi-vis already means "attention";
+      a focus ring is "you are here", not a status.
+      The browser test asserts a non-`none` outline of non-zero width on
+      every variant, which is what caught the `outline-none` defect in
+      F1.1.3.
 
 <a id="f1-3"></a>
 
@@ -673,24 +751,72 @@ focus states.
 **Acceptance:** Forms accept Swedish input and submit the expected shared-schema
 values.
 
-- [ ] **F1.3.1** Connect React Hook Form 7 to `zodResolver` from
+- [x] **F1.3.1** Connect React Hook Form 7 to `zodResolver` from
       `@hookform/resolvers/zod` and the shared Zod 4 schemas; distinguish input
       and output types when schemas transform values.
-- [ ] **F1.3.2** Build the project's `FormField` wrapper using the current
+      `FormField` wraps `Controller`, not `register`: every conversion input
+      here is controlled and hands back a *domain* value rather than a DOM
+      event. The input/output distinction is moot for the entity schemas —
+      B1.5 asserts at compile time that `z.input` and `z.output` are identical
+      across 20 of them — so a resolver cannot silently receive one shape and
+      produce another.
+- [x] **F1.3.2** Build the project's `FormField` wrapper using the current
       shadcn Field pattern and React Hook Form Controller where needed: label,
       description, error and required marker.
-- [ ] **F1.3.3** Inline errors in Swedish, tied to inputs with
+      Built on the generated `Field`/`FieldLabel`/`FieldDescription`/
+      `FieldError` set. The required marker is an `aria-hidden` asterisk plus
+      a screen-reader-only "(obligatoriskt)"; `aria-required` on the control
+      is what actually announces it, because a reader saying "star" after
+      every label is noise.
+- [x] **F1.3.3** Inline errors in Swedish, tied to inputs with
       `aria-describedby`
-- [ ] **F1.3.4** `MoneyInput` — accepts kronor with decimals, submits öre.
+      The wrapper owns the ids and composes `aria-describedby` itself —
+      description first, then error. A rule each component has to remember is
+      one that gets forgotten on the twentieth form.
+- [x] **F1.3.4** `MoneyInput` — accepts kronor with decimals, submits öre.
       Handles both `,` and `.` as the decimal separator, because Swedish
       keyboards produce both
-- [ ] **F1.3.5** `QuantityInput` — respects the article unit, up to 3 decimals
-- [ ] **F1.3.6** `OdometerInput` — labelled in mil, submits km, shows the km
+      Converted with **integer arithmetic on the digit strings**, never
+      `Number(kronor) * 100` — which turns `1234,55` into
+      `123454.99999999999`, exactly the bug integer öre exist to prevent
+      (§3.2). Also accepts a pasted `1 234,50` carrying the non-breaking
+      space `Intl.NumberFormat('sv-SE')` emits, so a price copied off this
+      application's own screen pastes back in.
+- [x] **F1.3.5** `QuantityInput` — respects the article unit, up to 3 decimals
+      Emits the canonical decimal **string** the API carries rather than a
+      `Decimal`: quantities cross the wire as strings (§3.4) and nothing in
+      the browser does arithmetic on them, so parsing to a `Decimal` would
+      pull `decimal.js` into the bundle to hold a value handed straight back.
+      The scale comes from `shared`'s `QUANTITY_SCALE`, and a fourth decimal
+      is **rejected, not rounded** — the same rule `quantity()` enforces.
+- [x] **F1.3.6** `OdometerInput` — labelled in mil, submits km, shows the km
       value beneath as confirmation
-- [ ] **F1.3.7** `RegNrInput` — uppercases as you type, formats on blur,
+      The conversion is `shared/units.ts`'s `milToKm` and nothing else; this
+      module parses the string and hands over a number. Showing both units is
+      what makes a factor-of-ten error visible at the moment it is made,
+      which is the trap CLAUDE.md names.
+- [x] **F1.3.7** `RegNrInput` — uppercases as you type, formats on blur,
       validates with the `shared` helper
-- [ ] **F1.3.8** Unit tests on each conversion input, including paste and locale
+      Deliberately **does not block** an unrecognised plate. Personalised
+      plates and imports exist, and `shared` separates
+      `isValidSwedishRegNr` from `isNonStandardPlate` for that reason; a
+      field that refuses a customer's actual registration number is worse
+      than one that accepts an odd-looking one. It warns and stores.
+- [x] **F1.3.8** Unit tests on each conversion input, including paste and locale
       separators
+      **77 Vitest cases over the pure parsers, and they found the worst bug in
+      this iteration.** The separator heuristic originally resolved any
+      3-digit tail as a thousands group, so `1,500` was 1500 — correct for
+      money. Applied to a quantity it turned **`0,001`, the smallest quantity
+      the system stores, into `1`**: a 1000× error on a stock movement, in
+      the exact place §4.2 makes the ledger the source of truth. The scale of
+      the field is now a required argument to the parser, so money reads
+      `1,500` as a group and a quantity reads it as one and a half. Both
+      spellings are tested, and the components show the interpreted value
+      back rather than resolving the ambiguity silently.
+      Paste and separator behaviour is additionally exercised in Chrome
+      (`e2e/design-system.spec.ts`), where a paste is a real one event rather
+      than a simulated keystroke sequence.
 
 <a id="f1-4"></a>
 
@@ -698,21 +824,45 @@ values.
 
 **Acceptance:** Tables, badges and data states communicate consistently.
 
-- [ ] **F1.4.1** `DataTable` — sticky header, `tabular-nums`, row click,
+- [x] **F1.4.1** `DataTable` — sticky header, `tabular-nums`, row click,
       keyboard navigation, and pagination driven by the API's declared mode
-- [ ] **F1.4.2** **Sorting is only offered on columns the API declares as
+      Rows are focusable **only when they actually do something** — a tab stop
+      that leads nowhere is worse than none — and respond to Enter, Space and
+      Arrow Up/Down. Numeric columns are declared per column and get right
+      alignment plus `tabular-nums` together, so the two cannot be applied
+      separately by mistake. Pagination renders cursor controls; the page owns
+      the cursor history, since a cursor cannot be reversed (§8.1).
+- [x] **F1.4.2** **Sorting is only offered on columns the API declares as
       sortable.** A cursor is stable only against a sort key it was built for; a
       table that offers to sort by any column will silently skip and repeat rows
       at page boundaries, and the bug looks like missing data rather than a
       paging bug. The table reads the sortable set from the endpoint
       (`PROJECT_SPEC.md` §8.1)
-- [ ] **F1.4.3** `StatusBadge` driven by the fixed status map; colour plus text
+      `sortableColumns` defaults to **nothing being sortable** rather than to
+      everything: sorting is opt-in per endpoint, because the endpoint is the
+      only thing that knows which keys its cursor is stable against. An
+      undeclared column renders as plain heading text, not a disabled button —
+      it is not a control that is temporarily unavailable. Asserted in the
+      browser against two deliberately undeclared columns.
+- [x] **F1.4.3** `StatusBadge` driven by the fixed status map; colour plus text
       plus icon
-- [ ] **F1.4.4** `EmptyState` — icon, one sentence, one action
-- [ ] **F1.4.5** `ErrorState` — the Swedish message, the `requestId` in small
+      `components/admin/status.ts` is the single place the mapping lives —
+      five meanings (neutral, active, attention, error, done) and a
+      `Record<Status, ...>` per domain enum, so adding a status to `shared`
+      fails the typecheck here until someone decides what colour it is, rather
+      than defaulting it to grey. `READY_FOR_PICKUP` maps to *done* and
+      `NO_SHOW` to *error*: both are product decisions, not inferences from
+      the name.
+- [x] **F1.4.4** `EmptyState` — icon, one sentence, one action
+- [x] **F1.4.5** `ErrorState` — the Swedish message, the `requestId` in small
       text, and a retry button
-- [ ] **F1.4.6** Skeleton loaders matching real layout dimensions, so nothing
+      The request id is the point: it is the one string connecting what the
+      user saw to a line in the backend's Pino log (§3.7). Without it,
+      "det gick inte" is unsupportable.
+- [x] **F1.4.6** Skeleton loaders matching real layout dimensions, so nothing
       jumps
+      Rows are 44 px because that is what a `DataTable` row measures. A
+      skeleton of the wrong height is a layout shift with extra steps.
 
 <a id="f1-5"></a>
 
@@ -721,11 +871,42 @@ values.
 **Acceptance:** Success, failure and confirmation feedback is visible and
 accessible.
 
-- [ ] **F1.5.1** Toasts: success, error, info; `aria-live="polite"`;
+- [x] **F1.5.1** Toasts: success, error, info; `aria-live="polite"`;
       auto-dismiss except on error
-- [ ] **F1.5.2** `ConfirmDialog` for destructive actions, naming what will
+      Durations live in one module (`components/admin/notify.ts`). Errors use
+      `duration: Infinity`: an error that vanishes before a mechanic looks up
+      from the car has destroyed the request id needed to support it.
+      `notifyError` renders `ApiError.message` directly — the §3.7 envelope
+      guarantees it is already Swedish and safe to show — and falls back to a
+      generic Swedish message for anything that is not an `ApiError`, so a raw
+      JavaScript exception can never reach a user (§9.7). Icons are passed
+      explicitly, so a toast never relies on its tint alone.
+- [x] **F1.5.2** `ConfirmDialog` for destructive actions, naming what will
       happen
-- [ ] **F1.5.3** A global error boundary rendering `ErrorState`
+      `confirmLabel` and `description` are **required props with no default**.
+      There is no fallback to "OK" or "Bekräfta", because a dialog whose button
+      says "Bekräfta" makes the user re-read the prose to find out what they
+      are agreeing to; §9.7 wants the button to name the action and the
+      confirmation to reuse the word.
+      **A real accessibility defect was found and fixed here.** Radix returns
+      focus to its own `DialogTrigger`, and this dialog is usually opened
+      *without* one — from a row action or a keyboard shortcut — so focus was
+      landing on `<body>` and the user's place in the page was lost. Three
+      obvious fixes do not work: `onOpenChange` never fires for a dialog opened
+      with `setOpen(true)`; an effect is too late, because React runs a child's
+      layout effects before its parent's and Radix has already moved focus; and
+      reading `document.activeElement` during render mutates a ref while
+      rendering, which `react-hooks/refs` rejects. It now tracks the last
+      element focused *outside* any dialog, from a `focusin` listener.
+      Invisible to a mouse, immediate with a keyboard, and only the browser
+      test catches it.
+- [x] **F1.5.3** A global error boundary rendering `ErrorState`
+      `app/(admin)/error.tsx`, rendering the project's own `ErrorState` rather
+      than the framework's English default — §9.7 does not allow English to
+      leak into the interface, and that includes the screen shown when
+      something breaks. It shows `ApiError.requestId` when there is one and
+      Next's `digest` otherwise, which is the only handle on a server-side
+      error.
 
 <a id="f1-6"></a>
 
@@ -734,21 +915,53 @@ accessible.
 **Acceptance:** The styleguide demonstrates every component state and contrast
 pairing.
 
-- [ ] **F1.6.1** `/admin/styleguide` rendering every component in every state
-- [ ] **F1.6.2** Colour tokens shown with their measured contrast ratios
+- [x] **F1.6.1** `/admin/styleguide` rendering every component in every state
+      A working page rather than a screenshot, because the states that break
+      are the interactive ones. It is where the next eleven iterations check
+      what already exists before inventing something.
+- [x] **F1.6.2** Colour tokens shown with their measured contrast ratios
+      Measured **in the browser from the live document**, not from a table of
+      hex values copied in beside them: a copy is a second source of truth that
+      reports passing ratios for colours the application no longer uses.
+      `lib/contrast.ts` implements WCAG relative luminance and ratio, has its
+      own unit tests, and composites the badge tints — a tinted chip measured
+      against the bare surface flatters itself.
+      **This is what forced the surface-aware ink system, and it is the most
+      consequential finding of the iteration.** The §9.2 palette cannot serve
+      as text on both surfaces: `signal` is 6.74:1 on concrete and 1.75:1 on
+      steel; `hivis` is the mirror image at 1.29:1 and 9.18:1; `moss` fails on
+      both as ink (4.08:1 / 2.89:1). The *meanings* stay fixed system-wide as
+      §9.2 requires, and only the ink shifts per surface. Two further failures
+      fell out of the same measurement: destructive text at 3.49:1 on the
+      raised admin card, and the `link` variant at **2.55:1** on steel and
+      2.01:1 on a card, because §9.2 gives `signal` both jobs and a filled
+      button and a text link need opposite things from it. All twelve pairs now
+      measure AA or better, asserted by a browser test that fails if a token
+      change drops one below.
 - [ ] **F1.6.3** Keep `/admin/styleguide` admin-only; verify an unauthenticated
       visitor cannot view it when F4 route protection is connected.
+      **Deliberately open for now, and blocked on F4.2 as this task already
+      states.** The page renders only static component samples — no customer
+      data, no API calls, no workshop information — and carries
+      `noindex, nofollow`. F4.6.4 owns verifying the lock once route protection
+      exists.
 
 **Iteration acceptance record**
 
-- [ ] **F1 Done** — every milestone and the iteration Definition of Done pass;
+- [x] **F1 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
-| Field                       | Record                                                 |
-| --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+**Definition of done:** "every component has all its states, is keyboard
+operable, meets AA contrast, and appears on an internal `/admin/styleguide`
+page." All four hold, and all four are asserted by browser tests rather than
+reviewed by eye — which is how the focus-ring, focus-return and contrast
+defects were found at all.
+
+| Field                       | Record                                                                                                                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current milestone / blocker | None blocking. F1.6.3 stays unticked by design: route protection is F4.2's, and the styleguide holds no data until then. F4 (admin shell and authentication) is next; it depends on F1 and B2, both now Done. |
+| Verification evidence       | 2026-09-08. `pnpm check` clean — typecheck, ESLint at `--max-warnings 0`, 467 tests (167 backend, 211 shared, 89 frontend), `type-coverage` 99.67 % against a 99.5 % floor. `pnpm format:check` clean. `pnpm build` clean. `pnpm exec playwright test` — 26 passed, of which 19 are new F1 checks. Contrast: 12 measured pairs, all AA or AAA. Loading button measured at 148.91 px before and during. |
+| Completed on                | 2026-09-08                                                                                                                                                                                                                    |
 
 ---
 
