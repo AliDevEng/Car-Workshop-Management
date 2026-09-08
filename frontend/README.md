@@ -37,13 +37,13 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 13/83 milestones complete; 2/13 iterations Done.**
+**Overall: 15/83 milestones complete; 2/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
 | [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 7/7             | Done        |
 | [F1](#f1)   | Design system                             | 1     | F0                                 | 6/6             | Done        |
-| [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 0/6             | Not started |
+| [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 2/6             | In progress |
 | [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 0/6             | Not started |
 | [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 0/6             | Not started |
 | [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 0/6             | Not started |
@@ -981,11 +981,11 @@ Build B5.2 before the shared form-token hook in F2.2. Workshop-settings reads
 must be available for opening hours; coordinate the API contract with backend
 work. Service advice is activated later in F11.6.
 
-**Milestone checklist — 0/6 complete:**
+**Milestone checklist — 2/6 complete:**
 
-- [ ] **[F2.1](#f2-1)** ? — Public layout
+- [x] **[F2.1](#f2-1)** — Public layout
 - [ ] **[F2.2](#f2-2)** ? — Start page and hero
-- [ ] **[F2.3](#f2-3)** ? — Services pages
+- [x] **[F2.3](#f2-3)** — Services pages
 - [ ] **[F2.4](#f2-4)** ? — About and contact
 - [ ] **[F2.5](#f2-5)** ? — SEO and metadata
 - [ ] **[F2.6](#f2-6)** ? — Public performance
@@ -997,13 +997,13 @@ work. Service advice is activated later in F11.6.
 **Acceptance:** Public pages share usable navigation, contact details and a
 footer.
 
-- [ ] **F2.1.1** `(public)` route group with its own layout
-- [ ] **F2.1.2** Header: workshop name, navigation, phone number as a `tel:`
+- [x] **F2.1.1** `(public)` route group with its own layout
+- [x] **F2.1.2** Header: workshop name, navigation, phone number as a `tel:`
       link, a prominent _"Boka tid"_
-- [ ] **F2.1.3** Footer: address, opening hours, organisation number, privacy
+- [x] **F2.1.3** Footer: address, opening hours, organisation number, privacy
       policy link
-- [ ] **F2.1.4** Mobile navigation as a sheet; full keyboard operation
-- [ ] **F2.1.5** Skip-to-content link
+- [x] **F2.1.4** Mobile navigation as a sheet; full keyboard operation
+- [x] **F2.1.5** Skip-to-content link
 
 <a id="f2-2"></a>
 
@@ -1012,28 +1012,28 @@ footer.
 **Acceptance:** An explicit lookup returns a result or a useful booking
 fallback.
 
-- [ ] **F2.2.1** The registration-number lookup as the hero — a single input, a
+- [x] **F2.2.1** The registration-number lookup as the hero — a single input, a
       clear label in Swedish, and a large submit
-- [ ] **F2.2.2** On submit, call `/api/public/vehicle-lookup` **client-side
+- [x] **F2.2.2** On submit, call `/api/public/vehicle-lookup` **client-side
       only**. Never during SSR: a crawler must not be able to spend the
       workshop's API budget
 - [ ] **F2.2.3** Implement the reusable public form-token hook here, backed by
       B5.2, and send its token with vehicle lookups. F3.1 reuses this hook; F2
       must not depend on an unbuilt F3 form.
-- [ ] **F2.2.4** Result panel: make, model, model year, last inspection, next
+- [x] **F2.2.4** Result panel: make, model, model year, last inspection, next
       inspection due
 - [ ] **F2.2.5** The panel reserves a section for suggested services, rendered
       only when the API returns them. **That data arrives in Phase 6 with B9** —
       build the layout for it now so adding it later is not a redesign
-- [ ] **F2.2.6** The one orchestrated motion moment — the panel revealing,
+- [x] **F2.2.6** The one orchestrated motion moment — the panel revealing,
       respecting `prefers-reduced-motion`
-- [ ] **F2.2.7** Result includes a _"Boka tid"_ button that carries the
+- [x] **F2.2.7** Result includes a _"Boka tid"_ button that carries the
       registration number into the booking form
-- [ ] **F2.2.8** States handled explicitly and in plain Swedish: unknown
+- [x] **F2.2.8** States handled explicitly and in plain Swedish: unknown
       registration number, invalid format, rate limit reached, and provider
       unavailable (which says data is temporarily unavailable and offers the
       booking form)
-- [ ] **F2.2.9** Below the hero: three services, opening hours, address with a
+- [x] **F2.2.9** Below the hero: three services, opening hours, address with a
       map link
 - [ ] **F2.2.10** Verify cached results, public daily-limit fallback and a
       provider failure with fixtures; booking remains reachable when lookup
@@ -1045,14 +1045,14 @@ fallback.
 
 **Acceptance:** Each service has a typed listing and a reachable detail page.
 
-- [ ] **F2.3.1** `/tjanster` listing services with a short description and a
+- [x] **F2.3.1** `/tjanster` listing services with a short description and a
       from-price
-- [ ] **F2.3.2** `/tjanster/[slug]` with full description, what is included,
+- [x] **F2.3.2** `/tjanster/[slug]` with full description, what is included,
       duration and price
-- [ ] **F2.3.3** Content in a typed local content file, not a CMS — v1 has no
+- [x] **F2.3.3** Content in a typed local content file, not a CMS — v1 has no
       editors
-- [ ] **F2.3.4** Each detail page has its own metadata and `Service` JSON-LD
-- [ ] **F2.3.5** Await the dynamic service `slug` in page and metadata code;
+- [x] **F2.3.4** Each detail page has its own metadata and `Service` JSON-LD
+- [x] **F2.3.5** Await the dynamic service `slug` in page and metadata code;
       return the designed not-found page for unknown slugs.
 
 <a id="f2-4"></a>
@@ -1063,9 +1063,9 @@ fallback.
 Swedish.
 
 - [ ] **F2.4.1** `/om-oss` — the workshop, the two owners, real photographs
-- [ ] **F2.4.2** `/kontakt` — address, map, opening hours, phone, email
+- [x] **F2.4.2** `/kontakt` — address, map, opening hours, phone, email
 - [ ] **F2.4.3** Opening hours read from the API so they are edited in one place
-- [ ] **F2.4.4** `/integritetspolicy` — what is collected, why, how long, and
+- [x] **F2.4.4** `/integritetspolicy` — what is collected, why, how long, and
       the contact route for erasure
 
 <a id="f2-5"></a>
@@ -1074,11 +1074,11 @@ Swedish.
 
 **Acceptance:** Public metadata, structured data and crawl files are present.
 
-- [ ] **F2.5.1** Per-route `metadata`, unique titles and descriptions
-- [ ] **F2.5.2** `LocalBusiness` JSON-LD with address, geo, hours and telephone
-- [ ] **F2.5.3** `sitemap.ts` and `robots.ts`
-- [ ] **F2.5.4** Open Graph image
-- [ ] **F2.5.5** One `<h1>` per page and a correct heading hierarchy
+- [x] **F2.5.1** Per-route `metadata`, unique titles and descriptions
+- [x] **F2.5.2** `LocalBusiness` JSON-LD with address, geo, hours and telephone
+- [x] **F2.5.3** `sitemap.ts` and `robots.ts`
+- [x] **F2.5.4** Open Graph image
+- [x] **F2.5.5** One `<h1>` per page and a correct heading hierarchy
 - [ ] **F2.5.6** Confirm public pages remain indexable and staff routes are
       excluded from the sitemap and indexing.
 
@@ -1090,7 +1090,7 @@ Swedish.
 
 - [ ] **F2.6.1** All public pages server-rendered; client JavaScript only in the
       hero and the booking form
-- [ ] **F2.6.2** Images via `next/image`, correct sizes, explicit dimensions to
+- [x] **F2.6.2** Images via `next/image`, correct sizes, explicit dimensions to
       prevent layout shift
 - [ ] **F2.6.3** Lighthouse budget met and recorded here
 - [ ] **F2.6.4** Record the measured URL, production build, device profile and
@@ -1101,11 +1101,11 @@ Swedish.
 - [ ] **F2 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
-| Field                       | Record                                                 |
-| --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+| Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current milestone / blocker | In progress. Public layout and typed service pages are complete. The start page, lookup/result states, about, contact, privacy, metadata and crawl files are implemented. Live completion remains blocked by backend B3.5/B5.2/B10.1–B10.4: the workshop/settings read, form-token issuer and vehicle-lookup endpoint do not exist yet. F2.4.1 also awaits real photographs of the two owners. Remaining acceptance work: suggested-service result layout, API-fixture journeys, staff no-index confirmation, the public-JavaScript budget decision, and recorded throttled-mobile Lighthouse runs. |
+| Verification evidence       | 2026-09-08. `pnpm --filter frontend typecheck` passed. `pnpm lint` passed with zero warnings. `pnpm --filter frontend test` passed — 89 tests. `pnpm --filter frontend build` passed. A fresh Turbopack development server returned HTTP 200 for `/`, `/tjanster` and `/om-oss`; the direct public stylesheet import fixed the development-only CSS resolution failure.                                                                                                                                                |
+| Completed on                | —                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ---
 

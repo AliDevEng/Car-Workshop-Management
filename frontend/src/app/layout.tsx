@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { archivo, sourceSerif4 } from '@/fonts';
 import '@/styles/globals.css';
+import '@/styles/public.css';
 
 /*
  * `shadcn init` added a `Geist` face from `next/font/google` here. It was
@@ -13,8 +14,28 @@ import '@/styles/globals.css';
  */
 
 export const metadata: Metadata = {
-  title: 'Verkstadssystem',
-  description: 'Bokning och verkstadshantering för en svensk bilverkstad.',
+  metadataBase: new URL('https://verkstaden.se'),
+  title: {
+    default: 'Verkstaden | Bilverkstad i Solna',
+    template: '%s | Verkstaden',
+  },
+  description:
+    'Modern bilservice, felsökning och mekaniska reparationer i Solna.',
+  applicationName: 'Verkstaden',
+  openGraph: {
+    type: 'website',
+    locale: 'sv_SE',
+    siteName: 'Verkstaden',
+    images: [
+      {
+        url: '/images/workshop-team.png',
+        width: 1680,
+        height: 945,
+        alt: 'Mekaniker arbetar med en bil i Verkstadens lokaler',
+      },
+    ],
+  },
+  twitter: { card: 'summary_large_image' },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
