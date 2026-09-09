@@ -4,6 +4,7 @@ import {
   type CreateOdometerReadingInput,
   type OdometerReading,
   type OdometerReadingResponse,
+  type OdometerSource,
 } from 'shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../lib/prisma.js';
@@ -47,47 +48,81 @@ async function assertVehicleExists(
   }
 }
 
+export type RecordReadingInput = {
+  readonly vehicleId: string;
+  readonly km: number;
+  readonly source: OdometerSource;
+  /** Null for a reading imported from an external source (§4.2). */
+  readonly userId: string | null;
+  readonly readAt?: Date;
+  /** Set when the reading came from a work order (B6.7.1). */
+  readonly workOrderId?: string | null;
+};
+
+/**
+ * Writes one reading inside a transaction the **caller** owns, and answers
+ * with the §3.5 warning if there is one.
+ *
+ * Split out for the same reason as `createCustomerInTransaction` in B5:
+ * completing a work order writes the out reading, the stock movements and the
+ * status change as one atomic unit (§6.5), and copying these fifteen lines
+ * into that module would give the cache rule and the warning text two
+ * definitions each — and the one that drifts would be the one the mechanic
+ * actually reads.
+ */
+export async function recordOdometerReadingInTransaction(
+  tx: Prisma.TransactionClient,
+  input: RecordReadingInput,
+): Promise<{ reading: OdometerReading; warnings: string[] }> {
+  const previousHighest = await highestRecordedKm(tx, input.vehicleId);
+
+  const reading = await insertReading(tx, {
+    vehicleId: input.vehicleId,
+    km: input.km,
+    readAt: input.readAt ?? new Date(),
+    source: input.source,
+    userId: input.userId,
+    workOrderId: input.workOrderId ?? null,
+  });
+
+  // Refresh the cache from the newest reading *including this one*, so a
+  // correction dated earlier than the latest does not overwrite it.
+  const newest = await newestReadingKm(tx, input.vehicleId);
+  await tx.vehicle.update({
+    where: { id: input.vehicleId },
+    data: { lastKnownOdometerKm: newest ?? input.km },
+  });
+
+  const warnings: string[] = [];
+  if (previousHighest !== null && input.km < previousHighest) {
+    warnings.push(
+      `Den nya mätarställningen (${milText(input.km)} mil) är lägre än den ` +
+        `tidigare högsta (${milText(previousHighest)} mil). Kontrollera att ` +
+        `den stämmer.`,
+    );
+  }
+
+  return { reading: toOdometerReadingDto(reading), warnings };
+}
+
 export async function recordManualOdometerReading(
   db: Database,
   actorId: string,
   vehicleId: string,
   input: CreateOdometerReadingInput,
 ): Promise<OdometerReadingResponse> {
-  const readAt = input.readAt === undefined ? new Date() : new Date(input.readAt);
-
   return db.$transaction(async (tx) => {
     await assertVehicleExists(tx, vehicleId);
 
-    const previousHighest = await highestRecordedKm(tx, vehicleId);
-
-    const reading = await insertReading(tx, {
+    return recordOdometerReadingInTransaction(tx, {
       vehicleId,
       km: input.km,
-      readAt,
       // A reading posted to this endpoint is manual by definition; the
       // work-order in/out sources are set by B6, not chosen by the caller.
       source: 'MANUAL',
       userId: actorId,
+      ...(input.readAt === undefined ? {} : { readAt: new Date(input.readAt) }),
     });
-
-    // Refresh the cache from the newest reading *including this one*, so a
-    // correction dated earlier than the latest does not overwrite it.
-    const newest = await newestReadingKm(tx, vehicleId);
-    await tx.vehicle.update({
-      where: { id: vehicleId },
-      data: { lastKnownOdometerKm: newest ?? input.km },
-    });
-
-    const warnings: string[] = [];
-    if (previousHighest !== null && input.km < previousHighest) {
-      warnings.push(
-        `Den nya mätarställningen (${milText(input.km)} mil) är lägre än den ` +
-          `tidigare högsta (${milText(previousHighest)} mil). Kontrollera att ` +
-          `den stämmer.`,
-      );
-    }
-
-    return { reading: toOdometerReadingDto(reading), warnings };
   });
 }
 

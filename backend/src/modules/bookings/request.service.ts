@@ -21,6 +21,7 @@ import {
   type AttemptLimiter,
 } from '../../lib/attempt-limiter.js';
 import { writeAuditLog } from '../../lib/audit.js';
+import { fieldError } from '../../lib/field-error.js';
 import { verifyFormToken } from '../../lib/form-token.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../lib/prisma.js';
@@ -355,12 +356,6 @@ export async function rejectBookingRequest(
  */
 const UNKNOWN_MAKE = 'Okänt fabrikat';
 const UNKNOWN_MODEL = 'Okänd modell';
-
-function fieldError(path: string, message: string): ValidationError {
-  return new ValidationError('Uppgifterna kunde inte valideras.', {
-    details: [{ path, message }],
-  });
-}
 
 /**
  * The customer the booking belongs to: the one the staff member picked, the

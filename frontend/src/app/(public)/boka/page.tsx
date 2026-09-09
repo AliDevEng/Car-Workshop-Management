@@ -6,7 +6,7 @@ import { getTelephoneHref, getWorkshopInfo } from '@/lib/public/workshop';
 
 export const metadata: Metadata = {
   title: 'Boka tid',
-  description: 'Skicka en bokningsförfrågan till Verkstaden.',
+  description: 'Skicka en bokningsförfrågan till Mome Bilservice.',
   robots: { index: false, follow: true },
 };
 
@@ -19,7 +19,9 @@ type BookingPageProps = {
  * for every CTA, including lookup fallbacks, so this hand-off page preserves
  * the registration number until that iteration replaces it.
  */
-export default async function BookingHandoffPage({ searchParams }: BookingPageProps) {
+export default async function BookingHandoffPage({
+  searchParams,
+}: BookingPageProps) {
   const [params, info] = await Promise.all([searchParams, getWorkshopInfo()]);
   const registrationNumber = normaliseRegNr(params.regnr ?? '');
 
@@ -37,27 +39,43 @@ export default async function BookingHandoffPage({ searchParams }: BookingPagePr
           </p>
           {registrationNumber === '' ? null : (
             <p className="mt-6 inline-flex rounded-full bg-white/10 px-4 py-2 font-sans text-sm">
-              Bil: <strong className="ml-2 tabular-nums">{formatRegNrForDisplay(registrationNumber)}</strong>
+              Bil:{' '}
+              <strong className="ml-2 tabular-nums">
+                {formatRegNrForDisplay(registrationNumber)}
+              </strong>
             </p>
           )}
           <div className="mt-10 flex flex-wrap gap-3">
-            <a href={getTelephoneHref(info.workshop.phone)} className="site-button site-button-hivis">
-              <Phone aria-hidden="true" className="size-4" /> Ring {info.workshop.phone}
+            <a
+              href={getTelephoneHref(info.workshop.phone)}
+              className="site-button site-button-hivis"
+            >
+              <Phone aria-hidden="true" className="size-4" /> Ring{' '}
+              {info.workshop.phone}
             </a>
-            <Link href="/" className="site-button border border-white/30 text-white hover:bg-white/10">
-              <ArrowLeft aria-hidden="true" className="size-4" /> Till startsidan
+            <Link
+              href="/"
+              className="site-button border border-white/30 text-white hover:bg-white/10"
+            >
+              <ArrowLeft aria-hidden="true" className="size-4" /> Till
+              startsidan
             </Link>
           </div>
         </div>
         <div className="rounded-soft bg-concrete-2 p-8 text-steel sm:p-12">
-          <p className="font-sans text-sm font-bold text-signal">När formuläret öppnar</p>
+          <p className="font-sans text-sm font-bold text-signal">
+            När formuläret öppnar
+          </p>
           <ol className="mt-7 grid gap-6">
             {[
               'Berätta vilken bil det gäller',
               'Välj tjänst och önskad dag',
               'Vi ringer och bekräftar tiden',
             ].map((step, index) => (
-              <li key={step} className="flex items-center gap-4 border-b border-steel/15 pb-5 last:border-0 last:pb-0">
+              <li
+                key={step}
+                className="flex items-center gap-4 border-b border-steel/15 pb-5 last:border-0 last:pb-0"
+              >
                 <span className="grid size-8 shrink-0 place-items-center rounded-full bg-hivis font-sans text-xs font-bold tabular-nums">
                   0{String(index + 1)}
                 </span>

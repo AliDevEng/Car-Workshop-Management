@@ -38,7 +38,10 @@ export function VehicleLookupResult({
               : 'Boka ändå så kontrollerar vi uppgifterna med dig.'}
           </p>
         </div>
-        <Link href={bookingHref} className="site-button site-button-dark shrink-0">
+        <Link
+          href={bookingHref}
+          className="site-button site-button-dark shrink-0"
+        >
           Boka ändå
         </Link>
       </div>
@@ -51,10 +54,14 @@ export function VehicleLookupResult({
         <div>
           <p className="font-sans font-bold">Vi hittade ingen bil</p>
           <p className="mt-1 text-sm text-steel/75">
-            Kontrollera numret eller boka ändå. Även ovanliga och personliga skyltar är välkomna.
+            Kontrollera numret eller boka ändå. Även ovanliga och personliga
+            skyltar är välkomna.
           </p>
         </div>
-        <Link href={bookingHref} className="site-button site-button-dark shrink-0">
+        <Link
+          href={bookingHref}
+          className="site-button site-button-dark shrink-0"
+        >
           Boka ändå
         </Link>
       </div>
@@ -62,7 +69,10 @@ export function VehicleLookupResult({
   }
 
   return (
-    <section className="lookup-result lookup-result-reveal mt-6" aria-label="Biluppgifter">
+    <section
+      className="lookup-result lookup-result-reveal mt-6"
+      aria-label="Biluppgifter"
+    >
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-steel/15 pb-5">
         <div>
           <p className="text-xs font-semibold tracking-[0.12em] text-steel/70 uppercase">
@@ -83,7 +93,9 @@ export function VehicleLookupResult({
           <CarFront aria-hidden="true" className="mt-0.5 size-5 text-signal" />
           <div>
             <dt className="text-xs text-steel/70">Bränsle</dt>
-            <dd className="font-sans font-semibold">{result.data.fuelType ?? 'Ej angivet'}</dd>
+            <dd className="font-sans font-semibold">
+              {result.data.fuelType ?? 'Ej angivet'}
+            </dd>
           </div>
         </div>
         <div className="flex gap-3">
@@ -98,7 +110,10 @@ export function VehicleLookupResult({
           </div>
         </div>
         <div className="flex gap-3 sm:col-span-2">
-          <CalendarDays aria-hidden="true" className="mt-0.5 size-5 text-signal" />
+          <CalendarDays
+            aria-hidden="true"
+            className="mt-0.5 size-5 text-signal"
+          />
           <div>
             <dt className="text-xs text-steel/70">Nästa besiktning senast</dt>
             <dd className="font-sans font-semibold tabular-nums">
@@ -113,7 +128,10 @@ export function VehicleLookupResult({
         <SuggestedServices suggestions={result.suggestedServices} />
       )}
       <div className="border-t border-steel/15 pt-5">
-        <Link href={bookingHref} className="site-button site-button-primary w-full sm:w-auto">
+        <Link
+          href={bookingHref}
+          className="site-button site-button-primary w-full sm:w-auto"
+        >
           Boka tid för {formatRegNrForDisplay(result.registrationNumber)}
           <ArrowRight aria-hidden="true" className="size-4" />
         </Link>
@@ -134,7 +152,10 @@ function SuggestedServices({
     >
       <div className="flex items-center gap-2">
         <Wrench aria-hidden="true" className="size-4 text-signal" />
-        <h3 id="suggested-services-title" className="font-sans text-sm font-bold">
+        <h3
+          id="suggested-services-title"
+          className="font-sans text-sm font-bold"
+        >
           Rekommenderat för din bil
         </h3>
       </div>
@@ -155,7 +176,9 @@ function SuggestedServices({
             <p className="mt-2 text-sm leading-relaxed text-steel/75">
               {suggestion.explanation}
             </p>
-            <p className="mt-2 text-xs text-steel/70">Källa: {suggestion.sourceNote}</p>
+            <p className="mt-2 text-xs text-steel/70">
+              Källa: {suggestion.sourceNote}
+            </p>
           </li>
         ))}
       </ul>

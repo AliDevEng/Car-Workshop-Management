@@ -76,6 +76,8 @@ export type InsertReadingInput = {
   readonly readAt: Date;
   readonly source: OdometerSource;
   readonly userId: string | null;
+  /** Set when the reading came from a work order's in or out capture (B6.7). */
+  readonly workOrderId?: string | null;
 };
 
 export function insertReading(
@@ -89,6 +91,7 @@ export function insertReading(
       readAt: input.readAt,
       source: input.source,
       userId: input.userId,
+      workOrderId: input.workOrderId ?? null,
     },
     select: odometerFields,
   });

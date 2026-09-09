@@ -582,7 +582,7 @@ consistently.
       the success path had never been seen.** Nothing loaded the repository
       root `.env` into the frontend process. Next.js reads `.env` files from
       its own project directory, and this workspace deliberately keeps a
-      single `.env` at the root, so `INTERNAL_API_URL` was *always* undefined
+      single `.env` at the root, so `INTERNAL_API_URL` was _always_ undefined
       under `next dev` and `next start` — `getApiBaseUrl()` threw, the page
       caught it, and the result was indistinguishable from the backend being
       down. `next.config.ts` now loads it the same way
@@ -602,11 +602,11 @@ consistently.
 API call; `pnpm build` and `pnpm typecheck` pass." All three now hold, against
 a live B0 backend and PostgreSQL rather than fixtures.
 
-| Field                       | Record                                                                                                                                                                                                                       |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Current milestone / blocker | None. F0 is complete; F1 (design system) is next and depends only on F0. Two items carried forward deliberately, neither blocking: the local Node runtime is 22.21.1 against a 22.22.0 pin (F0.7.2, backend-owned), and Playwright uses the installed Chrome because `cdn.playwright.dev` is unreachable from this network (F0.1.9). |
-| Verification evidence        | 2026-09-08, Node 22.21.1, pnpm 12.3.4, Docker 28.5.1, PostgreSQL 16.15, Windows 11. `pnpm build` clean in dependency order. `pnpm check` clean — typecheck, ESLint at `--max-warnings 0`, 403 tests (167 backend, 211 shared, 25 frontend), `type-coverage` 99.96 % against a 99.5 % floor. `pnpm format:check` clean. `pnpm exec playwright test` — 7 passed. Live: `GET /` server-renders `status ok, version 0.1.0` through the typed client; `GET /api/health` returns the same via the dev rewrite; `GET /api/health/ready` reports `database: up`. `shared` hot reload demonstrated across both consumers (F0.1.5). Font subsetting and glyph coverage under F0.3.1/F0.3.3. |
-| Completed on                 | 2026-09-08                                                                                                                                                                                                                    |
+| Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current milestone / blocker | None. F0 is complete; F1 (design system) is next and depends only on F0. Two items carried forward deliberately, neither blocking: the local Node runtime is 22.21.1 against a 22.22.0 pin (F0.7.2, backend-owned), and Playwright uses the installed Chrome because `cdn.playwright.dev` is unreachable from this network (F0.1.9).                                                                                                                                                                                                                                                                                                                                              |
+| Verification evidence       | 2026-09-08, Node 22.21.1, pnpm 12.3.4, Docker 28.5.1, PostgreSQL 16.15, Windows 11. `pnpm build` clean in dependency order. `pnpm check` clean — typecheck, ESLint at `--max-warnings 0`, 403 tests (167 backend, 211 shared, 25 frontend), `type-coverage` 99.96 % against a 99.5 % floor. `pnpm format:check` clean. `pnpm exec playwright test` — 7 passed. Live: `GET /` server-renders `status ok, version 0.1.0` through the typed client; `GET /api/health` returns the same via the dev rewrite; `GET /api/health/ready` reports `database: up`. `shared` hot reload demonstrated across both consumers (F0.1.5). Font subsetting and glyph coverage under F0.3.1/F0.3.3. |
+| Completed on                | 2026-09-08                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ---
 
@@ -738,7 +738,7 @@ focus states.
       utilities, so it cannot drift. `--ring` is surface-aware: signal on
       concrete (6.74:1), near-white concrete-2 on steel (13.08:1). Hi-vis
       would be brighter still and was rejected — §9.2 makes colour
-      *information* in the admin panel, and hi-vis already means "attention";
+      _information_ in the admin panel, and hi-vis already means "attention";
       a focus ring is "you are here", not a status.
       The browser test asserts a non-`none` outline of non-zero width on
       every variant, which is what caught the `outline-none` defect in
@@ -755,7 +755,7 @@ values.
       `@hookform/resolvers/zod` and the shared Zod 4 schemas; distinguish input
       and output types when schemas transform values.
       `FormField` wraps `Controller`, not `register`: every conversion input
-      here is controlled and hands back a *domain* value rather than a DOM
+      here is controlled and hands back a _domain_ value rather than a DOM
       event. The input/output distinction is moot for the entity schemas —
       B1.5 asserts at compile time that `z.input` and `z.output` are identical
       across 20 of them — so a resolver cannot silently receive one shape and
@@ -850,8 +850,8 @@ values.
       five meanings (neutral, active, attention, error, done) and a
       `Record<Status, ...>` per domain enum, so adding a status to `shared`
       fails the typecheck here until someone decides what colour it is, rather
-      than defaulting it to grey. `READY_FOR_PICKUP` maps to *done* and
-      `NO_SHOW` to *error*: both are product decisions, not inferences from
+      than defaulting it to grey. `READY_FOR_PICKUP` maps to _done_ and
+      `NO_SHOW` to _error_: both are product decisions, not inferences from
       the name.
 - [x] **F1.4.4** `EmptyState` — icon, one sentence, one action
 - [x] **F1.4.5** `ErrorState` — the Swedish message, the `requestId` in small
@@ -890,14 +890,14 @@ accessible.
       confirmation to reuse the word.
       **A real accessibility defect was found and fixed here.** Radix returns
       focus to its own `DialogTrigger`, and this dialog is usually opened
-      *without* one — from a row action or a keyboard shortcut — so focus was
+      _without_ one — from a row action or a keyboard shortcut — so focus was
       landing on `<body>` and the user's place in the page was lost. Three
       obvious fixes do not work: `onOpenChange` never fires for a dialog opened
       with `setOpen(true)`; an effect is too late, because React runs a child's
       layout effects before its parent's and Radix has already moved focus; and
       reading `document.activeElement` during render mutates a ref while
       rendering, which `react-hooks/refs` rejects. It now tracks the last
-      element focused *outside* any dialog, from a `focusin` listener.
+      element focused _outside_ any dialog, from a `focusin` listener.
       Invisible to a mouse, immediate with a keyboard, and only the browser
       test catches it.
 - [x] **F1.5.3** A global error boundary rendering `ErrorState`
@@ -930,7 +930,7 @@ pairing.
       consequential finding of the iteration.** The §9.2 palette cannot serve
       as text on both surfaces: `signal` is 6.74:1 on concrete and 1.75:1 on
       steel; `hivis` is the mirror image at 1.29:1 and 9.18:1; `moss` fails on
-      both as ink (4.08:1 / 2.89:1). The *meanings* stay fixed system-wide as
+      both as ink (4.08:1 / 2.89:1). The _meanings_ stay fixed system-wide as
       §9.2 requires, and only the ink shifts per surface. Two further failures
       fell out of the same measurement: destructive text at 3.49:1 on the
       raised admin card, and the `link` variant at **2.55:1** on steel and
@@ -957,11 +957,11 @@ page." All four hold, and all four are asserted by browser tests rather than
 reviewed by eye — which is how the focus-ring, focus-return and contrast
 defects were found at all.
 
-| Field                       | Record                                                                                                                                                                                                                       |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Current milestone / blocker | None blocking. F1.6.3 stays unticked by design: route protection is F4.2's, and the styleguide holds no data until then. F4 (admin shell and authentication) is next; it depends on F1 and B2, both now Done. |
+| Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Current milestone / blocker | None blocking. F1.6.3 stays unticked by design: route protection is F4.2's, and the styleguide holds no data until then. F4 (admin shell and authentication) is next; it depends on F1 and B2, both now Done.                                                                                                                                                                                          |
 | Verification evidence       | 2026-09-08. `pnpm check` clean — typecheck, ESLint at `--max-warnings 0`, 467 tests (167 backend, 211 shared, 89 frontend), `type-coverage` 99.67 % against a 99.5 % floor. `pnpm format:check` clean. `pnpm build` clean. `pnpm exec playwright test` — 26 passed, of which 19 are new F1 checks. Contrast: 12 measured pairs, all AA or AAA. Loading button measured at 148.91 px before and during. |
-| Completed on                | 2026-09-08                                                                                                                                                                                                                    |
+| Completed on                | 2026-09-08                                                                                                                                                                                                                                                                                                                                                                                             |
 
 ---
 
@@ -1004,6 +1004,13 @@ footer.
       policy link
 - [x] **F2.1.4** Mobile navigation as a sheet; full keyboard operation
 - [x] **F2.1.5** Skip-to-content link
+
+**Responsive review (2026-09-09):** the header now uses the supplied Mome
+Bilservice logo and marks the active route, including nested service pages.
+Active-link state is isolated in one small client component so visual state and
+`aria-current` both update during Next.js client navigation. Horizontal
+overflow and menu-trigger visibility are covered at 320 px and 440 px; shared
+section, page-hero and mobile spacing were tightened after device review.
 
 <a id="f2-2"></a>
 
@@ -1055,6 +1062,10 @@ fallback.
 - [x] **F2.3.5** Await the dynamic service `slug` in page and metadata code;
       return the designed not-found page for unknown slugs.
 
+All six service cards and detail heroes now use their own relevant, generated
+workshop photograph through `next/image`. The project assets are optimized
+1200 × 800 JPEGs in `public/images/services/` (141–204 KB each).
+
 <a id="f2-4"></a>
 
 ### F2.4 About and contact
@@ -1088,8 +1099,8 @@ Swedish.
 
 **Acceptance:** Production public pages meet the recorded Lighthouse budget.
 
-- [x] **F2.6.1** All public pages server-rendered; client JavaScript only in the
-      hero and the booking form
+- [x] **F2.6.1** All public pages server-rendered; client JavaScript limited to
+      the hero lookup, active navigation and the booking form
 - [x] **F2.6.2** Images via `next/image`, correct sizes, explicit dimensions to
       prevent layout shift
 - [x] **F2.6.3** Lighthouse budget met and recorded here
@@ -1101,30 +1112,30 @@ with its mobile profile and simulated throttling. Scores are
 performance/accessibility/SEO; reports live in
 `frontend/reports/lighthouse/2026-09-09-production/`.
 
-| URL | Score | Report |
-| --- | --- | --- |
-| `/` | 95/100/100 | `home.html` |
-| `/tjanster` | 97/100/100 | `services.html` |
-| `/tjanster/bilservice` | 98/100/100 | `service-bilservice.html` |
-| `/tjanster/felsokning` | 98/100/100 | `service-felsokning.html` |
-| `/tjanster/bromsar` | 98/100/100 | `service-bromsar.html` |
-| `/tjanster/dack-hjulinstallning` | 97/100/100 | `service-dack-hjulinstallning.html` |
-| `/tjanster/ac-klimat` | 98/100/100 | `service-ac-klimat.html` |
-| `/tjanster/motor-vaxellada` | 98/100/100 | `service-motor-vaxellada.html` |
-| `/om-oss` | 96/96/100 | `about.html` |
-| `/kontakt` | 98/100/100 | `contact.html` |
-| `/integritetspolicy` | 98/100/100 | `privacy.html` |
+| URL                              | Score       | Report                              |
+| -------------------------------- | ----------- | ----------------------------------- |
+| `/`                              | 100/100/100 | `home.html`                         |
+| `/tjanster`                      | 96/100/100  | `services.html`                     |
+| `/tjanster/bilservice`           | 96/100/100  | `service-bilservice.html`           |
+| `/tjanster/felsokning`           | 96/100/100  | `service-felsokning.html`           |
+| `/tjanster/bromsar`              | 96/100/100  | `service-bromsar.html`              |
+| `/tjanster/dack-hjulinstallning` | 95/100/100  | `service-dack-hjulinstallning.html` |
+| `/tjanster/ac-klimat`            | 96/100/100  | `service-ac-klimat.html`            |
+| `/tjanster/motor-vaxellada`      | 99/100/100  | `service-motor-vaxellada.html`      |
+| `/om-oss`                        | 98/96/100   | `about.html`                        |
+| `/kontakt`                       | 99/100/100  | `contact.html`                      |
+| `/integritetspolicy`             | 96/100/100  | `privacy.html`                      |
 
 **Iteration acceptance record**
 
 - [ ] **F2 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
-| Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Current milestone / blocker | Blocked at 4/6. Every frontend-owned implementation, fixture journey, crawl check and performance check is complete. F2.2 remains blocked until B5.2 and B10.1–B10.4 provide the live form-token and vehicle-lookup endpoints. F2.4 awaits real photographs of the two owners; the workshop/opening-hours API from B3.5 is now connected. |
-| Verification evidence       | 2026-09-09. `pnpm --filter frontend typecheck` passed. `pnpm --filter frontend test` passed — 89 tests. `pnpm --filter frontend test:e2e -- --reporter=line` passed — 39 browser tests. `pnpm --filter frontend build` passed. Eleven Lighthouse 13.4.1 mobile/simulated-throttling reports passed the 95 performance/accessibility/SEO budget; scores and report paths are recorded above. |
-| Completed on                | —                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current milestone / blocker | Blocked at 4/6. Every frontend-owned implementation, fixture journey, responsive review, crawl check and performance check is complete. F2.2 remains blocked until B5.2 and B10.1–B10.4 provide the live form-token and vehicle-lookup endpoints. F2.4 awaits real photographs of the two owners; the workshop/opening-hours API from B3.5 is now connected. The supplied Mome Bilservice logo is integrated, but it is not a substitute for those owner photographs.                                               |
+| Verification evidence       | 2026-09-09. `pnpm --filter frontend typecheck` passed. `pnpm --filter frontend test` passed — 89 tests. `pnpm --filter frontend test:e2e -- --reporter=line` passed — 41 browser tests, including active navigation, six service images, keyboard operation and no horizontal overflow at 320/440 px. `pnpm --filter frontend build` passed. Eleven refreshed Lighthouse 13.4.1 mobile/simulated-throttling reports passed the 95 performance/accessibility/SEO budget; scores and report paths are recorded above. |
+| Completed on                | —                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ---
 

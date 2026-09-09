@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 40/92 milestones complete; 5/14 iterations Done.**
+**Overall: 48/92 milestones complete; 6/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -43,7 +43,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [4](#b3)   | B3        | 1       | 6/6             | Done        |
 | [5](#b4)   | B4        | 2       | 6/6             | Done        |
 | [6](#b5)   | B5        | 3       | 6/6             | Done        |
-| [7](#b6)   | B6        | 4       | 0/8             | Not started |
+| [7](#b6)   | B6        | 4       | 8/8             | Done        |
 | [8](#b7)   | B7        | 5       | 0/6             | Not started |
 | [9](#b8)   | B8        | 5       | 0/6             | Not started |
 | [10](#b9)  | B9        | 6       | 0/7             | Not started |
@@ -83,6 +83,16 @@ constraint rather than a read-then-insert, mapped to `409` on SQLSTATE `23P01`
 exactly as B0.10.3 measured; the Europe/Stockholm boundary conversion lives in
 `shared/time.ts` and is tested on both 2026 DST transitions. 83 new backend
 tests. B10.1–B10.4 and B10.6 remain before Phase 3's backend half is complete.
+
+**Iteration 7 (B6) is Done as of 2026-09-09.** The transactional heart of the
+system: work orders, snapshotting lines, totals computed on read, optimistic
+locking on the header, the B1.4 state machine on transitions, stock deducted
+once on completion behind an `Idempotency-Key`, compensating `RETURN`
+movements on a revert, odometer capture at both ends, the two service
+histories and the dashboard. Document numbers come from a Postgres sequence per
+type per year (§4.4). 79 new backend tests and 9 new shared ones; four defects
+and one flaky test were found by writing them and are recorded below. Phase 4's
+backend half is complete; F5 and F9 deliver the UI.
 
 ## Package review
 
@@ -1798,16 +1808,16 @@ nothing in this codebase controls it.
 
 ## Iteration 7: Creating work orders and stock deductions
 
-- [ ] Creating work-order records (`B6.1`)
-- [ ] Creating and editing order lines (`B6.2`)
-- [ ] Calculating order totals (`B6.3`)
-- [ ] Protecting concurrent edits (`B6.4`)
-- [ ] Enforcing status transitions (`B6.5`)
-- [ ] Deducting stock once on completion (`B6.6`)
-- [ ] Recording arrival and departure mileage (`B6.7`)
-- [ ] Connecting work history and dashboard data (`B6.8`)
+- [x] Creating work-order records (`B6.1`)
+- [x] Creating and editing order lines (`B6.2`)
+- [x] Calculating order totals (`B6.3`)
+- [x] Protecting concurrent edits (`B6.4`)
+- [x] Enforcing status transitions (`B6.5`)
+- [x] Deducting stock once on completion (`B6.6`)
+- [x] Recording arrival and departure mileage (`B6.7`)
+- [x] Connecting work history and dashboard data (`B6.8`)
 
-**Reference:** B6 · **Phase:** 4 · **Progress:** 0/8 · **Status:** Not started
+**Reference:** B6 · **Phase:** 4 · **Progress:** 8/8 · **Status:** Done
 
 **Depends on:** B4, B5.
 
@@ -1820,6 +1830,23 @@ consumed by F5/F9. Recommendation hooks are connected later in B9.6.
 completed with stock deduction, and cannot be double-completed even when the
 request is retried.
 
+Three orderings hold this iteration together and each is enforced in code
+rather than remembered:
+
+- **Article rows are locked before work-order rows** (CLAUDE.md). Completion
+  deducts through `recordMovement`, which takes the article's
+  `SELECT … FOR UPDATE`; the work-order row is locked last, by the version
+  compare-and-swap. Deduction walks the lines in **article-id order**, so two
+  completions sharing two articles cannot take the same locks in opposite
+  directions.
+- **The idempotency key is claimed before the effect**, in the same
+  transaction. Claiming it afterwards leaves a concurrent duplicate racing the
+  effect and failing on the *version* check, which tells a caller "someone else
+  changed this" about their own retry.
+- **Stock moves once and reversal compensates.** Adding a `PART` line deducts
+  nothing; completion deducts every line whose `stockDeducted` is false, and a
+  revert writes `RETURN` movements rather than deleting the originals.
+
 <details>
 <summary>Implementation details — B6</summary>
 
@@ -1827,100 +1854,268 @@ request is retried.
 
 ### B6.1 Work order model
 
-- [ ] **B6.1.1** Prisma `WorkOrder` with `status`, `version`, both odometer
-      fields
-- [ ] **B6.1.2** Numbering via a Postgres sequence per year, assigned inside the
-      transaction. **Not** `MAX + 1`
-- [ ] **B6.1.3** `POST` from a booking or standalone; `GET` list with status
-      filters
+- [x] **B6.1.1** Prisma `WorkOrder` with `status`, `version`, both odometer
+      fields; migration `20260909150323_b6_work_orders`. `number` is
+      **nullable and unique**, `WorkOrderLine` cascades from its order, and
+      `OdometerReading.workOrderId` / `StockMovement.workOrderId` — reserved
+      without relations in B3 and B4 — gain their foreign keys here.
+      `completedByUserId` is added beyond §4.2's field list, and the root
+      decision log records why.
+- [x] **B6.1.2** Numbering via a Postgres sequence **per type per year**,
+      created on first use by `next_document_number` and drawn inside the
+      assigning transaction. Never `MAX + 1`.
+      **The DDL race is the interesting part, and the first implementation got
+      it wrong.** An advisory lock with a `to_regclass` re-check inside it
+      still raised `42P07` under a 25-way test, because the whole function body
+      runs as one command and therefore holds **one catalogue snapshot** — the
+      re-check cannot see what the winner committed, however long it waited. A
+      lock cannot fix a stale read. The guard is instead to let
+      `CREATE SEQUENCE` run and catch the failure, and it has to catch
+      **two** SQLSTATEs: `duplicate_table` when the name is already visible,
+      and `unique_violation` on `pg_class_relname_nsp_index` under a genuine
+      race, which is the one that actually happens.
+- [x] **B6.1.3** `POST` from a booking or standalone; `GET` list filtered by
+      status, vehicle, customer, mechanic and `bookingId` — the last being the
+      calendar's link from a slot to the job it became (B6.8.3). A new order is
+      a `DRAFT` **without a number**: §4.4 will not spend one on something
+      §4.3 still permits deleting.
 
 <a id="b6-2"></a>
 
 ### B6.2 Lines
 
-- [ ] **B6.2.1** Prisma `WorkOrderLine` with all snapshot fields
-- [ ] **B6.2.2** `POST /api/work-orders/:id/lines` copying name, price, unit and
-      VAT from the article at insert time
-- [ ] **B6.2.3** `PATCH` and `DELETE` on lines, allowed only while not
-      `COMPLETED`
-- [ ] **B6.2.4** Reordering via `sortOrder`
-- [ ] **B6.2.5** A test proving a later article price change does not alter an
-      existing line
+- [x] **B6.2.1** Prisma `WorkOrderLine` with all snapshot fields.
+- [x] **B6.2.2** `POST /api/work-orders/:id/lines` stores the description,
+      price, unit and VAT rate **as sent**, with `articleId` kept only so stock
+      can be deducted and the part traced. The price is accepted rather than
+      read from the article on purpose: staff adjust it, and the snapshot has
+      to record what was actually charged.
+- [x] **B6.2.3** `PATCH` and `DELETE`, refused once the order is `COMPLETED` —
+      and once it is `CANCELLED`, which B6.2.3 does not name but which is
+      terminal (§4.3, B1.4), so its lines describe a record nothing can act on
+      again. The status is re-checked **atomically** as part of the version
+      bump: read without a lock, it lets a line land on an order that was
+      completed a millisecond earlier, and that line's part would never be
+      deducted.
+- [x] **B6.2.4** Reordering takes the **whole** list of line ids and rejects a
+      partial or duplicated one. A per-line index has to be reconciled against
+      every other line's, and two mechanics dragging at once produce two orders
+      that each look valid and together lose a line's place.
+- [x] **B6.2.5** A test changes the article's price and name after the line
+      exists and asserts the line and the totals do not move.
 
 <a id="b6-3"></a>
 
 ### B6.3 Totals
 
-- [ ] **B6.3.1** `calculateWorkOrderTotals` in `shared`, using B1.1
-- [ ] **B6.3.2** Totals computed on read, not stored — except on finalised
-      documents
-- [ ] **B6.3.3** Test with 30 mixed lines against hand-calculated expected
-      values
+- [x] **B6.3.1** `calculateWorkOrderTotals` in `shared/work-order-totals.ts`,
+      built on B1.1. It returns the **per-line values and the document totals
+      from one computation**, which is what makes §3.3's trap unreachable: the
+      totals are summed from exactly the numbers the client is shown, because
+      they are the same array. Two call sites is how a screen and the document
+      printed from it end up an öre apart.
+- [x] **B6.3.2** Totals are computed on read and never stored. A work order's
+      lines change until it is completed, and a stored total is a second source
+      of truth that drifts the first time one is written and the other is not.
+      B7 and B8 freeze theirs by copying this function's result.
+- [x] **B6.3.3** 30 mixed lines — labour, a fractional-quantity part and a
+      VAT-free fee — against totals written out by hand, plus a fixture
+      asserting the document VAT is **not** what recomputing it from the
+      document net would give.
 
 <a id="b6-4"></a>
 
 ### B6.4 Optimistic locking
 
-- [ ] **B6.4.1** `version` incremented on every write
-- [ ] **B6.4.2** Require the matching version on work-order header and status
-      mutations; return 409 with the current state on mismatch. Line writes bump
-      the parent version but do not require a version match (§6.5).
-- [ ] **B6.4.3** Test simulating two clients editing concurrently
-- [ ] **B6.4.4** Test two mechanics adding distinct lines successfully, a stale
-      header edit, and simultaneous edits against the defined conflict policy.
+- [x] **B6.4.1** `version` is incremented by every write, line writes included.
+- [x] **B6.4.2** Header and status mutations send the version they read; the
+      write is one `updateMany` with the version **in its `where`**, so
+      PostgreSQL decides and a read-then-write race cannot exist. A mismatch is
+      a `409` carrying the current version and status, so the UI can offer to
+      reload rather than only saying no. Line writes bump the parent without
+      being checked against it (§6.5).
+- [x] **B6.4.3** Twenty concurrent writes at one version: exactly one wins and
+      the version increments once. **Recorded as an outcome check, not a
+      regression test**, and the distinction is B2's. `updateWithVersion` was
+      deliberately rewritten as a read-then-write and this test still passed —
+      at two contenders and at twenty. Prisma's interactive transactions do
+      overlap here (measured separately), but the gap between a read and the
+      write that follows never opened wide enough for a second reader: the
+      loser blocks on the row lock and only then issues its update. No test at
+      this layer distinguishes the two implementations, and claiming one did
+      would be worse than saying so.
+- [x] **B6.4.4** Two mechanics adding different lines at the same moment both
+      succeed and the version reaches 2; a header edit holding the pre-line
+      version is refused; a stale header edit after another header edit is
+      refused with the current state.
 
 <a id="b6-5"></a>
 
 ### B6.5 Status transitions
 
-- [ ] **B6.5.1** `POST /api/work-orders/:id/status` validated by the B1.4 state
-      machine
-- [ ] **B6.5.2** Completion requires `odometerKmOut` and at least one line
-- [ ] **B6.5.3** Completion timestamp and user recorded
+- [x] **B6.5.1** `POST /api/work-orders/:id/status`, validated by B1.4's
+      `assertTransition` — the same table the UI greys buttons out from, so the
+      API rejects exactly what the interface hides.
+- [x] **B6.5.2** Completion requires an out-odometer and at least one line. The
+      odometer may arrive with the request or already be on the header; a
+      mechanic who typed it in an hour ago should not type it twice.
+- [x] **B6.5.3** `completedAt` and `completedByUserId` are recorded, and
+      **cleared again on a revert**, so they always describe the current
+      completion rather than a past one.
 
 <a id="b6-6"></a>
 
 ### B6.6 Stock deduction
 
-- [ ] **B6.6.1** On transition to `COMPLETED`, in one transaction: deduct every
-      `PART` line with an `articleId` and `stockDeducted = false`, then set the
-      flag
-- [ ] **B6.6.2** `IdempotencyKey` model and a reusable wrapper: store key,
-      request hash, response and status; a replay returns the stored response,
-      and the same key with a different request hash returns `409`
-- [ ] **B6.6.3** The key is written **inside the same transaction** as the
-      effect. Written afterwards, a crash between the two leaves a retry free to
-      deduct twice — which is the exact failure the mechanism exists to prevent
-- [ ] **B6.6.4** Reverting from `COMPLETED` writes compensating `RETURN`
-      movements
-- [ ] **B6.6.5** Tests: happy path, retry, revert, and a line without an article
+- [x] **B6.6.1** On the move to `COMPLETED`, in one transaction: every `PART`
+      line with an `articleId` and `stockDeducted = false` is deducted through
+      `recordMovement` and the flag is set beside it, so there is no window in
+      which a part is off the shelf and the line does not know it. Deduction
+      and reversal are one function with a direction, because they differ only
+      in the sign and read the same flag the opposite way round — two loops is
+      how one of them ends up missing the flag update.
+- [x] **B6.6.2** `IdempotencyKey` model and `lib/idempotency.ts`. A replay with
+      a matching key **and** a matching request hash returns the stored
+      response; a matching key with a different hash is a `409`, because §4.2
+      says that means a bug rather than a retry. The hash is over a
+      **canonical** form — sorted keys, `undefined` dropped — so a body whose
+      fields arrived in another order is not mistaken for a different request.
+      The stored `userId` is checked too: §4.2 makes the key globally unique,
+      so without that check a guessed key returns someone else's response.
+- [x] **B6.6.3** The key is written inside the same transaction as the effect —
+      and **claimed before it**, which the concurrency test forced. Written
+      after the effect, two simultaneous completions both do the work and the
+      loser fails on the *version* check, so the caller is told "someone else
+      changed this" about their own retry. Claiming first makes the duplicate
+      wait on the primary key's index instead. It is still one transaction, so
+      a mutation that throws takes its claim down with it and the retry is free
+      to do the work for real — asserted directly.
+- [x] **B6.6.4** Reverting from `COMPLETED` writes compensating `RETURN`
+      movements and clears `stockDeducted`. The ledger is append-only: "the
+      part went out and came back" is two rows, never one deleted one, and a
+      reverted-and-recompleted job reads as exactly what happened. Audited as
+      `work_order.reverted` rather than a generic status change.
+- [x] **B6.6.5** Happy path, sequential retry, concurrent retry, revert,
+      re-completion after a revert, a line with no article, a balance driven
+      negative, and a line write racing a completion.
 
 <a id="b6-7"></a>
 
 ### B6.7 Odometer capture
 
-- [ ] **B6.7.1** In and out readings written to `OdometerReading`
-- [ ] **B6.7.2** The B3.3 warning surfaced on the work order response
+- [x] **B6.7.1** In and out readings are written to `OdometerReading` with the
+      work order's id, from creation, from a header patch and from completion —
+      through `recordOdometerReadingInTransaction`, split out of B3's manual
+      endpoint so the cache rule and the warning text keep one definition. A
+      value that did not change writes nothing: saving the same form twice must
+      not add a second reading.
+- [x] **B6.7.2** The B3.3 low-reading warning reaches the UI on the successful
+      response, in mil, alongside the negative-balance warnings from §6.4.
+      Never an error — a cluster gets replaced, and refusing the number leaves
+      a mechanic unable to record what the car shows.
 
 <a id="b6-8"></a>
 
 ### B6.8 Connecting work history and dashboard data
 
-- [ ] **B6.8.1** Populate the customer and vehicle work-order histories reserved
-      in B3; preserve vehicle history when ownership changes.
-- [ ] **B6.8.2** Provide the typed reads required by F5: today's bookings,
-      unhandled requests, active work, inspection dates and low-stock counts.
-- [ ] **B6.8.3** Connect calendar-to-work-order actions and verify the frontend
-      consumes shared contracts rather than invented response types.
-- [ ] **B6.8.4** Verify completed jobs, stock changes and historical records
-      remain consistent after retry or rollback.
+- [x] **B6.8.1** `GET /api/vehicles/:id/work-orders` and
+      `/api/customers/:id/work-orders`. The two are deliberately not the same
+      query: a vehicle's history follows the **vehicle**, so it survives a
+      change of owner (§6.3), while a customer's history is the jobs billed to
+      them and does not follow a car they sold. Both filter on the work order's
+      own foreign key rather than joining through the current owner, which is
+      what makes them survive the change — tested by reassigning the car.
+- [x] **B6.8.2** `GET /api/dashboard` — one request rather than five, so every
+      card agrees about what today is. Today's bookings (through the same
+      window function the calendar uses), unhandled requests, `AWAITING_PARTS`
+      and `READY_FOR_PICKUP` counts, inspections due, and articles below
+      minimum (through the same predicate the low-stock list uses). The day is
+      a **Europe/Stockholm** calendar date: between midnight and 01:00 local it
+      is not the same day as UTC, and whoever opens the workshop would be the
+      one to find out. The inspection window reaches 60 days **backwards as
+      well as forwards** — a car overdue last week is the one to ring about,
+      but one overdue by a year would otherwise fill a list ordered by due date
+      and hide every car worth calling.
+- [x] **B6.8.3** Calendar-to-work-order is connected in both directions:
+      `POST /api/work-orders` accepts a `bookingId`, and the list filters on
+      it. The frontend half is **carried to F5 and F9**, which is where the
+      first work-order UI is written — there is no frontend work-order code
+      today, so there is nothing that could have invented a response type, and
+      the check belongs where the components do. Every contract those
+      iterations need is in `shared/schemas/work-order.ts` and
+      `shared/schemas/dashboard.ts`.
+- [x] **B6.8.4** `tests/work-order-journey.test.ts` runs the arc and then
+      checks what a person could check: the shelf, the ledger sum, the odometer
+      history, the vehicle's cached reading, the service history and the audit
+      trail. Retry and rollback consistency is asserted directly — a replayed
+      completion moves nothing, a failed completion leaves no key and no
+      movements, and after every path the cached balance equals the sum of the
+      ledger.
 
 </details>
 
-- [ ] **Iteration 7 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 7 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-09, on Node 22.21.1, pnpm 12.3.4, PostgreSQL 16
+(Docker), Windows 11. B6's Definition of Done — *"a work order can be created,
+filled with lines, completed with stock deduction, and cannot be
+double-completed even when the request is retried"* — is
+`tests/work-order-journey.test.ts`, which does all four in one test and then
+asserts the shelf, the ledger and the audit trail afterwards.
+
+| Command | Result |
+| --- | --- |
+| `pnpm check` | Clean — typecheck, lint (0 warnings), 754 tests, type-coverage 99.67%. Run four times to confirm the concurrency tests are not flaky |
+| `pnpm --filter backend test` | 420 passed, 1 skipped (benchmark) across 42 files — +79 over B5 |
+| `pnpm --filter shared test` | 245 passed across 12 files, 100% coverage of `shared/src` (174/174 statements) |
+| `pnpm --filter backend test:coverage` | 95.06% statements / 95.03% lines (floor 80%); `modules/work-orders` 96.38%, `modules/dashboard` 95.23% |
+| `pnpm build` | All three packages; `next build` compiles against `shared`'s `.d.ts` |
+| `pnpm --filter backend prisma migrate dev` | `20260909150323_b6_work_orders` applied |
+| `prisma migrate diff --from-migrations … --to-schema …` | No difference detected — Prisma models neither the numbering function nor its sequences, so neither shows as drift |
+| Definition of done (`work-order-journey.test.ts`) | Draft → numbered → three lines → completed with an `Idempotency-Key`; the retry replays byte-for-byte, stock stays at 15,5 and 4, and the second tap without a key is a `409` from the state machine |
+| Numbering under concurrency | 25 simultaneous draws of a brand-new year's series produce 25 distinct numbers and create the sequence once |
+| Stock, cache vs ledger | Equal after completion, after a revert, after a re-completion, and after a line write racing a completion |
+| Totals (30 mixed lines) | `netOre` 1 268 980, `vatOre` 305 000, `roundingOre` 20 — and **not** the 317 245 that recomputing VAT from the document net gives |
+| Optimistic lock | 20 concurrent writes at one version → 1 fulfilled, version 1. Recorded as an outcome check; see B6.4.3 |
+| DST (dashboard) | 29 March answers a 23-hour window, 25 October a 25-hour one |
+
+**Four defects were found by writing these tests, and are fixed:**
+
+1. **The document-numbering function raised on the first draw of a new year.**
+   The advisory-lock-plus-re-check pattern cannot work inside a plpgsql
+   function, because the body holds one catalogue snapshot for its whole
+   duration — so the re-check after the wait looks at the same catalogue that
+   said NULL. Fixed by catching the create instead, and by catching
+   `unique_violation` as well as `duplicate_table`: the second is what a
+   genuine race actually raises, so handling only the obvious one would have
+   left the failure exactly where it was. Found by a 25-way concurrency test,
+   and it would otherwise have surfaced as a 500 on the first work order of
+   January, unreproducible afterwards.
+2. **A concurrent retry of a completion failed on the version check instead of
+   replaying.** The key was being written after the effect, so both requests
+   did the work and the loser was refused by the optimistic lock — which reads
+   to the caller as "someone else changed this" about their own retry. The
+   claim now precedes the effect inside the same transaction.
+3. **`updateMany` silently accepted a relation operation.** Unassigning a
+   mechanic was written as `assignedUser: { disconnect: true }`, which compiles
+   against the checked update input and is not what `updateMany` takes; it was
+   a 500. `updateWithVersion` now declares the unchecked input, which is what
+   makes the mistake a compile error.
+4. **A line could land on an order completed a millisecond earlier.** The
+   status was read without a lock, so the line write would attach a `PART` to
+   a `COMPLETED` order — a part that can never be deducted, because deduction
+   has already run. The version bump now carries the status in its `where`.
+
+**One test was flaky and is fixed rather than deleted.** The line-versus-
+completion race asserted that the completion always succeeds. It does not, and
+correctly so: a line committing between the completion's read and its
+compare-and-swap makes the completion's version stale, and refusing it is the
+optimistic lock working. The test now allows all three interleavings and
+asserts the invariant that holds under every one of them — an order is never
+`COMPLETED` carrying an undeducted `PART` line, and the cached balance always
+equals the ledger. Four consecutive `pnpm check` runs are clean.
+
+**Completed on:** 2026-09-09
 
 ---
 

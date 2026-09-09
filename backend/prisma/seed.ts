@@ -63,7 +63,7 @@ const SEED_USERS = [
  * fails here rather than at the first `GET /api/public/workshop`.
  */
 const SEED_WORKSHOP = workshopDetailsSchema.parse({
-  name: 'Bilverkstaden i Solna',
+  name: 'Mome Bilservice',
   orgNumber: '556123-4567',
   address: 'Industrivägen 12',
   postalCode: '171 48',

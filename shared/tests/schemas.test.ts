@@ -8,6 +8,7 @@ import * as authSchemas from '../src/schemas/auth.js';
 import * as bookingSchemas from '../src/schemas/booking.js';
 import * as commonSchemas from '../src/schemas/common.js';
 import * as customerSchemas from '../src/schemas/customer.js';
+import * as dashboardSchemas from '../src/schemas/dashboard.js';
 import * as documentSchemas from '../src/schemas/document.js';
 import * as healthSchemas from '../src/schemas/health.js';
 import * as odometerSchemas from '../src/schemas/odometer.js';
@@ -58,6 +59,7 @@ const domainModules: ReadonlyArray<readonly [string, Record<string, unknown>]> =
     ['vehicle-data', vehicleDataSchemas],
     ['audit', auditSchemas],
     ['search', searchSchemas],
+    ['dashboard', dashboardSchemas],
   ];
 
 describe('the barrel re-exports every domain area (B1.5.1)', () => {

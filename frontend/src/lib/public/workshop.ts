@@ -9,7 +9,7 @@ import { apiFetchServer } from '@/lib/api/server';
 export const fallbackWorkshopInfo: PublicWorkshopInfo =
   publicWorkshopInfoSchema.parse({
     workshop: {
-      name: 'Verkstaden',
+      name: 'Mome Bilservice',
       orgNumber: '556677-8899',
       address: 'Industrivägen 14',
       postalCode: '171 48',

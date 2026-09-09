@@ -16,22 +16,22 @@ import '@/styles/public.css';
 export const metadata: Metadata = {
   metadataBase: new URL('https://verkstaden.se'),
   title: {
-    default: 'Verkstaden | Bilverkstad i Solna',
-    template: '%s | Verkstaden',
+    default: 'Mome Bilservice | Bilverkstad i Solna',
+    template: '%s | Mome Bilservice',
   },
   description:
     'Modern bilservice, felsökning och mekaniska reparationer i Solna.',
-  applicationName: 'Verkstaden',
+  applicationName: 'Mome Bilservice',
   openGraph: {
     type: 'website',
     locale: 'sv_SE',
-    siteName: 'Verkstaden',
+    siteName: 'Mome Bilservice',
     images: [
       {
         url: '/images/workshop-team.png',
         width: 1680,
         height: 945,
-        alt: 'Mekaniker arbetar med en bil i Verkstadens lokaler',
+        alt: 'Mekaniker arbetar med en bil hos Mome Bilservice',
       },
     ],
   },

@@ -13,12 +13,28 @@ import {
 import { VehicleLookup } from '@/components/public/vehicle-lookup';
 import { ServiceCard } from '@/components/public/service-card';
 import { services } from '@/lib/public/services';
-import { formatOpeningHours, getMapUrl, getWorkshopInfo } from '@/lib/public/workshop';
+import {
+  formatOpeningHours,
+  getMapUrl,
+  getWorkshopInfo,
+} from '@/lib/public/workshop';
 
 const promises = [
-  { number: '01', title: 'Tydligt pris', text: 'Du godkänner innan vi börjar.' },
-  { number: '02', title: 'Dokumenterat', text: 'Du ser vad vi gjort och varför.' },
-  { number: '03', title: 'Personligt ansvar', text: 'Samma verkstad hela vägen.' },
+  {
+    number: '01',
+    title: 'Tydligt pris',
+    text: 'Du godkänner innan vi börjar.',
+  },
+  {
+    number: '02',
+    title: 'Dokumenterat',
+    text: 'Du ser vad vi gjort och varför.',
+  },
+  {
+    number: '03',
+    title: 'Personligt ansvar',
+    text: 'Samma verkstad hela vägen.',
+  },
 ] as const;
 
 const processSteps = [
@@ -39,6 +55,24 @@ const processSteps = [
   },
 ] as const;
 
+const heroImages = [
+  {
+    src: '/images/workshop-team.png',
+    alt: 'Två mekaniker som arbetar vid en bil i verkstaden',
+    objectPosition: '18%',
+  },
+  {
+    src: '/images/services/bilservice.jpg',
+    alt: '',
+    objectPosition: '50%',
+  },
+  {
+    src: '/images/services/felsokning.jpg',
+    alt: '',
+    objectPosition: '72%',
+  },
+] as const;
+
 export const metadata: Metadata = {
   title: 'Bilverkstad i Solna',
   description:
@@ -53,8 +87,8 @@ export default async function HomePage() {
   return (
     <main id="main-content">
       <section className="hero-section">
-        <div className="site-container grid items-center gap-10 py-12 lg:min-h-[calc(100svh-76px)] lg:grid-cols-[1.04fr_0.96fr] lg:py-20">
-          <div className="relative z-10 flex min-h-[calc(100svh-4.75rem)] flex-col justify-center lg:min-h-0">
+        <div className="site-container grid items-center gap-8 py-10 sm:py-12 lg:grid-cols-[1.04fr_0.96fr] lg:gap-10 lg:py-16">
+          <div className="relative z-10 min-w-0">
             <p className="hero-kicker">
               <span className="size-2 rounded-full bg-hivis" />
               Oberoende bilverkstad i {info.workshop.city}
@@ -72,33 +106,54 @@ export default async function HomePage() {
           </div>
 
           <div className="hero-visual">
-            <Image
-              src="/images/workshop-team.png"
-              alt="Två mekaniker som arbetar vid en bil i verkstaden"
-              fill
-              loading="eager"
-              sizes="(max-width: 1023px) 100vw, 48vw"
-              className="object-cover"
-            />
+            <div className="hero-visual-image-grid">
+              {heroImages.map((image, index) => (
+                <div className="hero-visual-image-panel" key={image.src}>
+                  <Image
+                    src={image.src}
+                    alt={image.alt}
+                    fill
+                    loading="eager"
+                    fetchPriority={index === 0 ? 'high' : 'auto'}
+                    quality={60}
+                    sizes="(max-width: 639px) 45vw, (max-width: 1023px) 100vw, 48vw"
+                    className="object-cover"
+                    style={{ objectPosition: `${image.objectPosition} center` }}
+                  />
+                </div>
+              ))}
+            </div>
             <div className="hero-visual-overlay" />
             <div className="hero-proof">
               <span className="grid size-11 place-items-center rounded-full bg-hivis text-steel">
                 <ShieldCheck aria-hidden="true" className="size-5" />
               </span>
               <div>
-                <strong className="block font-sans text-sm">Tryggt från start till mål</strong>
-                <span className="text-xs text-white/65">Godkänn alltid priset före jobbet</span>
+                <strong className="block font-sans text-sm">
+                  Tryggt från start till mål
+                </strong>
+                <span className="text-xs text-white/65">
+                  Godkänn alltid priset före jobbet
+                </span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="border-b border-steel/15 bg-concrete-2" aria-label="Våra löften">
+      <section
+        className="border-b border-steel/15 bg-concrete-2"
+        aria-label="Våra löften"
+      >
         <div className="site-container grid divide-y divide-steel/15 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {promises.map((promise) => (
-            <div key={promise.number} className="flex gap-5 py-6 sm:px-6 first:sm:pl-0 last:sm:pr-0">
-              <span className="font-sans text-xs font-bold text-signal tabular-nums">{promise.number}</span>
+            <div
+              key={promise.number}
+              className="flex gap-5 py-6 sm:px-6 first:sm:pl-0 last:sm:pr-0"
+            >
+              <span className="font-sans text-xs font-bold text-signal tabular-nums">
+                {promise.number}
+              </span>
               <div>
                 <strong className="font-sans text-sm">{promise.title}</strong>
                 <p className="mt-1 text-sm text-steel/70">{promise.text}</p>
@@ -122,7 +177,7 @@ export default async function HomePage() {
               <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
           </div>
-          <div className="mt-12 grid gap-5 lg:grid-cols-3">
+          <div className="mt-9 grid gap-5 lg:mt-10 lg:grid-cols-3">
             {services.slice(0, 3).map((service, index) => (
               <ServiceCard key={service.slug} service={service} index={index} />
             ))}
@@ -142,8 +197,12 @@ export default async function HomePage() {
               return (
                 <article key={step.title} className="bg-concrete-2 p-7 sm:p-8">
                   <ItemIcon aria-hidden="true" className="size-6 text-signal" />
-                  <h3 className="type-display mt-12 text-2xl font-bold">{step.title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-steel/70">{step.text}</p>
+                  <h3 className="type-display mt-12 text-2xl font-bold">
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-steel/70">
+                    {step.text}
+                  </p>
                 </article>
               );
             })}
@@ -156,7 +215,7 @@ export default async function HomePage() {
           <div>
             <p className="section-kicker">Nära när det behövs</p>
             <h2 className="type-display max-w-4xl text-[clamp(3rem,7vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em]">
-              Verkstaden runt hörnet.
+              Mome Bilservice runt hörnet.
             </h2>
           </div>
           <div className="grid gap-7 border-l border-steel/25 pl-7 sm:grid-cols-2">
@@ -178,7 +237,8 @@ export default async function HomePage() {
                 <MapPin aria-hidden="true" className="size-4" /> Adress
               </h3>
               <p className="mt-4 text-sm leading-relaxed">
-                {info.workshop.address}<br />
+                {info.workshop.address}
+                <br />
                 {info.workshop.postalCode} {info.workshop.city}
               </p>
               <a
@@ -187,7 +247,8 @@ export default async function HomePage() {
                 rel="noreferrer"
                 className="mt-4 inline-flex items-center gap-2 font-sans text-sm font-bold underline underline-offset-4"
               >
-                Öppna i kartan <ArrowRight aria-hidden="true" className="size-4" />
+                Öppna i kartan{' '}
+                <ArrowRight aria-hidden="true" className="size-4" />
               </a>
             </div>
           </div>

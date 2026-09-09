@@ -83,6 +83,46 @@ test.describe('public routes', () => {
     ).toBeVisible();
   });
 
+  test('navigation marks the current section on root and nested routes', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(
+      page.getByRole('navigation', { name: 'Huvudmeny' }).getByRole('link', {
+        name: 'Start',
+      }),
+    ).toHaveAttribute('aria-current', 'page');
+
+    await page
+      .getByRole('navigation', { name: 'Huvudmeny' })
+      .getByRole('link', { name: 'Tjänster' })
+      .click();
+    await expect(page).toHaveURL(/\/tjanster$/);
+    await expect(
+      page.getByRole('navigation', { name: 'Huvudmeny' }).getByRole('link', {
+        name: 'Tjänster',
+      }),
+    ).toHaveAttribute('aria-current', 'page');
+
+    await page.getByRole('link', { name: 'Läs mer om Bilservice' }).click();
+    await expect(page).toHaveURL(/\/tjanster\/bilservice$/);
+    await expect(
+      page.getByRole('navigation', { name: 'Huvudmeny' }).getByRole('link', {
+        name: 'Tjänster',
+      }),
+    ).toHaveAttribute('aria-current', 'page');
+  });
+
+  test('every service card has a relevant image', async ({ page }) => {
+    await page.goto('/tjanster');
+    const cards = page.locator('.service-card');
+    await expect(cards).toHaveCount(6);
+    await expect(cards.locator('img')).toHaveCount(6);
+    for (const image of await cards.locator('img').all()) {
+      await expect(image).toHaveAttribute('alt', /.+/);
+    }
+  });
+
   test('staff pages are no-index and absent from public crawl files', async ({
     page,
   }) => {
@@ -103,7 +143,30 @@ test.describe('public routes', () => {
   test('mobile navigation is keyboard operable and does not overflow', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+    for (const width of [320, 440]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/');
+
+      const menuButton = page.locator(
+        'summary[aria-label="Öppna eller stäng meny"]',
+      );
+      await expect(menuButton).toBeVisible();
+      const buttonBox = await menuButton.boundingBox();
+      expect(buttonBox).not.toBeNull();
+      expect(buttonBox?.x).toBeGreaterThanOrEqual(0);
+      expect((buttonBox?.x ?? 0) + (buttonBox?.width ?? 0)).toBeLessThanOrEqual(
+        width,
+      );
+
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(1);
+    }
+
+    await page.setViewportSize({ width: 320, height: 844 });
     await page.goto('/');
     await page.keyboard.press('Tab');
     await expect(
@@ -116,12 +179,18 @@ test.describe('public routes', () => {
       page.getByRole('navigation', { name: 'Mobilmeny' }),
     ).toBeVisible();
 
-    const overflow = await page.evaluate(
-      () =>
-        document.documentElement.scrollWidth -
-        document.documentElement.clientWidth,
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Mobilmeny' })
+        .getByRole('link', { name: 'Start' }),
+    ).toHaveAttribute('aria-current', 'page');
+
+    const panelBox = await page.locator('.mobile-nav-panel').boundingBox();
+    expect(panelBox).not.toBeNull();
+    expect(panelBox?.x).toBeGreaterThanOrEqual(0);
+    expect((panelBox?.x ?? 0) + (panelBox?.width ?? 0)).toBeLessThanOrEqual(
+      320,
     );
-    expect(overflow).toBeLessThanOrEqual(1);
   });
 });
 

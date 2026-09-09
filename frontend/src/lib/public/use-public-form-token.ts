@@ -12,7 +12,9 @@ interface PublicFormTokenOptions {
   readonly eager?: boolean;
 }
 
-export function usePublicFormToken({ eager = true }: PublicFormTokenOptions = {}) {
+export function usePublicFormToken({
+  eager = true,
+}: PublicFormTokenOptions = {}) {
   const [state, setState] = useState<TokenState>({
     status: eager ? 'loading' : 'idle',
     token: null,

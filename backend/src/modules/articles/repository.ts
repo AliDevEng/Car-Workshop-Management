@@ -112,8 +112,12 @@ export type ListArticlesOptions = {
  * "Below minimum" is a column-to-column comparison, so it uses a Prisma field
  * reference rather than raw SQL (§5.4 keeps raw SQL to the numbering sequence,
  * the reconciliation job and the ledger row lock).
+ *
+ * Exported because the dashboard counts the same set (§6.8, B6.8.2). A second
+ * copy of the rule is how a card and the list it links to end up disagreeing
+ * about what "below minimum" means.
  */
-function belowMinimum(db: Database): Prisma.ArticleWhereInput {
+export function belowMinimum(db: Database): Prisma.ArticleWhereInput {
   return { stockQuantity: { lt: db.article.fields.minimumQuantity } };
 }
 

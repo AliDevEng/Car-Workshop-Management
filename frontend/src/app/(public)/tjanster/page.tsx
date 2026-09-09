@@ -17,7 +17,9 @@ export default function ServicesPage() {
       <header className="page-hero">
         <div className="site-container">
           <p className="hero-kicker text-steel/70 before:bg-signal">Tjänster</p>
-          <h1 className="page-title max-w-5xl">Allt bilen behöver. Inget den inte behöver.</h1>
+          <h1 className="page-title max-w-5xl">
+            Allt bilen behöver. Inget den inte behöver.
+          </h1>
           <p className="page-lead">
             Vi kombinerar modern diagnos med mekaniskt hantverk. Priserna är
             vägledande – du får alltid ett tydligt besked innan arbetet börjar.
@@ -32,9 +34,12 @@ export default function ServicesPage() {
         </div>
         <div className="mt-16 flex flex-col items-start justify-between gap-8 rounded-soft bg-steel p-8 text-white sm:flex-row sm:items-center sm:p-12">
           <div>
-            <h2 className="type-display text-3xl font-bold sm:text-4xl">Osäker på vad bilen behöver?</h2>
+            <h2 className="type-display text-3xl font-bold sm:text-4xl">
+              Osäker på vad bilen behöver?
+            </h2>
             <p className="mt-3 max-w-2xl text-concrete/70">
-              Berätta vad du ser, hör eller känner. Vi börjar med att ta reda på orsaken.
+              Berätta vad du ser, hör eller känner. Vi börjar med att ta reda på
+              orsaken.
             </p>
           </div>
           <Link href="/boka" className="site-button site-button-hivis shrink-0">

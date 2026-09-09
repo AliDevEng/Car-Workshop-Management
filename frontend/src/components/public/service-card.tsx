@@ -1,4 +1,5 @@
 import { ArrowUpRight } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import type { Service } from '@/lib/public/services';
 import { cn } from '@/lib/utils';
@@ -20,22 +21,32 @@ export function ServiceCard({
   readonly index: number;
 }) {
   return (
-    <article className={cn('service-card group', accentClasses[service.accent])}>
-      <div className="flex items-start justify-between gap-6">
-        <span className="font-sans text-sm font-semibold text-steel/70 tabular-nums">
-          0{String(index + 1)}
-        </span>
+    <article
+      className={cn('service-card group', accentClasses[service.accent])}
+    >
+      <div className="service-card-media">
+        <Image
+          src={service.image.src}
+          alt={service.image.alt}
+          fill
+          sizes="(max-width: 1023px) 100vw, 33vw"
+          className="object-cover transition duration-500 group-hover:scale-[1.035]"
+        />
+        <div className="service-card-media-shade" />
+        <span className="service-card-number">0{String(index + 1)}</span>
         <ArrowUpRight
           aria-hidden="true"
-          className="size-6"
+          className="service-card-arrow size-6"
         />
       </div>
-      <div className="mt-20 sm:mt-24">
-        <h2 className="type-display text-3xl font-bold sm:text-4xl">{service.name}</h2>
+      <div className="service-card-body">
+        <h2 className="type-display text-3xl font-bold sm:text-4xl">
+          {service.name}
+        </h2>
         <p className="mt-4 max-w-md text-base leading-relaxed text-steel/75">
           {service.shortDescription}
         </p>
-        <div className="mt-8 flex items-center justify-between gap-4 border-t border-steel/20 pt-5 font-sans text-sm font-semibold">
+        <div className="mt-6 flex items-center justify-between gap-4 border-t border-steel/20 pt-5 font-sans text-sm font-semibold">
           <span className="tabular-nums">{service.fromPrice}</span>
           <Link href={`/tjanster/${service.slug}`} className="stretched-link">
             Läs mer<span className="sr-only"> om {service.name}</span>

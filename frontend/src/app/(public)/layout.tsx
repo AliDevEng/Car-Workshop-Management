@@ -7,7 +7,11 @@ import {
   serialiseJsonLd,
 } from '@/lib/public/workshop';
 
-export default async function PublicLayout({ children }: { children: ReactNode }) {
+export default async function PublicLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const info = await getWorkshopInfo();
   const localBusiness = {
     '@context': 'https://schema.org',

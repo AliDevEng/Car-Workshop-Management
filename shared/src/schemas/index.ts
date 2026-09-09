@@ -27,3 +27,4 @@ export * from './settings.js';
 export * from './vehicle-data.js';
 export * from './audit.js';
 export * from './search.js';
+export * from './dashboard.js';

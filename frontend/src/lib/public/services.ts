@@ -6,6 +6,10 @@ export type Service = {
   readonly fromPrice: string;
   readonly duration: string;
   readonly includes: readonly string[];
+  readonly image: {
+    readonly src: string;
+    readonly alt: string;
+  };
   readonly accent: 'blue' | 'yellow' | 'green' | 'rust' | 'ice' | 'lilac';
 };
 
@@ -25,6 +29,10 @@ export const services = [
       'Diagnos och återställning av serviceindikator',
       'Digitalt serviceprotokoll med tydliga rekommendationer',
     ],
+    image: {
+      src: '/images/services/bilservice.jpg',
+      alt: 'Mekaniker som utför oljeservice på en billyft',
+    },
     accent: 'blue',
   },
   {
@@ -42,6 +50,10 @@ export const services = [
       'Orsaksanalys – inte bara radering av felkoder',
       'Kostnadsförslag före fortsatt reparation',
     ],
+    image: {
+      src: '/images/services/felsokning.jpg',
+      alt: 'Mekaniker som diagnostiserar en bil med en digital surfplatta',
+    },
     accent: 'yellow',
   },
   {
@@ -59,6 +71,10 @@ export const services = [
       'Rengöring och smörjning av anliggningsytor',
       'Provkörning och dokumenterad slutkontroll',
     ],
+    image: {
+      src: '/images/services/bromsar.jpg',
+      alt: 'Noggrann kontroll av bromsskiva och bromsok',
+    },
     accent: 'rust',
   },
   {
@@ -76,6 +92,10 @@ export const services = [
       'Balansering eller fyrhjulsmätning enligt beställning',
       'Protokoll med mätvärden före och efter justering',
     ],
+    image: {
+      src: '/images/services/dack-hjulinstallning.jpg',
+      alt: 'Hjulinställning med modern mätutrustning',
+    },
     accent: 'green',
   },
   {
@@ -93,6 +113,10 @@ export const services = [
       'Tömning och fyllning enligt fordonets specifikation',
       'Kontroll av kupéfilter och kondensavrinning',
     ],
+    image: {
+      src: '/images/services/ac-klimat.jpg',
+      alt: 'Service av bilens klimatsystem med AC-mätare',
+    },
     accent: 'ice',
   },
   {
@@ -110,6 +134,10 @@ export const services = [
       'Skriftlig arbetsplan och kostnadsförslag',
       'Dokumenterad provkörning och kvalitetskontroll',
     ],
+    image: {
+      src: '/images/services/motor-vaxellada.jpg',
+      alt: 'Mekaniker som arbetar med motor och växellåda',
+    },
     accent: 'lilac',
   },
 ] as const satisfies readonly Service[];

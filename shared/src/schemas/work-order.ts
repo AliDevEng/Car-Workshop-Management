@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { WORK_ORDER_STATUSES } from '../work-order-state.js';
-import { cursorQuerySchema, warningsSchema } from './common.js';
+import {
+  cursorQuerySchema,
+  paginatedResponseSchema,
+  warningsSchema,
+} from './common.js';
 import { customerSummarySchema } from './customer.js';
 import {
   documentNumberSchema,
@@ -127,6 +131,15 @@ export const workOrderSchema = z.object({
   internalNote: noteSchema.nullable(),
   completedAt: isoDateTimeSchema.nullable(),
   /**
+   * Who completed it (B6.5.3). §4.2's field list does not name it and the
+   * audit log does record the actor — but an audit log is for answering
+   * "who changed this and when", not for rendering a screen or a service
+   * protocol, and reading one to label a work order is how it stops being
+   * append-only in practice. Cleared again when the order is reverted, so it
+   * always describes the *current* completion rather than a past one.
+   */
+  completedByUserId: optionalIdSchema,
+  /**
    * Optimistic lock. A `PATCH` sends the version it read; a mismatch is a
    * `409` and the UI offers to reload. It guards **header fields and status
    * only** — line writes bump it but are not checked against it, because two
@@ -147,6 +160,27 @@ export const workOrderDetailSchema = workOrderSchema.extend({
   totals: documentTotalsSchema,
 });
 export type WorkOrderDetail = z.infer<typeof workOrderDetailSchema>;
+
+/**
+ * A row of the work-order list (B6.1.3, F9). It carries the totals rather than
+ * the lines: a list wants "hur mycket" per job, and shipping every line of
+ * every order to render a table is the difference between one query and a
+ * screen that stalls. The backend calculates them; the browser formats
+ * (CLAUDE.md).
+ */
+export const workOrderListItemSchema = workOrderSchema.extend({
+  customer: customerSummarySchema,
+  vehicle: vehicleSummarySchema,
+  assignedUser: userSummarySchema.nullable(),
+  lineCount: z.number().int().min(0),
+  totals: documentTotalsSchema,
+});
+export type WorkOrderListItem = z.infer<typeof workOrderListItemSchema>;
+
+export const workOrderListResponseSchema = paginatedResponseSchema(
+  workOrderListItemSchema,
+);
+export type WorkOrderListResponse = z.infer<typeof workOrderListResponseSchema>;
 
 export const createWorkOrderInputSchema = z.object({
   vehicleId: idSchema,
@@ -192,25 +226,68 @@ export type ChangeWorkOrderStatusInput = z.infer<
 >;
 
 /**
+ * What every work-order **mutation** answers with.
+ *
  * Completion deducts stock, so it can leave balances negative — allowed, with
  * a warning (§6.4) — and can flag an out-odometer below the vehicle's previous
- * highest (§3.5). Both reach the UI as warnings on a successful response.
+ * highest (§3.5). Both reach the UI as warnings on a *successful* response; a
+ * warning never replaces an error.
+ *
+ * Line writes answer with the same envelope, which is what lets §6.5's
+ * "the client refetches lines and totals after every line mutation" be one
+ * round trip rather than two: the whole order, its lines and its recomputed
+ * totals come back from the write itself.
  */
-export const workOrderStatusChangeResponseSchema = z.object({
+export const workOrderResponseSchema = z.object({
   workOrder: workOrderDetailSchema,
   warnings: warningsSchema,
 });
-export type WorkOrderStatusChangeResponse = z.infer<
-  typeof workOrderStatusChangeResponseSchema
->;
+export type WorkOrderResponse = z.infer<typeof workOrderResponseSchema>;
+
+/**
+ * B1.5 named this contract for the status endpoint specifically. It is the
+ * same envelope, kept as a name so a reader looking for the §6.5 status
+ * response finds it where the plan said it would be.
+ */
+export const workOrderStatusChangeResponseSchema = workOrderResponseSchema;
+export type WorkOrderStatusChangeResponse = WorkOrderResponse;
 
 export const workOrderListQuerySchema = cursorQuerySchema.extend({
   status: workOrderStatusSchema.optional(),
   vehicleId: idSchema.optional(),
   customerId: idSchema.optional(),
   assignedUserId: idSchema.optional(),
+  /**
+   * The calendar's link from a booking to the job it became (§6.2 → §6.5,
+   * B6.8.3). A booking may have more than one work order over its life, so
+   * this is a filter rather than a lookup by a unique key.
+   */
+  bookingId: idSchema.optional(),
 });
 export type WorkOrderListQuery = z.infer<typeof workOrderListQuerySchema>;
+
+export const workOrderIdParamsSchema = z.object({ id: idSchema });
+export type WorkOrderIdParams = z.infer<typeof workOrderIdParamsSchema>;
+
+export const workOrderLineParamsSchema = z.object({
+  id: idSchema,
+  lineId: idSchema,
+});
+export type WorkOrderLineParams = z.infer<typeof workOrderLineParamsSchema>;
+
+/**
+ * Reordering sends the complete list of line ids in their new order (B6.2.4),
+ * not a single line's new index. A per-line index has to be reconciled against
+ * every other line's, and two mechanics dragging at once produce two orders
+ * that each look valid and together lose a line's place; a whole list is one
+ * write that either applies or does not.
+ */
+export const reorderWorkOrderLinesInputSchema = z.object({
+  lineIds: z.array(idSchema).min(1).max(200),
+});
+export type ReorderWorkOrderLinesInput = z.infer<
+  typeof reorderWorkOrderLinesInputSchema
+>;
 
 /** A row of the vehicle page's newest-first service history (§6.3, B6.8). */
 export const workOrderHistoryEntrySchema = z.object({
@@ -224,3 +301,19 @@ export const workOrderHistoryEntrySchema = z.object({
   createdAt: isoDateTimeSchema,
 });
 export type WorkOrderHistoryEntry = z.infer<typeof workOrderHistoryEntrySchema>;
+
+/**
+ * `GET /api/vehicles/:id/work-orders` and `/api/customers/:id/work-orders`
+ * (B6.8.1).
+ *
+ * Two endpoints, one shape, and the difference between them is the point: a
+ * vehicle's history follows the **vehicle**, so it survives a change of owner
+ * (§6.3), while a customer's history is the jobs billed to them and does not
+ * follow a car they sold.
+ */
+export const workOrderHistoryResponseSchema = paginatedResponseSchema(
+  workOrderHistoryEntrySchema,
+);
+export type WorkOrderHistoryResponse = z.infer<
+  typeof workOrderHistoryResponseSchema
+>;

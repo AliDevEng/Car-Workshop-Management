@@ -49,8 +49,10 @@ export function VehicleLookup() {
 
     setState({ status: 'loading' });
     try {
-      const [{ vehicleLookupInputSchema, vehicleLookupResponseSchema }, { apiFetch }] =
-        await Promise.all([import('shared'), import('@/lib/api')]);
+      const [
+        { vehicleLookupInputSchema, vehicleLookupResponseSchema },
+        { apiFetch },
+      ] = await Promise.all([import('shared'), import('@/lib/api')]);
       const input = vehicleLookupInputSchema.safeParse({
         registrationNumber,
         formToken: 'pending',
@@ -60,7 +62,8 @@ export function VehicleLookup() {
           status: 'error',
           kind: 'invalid',
           message:
-            input.error.issues[0]?.message ?? 'Kontrollera registreringsnumret.',
+            input.error.issues[0]?.message ??
+            'Kontrollera registreringsnumret.',
         });
         return;
       }
@@ -97,7 +100,9 @@ export function VehicleLookup() {
             id={fieldId}
             name="registrationNumber"
             value={registrationNumber}
-            onChange={(event) => setRegistrationNumber(event.target.value.toUpperCase())}
+            onChange={(event) =>
+              setRegistrationNumber(event.target.value.toUpperCase())
+            }
             placeholder="ABC 123"
             maxLength={12}
             autoComplete="off"
@@ -122,7 +127,11 @@ export function VehicleLookup() {
         </p>
       </form>
 
-      <div id="lookup-result" aria-live="polite" aria-busy={state.status === 'loading'}>
+      <div
+        id="lookup-result"
+        aria-live="polite"
+        aria-busy={state.status === 'loading'}
+      >
         {state.status === 'loading' ? (
           <div className="lookup-result mt-6" role="status">
             <span aria-hidden="true" className="lookup-spinner" />
@@ -134,11 +143,18 @@ export function VehicleLookup() {
           <div className="lookup-result lookup-result-error mt-6" role="alert">
             <div>
               <p className="font-sans font-bold">
-                {state.kind === 'invalid' ? 'Kontrollera numret' : 'Sökningen tog stopp'}
+                {state.kind === 'invalid'
+                  ? 'Kontrollera numret'
+                  : 'Sökningen tog stopp'}
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-steel/75">{state.message}</p>
+              <p className="mt-1 text-sm leading-relaxed text-steel/75">
+                {state.message}
+              </p>
             </div>
-            <Link href="/boka" className="site-button site-button-dark shrink-0">
+            <Link
+              href="/boka"
+              className="site-button site-button-dark shrink-0"
+            >
               Boka ändå
             </Link>
           </div>
@@ -149,7 +165,9 @@ export function VehicleLookup() {
             fallback={
               <div className="lookup-result mt-6" role="status">
                 <span aria-hidden="true" className="lookup-spinner" />
-                <p className="font-sans font-semibold">Vi visar biluppgifterna…</p>
+                <p className="font-sans font-semibold">
+                  Vi visar biluppgifterna…
+                </p>
               </div>
             }
           >

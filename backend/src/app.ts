@@ -18,11 +18,13 @@ import { registerArticleRoutes } from './modules/articles/routes.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerBookingRoutes } from './modules/bookings/routes.js';
 import { registerCustomerRoutes } from './modules/customers/routes.js';
+import { registerDashboardRoutes } from './modules/dashboard/routes.js';
 import { registerHealthRoutes } from './modules/health/routes.js';
 import { registerSearchRoutes } from './modules/search/routes.js';
 import { registerSettingsRoutes } from './modules/settings/routes.js';
 import { registerUserRoutes } from './modules/users/routes.js';
 import { registerVehicleRoutes } from './modules/vehicles/routes.js';
+import { registerWorkOrderRoutes } from './modules/work-orders/routes.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -93,6 +95,8 @@ export async function buildApp(
   registerVehicleRoutes(app);
   registerArticleRoutes(app);
   registerBookingRoutes(app);
+  registerWorkOrderRoutes(app);
+  registerDashboardRoutes(app);
   registerSearchRoutes(app);
   registerSettingsRoutes(app);
 

@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
   // does not compile workspace packages by default (PROJECT_SPEC.md §2.1).
   transpilePackages: ['shared'],
 
+  images: {
+    qualities: [60, 75],
+  },
+
   rewrites() {
     // Development-only convenience: production routes /api/* to the backend
     // via Caddy (README.md "Runtime topology"), so the browser always calls

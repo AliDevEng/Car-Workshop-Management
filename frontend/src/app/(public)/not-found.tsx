@@ -3,7 +3,10 @@ import { ArrowLeft } from 'lucide-react';
 
 export default function NotFoundPage() {
   return (
-    <main id="main-content" className="site-container grid min-h-[65svh] place-items-center py-20 text-center">
+    <main
+      id="main-content"
+      className="site-container grid min-h-[65svh] place-items-center py-20 text-center"
+    >
       <div>
         <p className="font-sans text-sm font-bold text-signal">404 · FEL VÄG</p>
         <h1 className="page-title mt-4">Här tog vägen slut.</h1>

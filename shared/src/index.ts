@@ -6,4 +6,5 @@ export * from './regnr.js';
 export * from './phone.js';
 export * from './time.js';
 export * from './work-order-state.js';
+export * from './work-order-totals.js';
 export * from './schemas/index.js';

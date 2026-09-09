@@ -1,7 +1,12 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, BadgeCheck, HeartHandshake, ScanSearch } from 'lucide-react';
+import {
+  ArrowRight,
+  BadgeCheck,
+  HeartHandshake,
+  ScanSearch,
+} from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Om oss',
@@ -34,9 +39,11 @@ export default function AboutPage() {
       <header className="page-hero pb-12 sm:pb-16">
         <div className="site-container">
           <p className="section-kicker">Om oss</p>
-          <h1 className="page-title max-w-6xl">Två ägare. Ett löfte: vi står för jobbet.</h1>
+          <h1 className="page-title max-w-6xl">
+            Två ägare. Ett löfte: vi står för jobbet.
+          </h1>
           <p className="page-lead">
-            Verkstaden är liten med flit. Det betyder korta beslutsvägar,
+            Mome Bilservice är liten med flit. Det betyder korta beslutsvägar,
             personligt ansvar och att den som tar emot bilen också förstår vad
             som händer med den.
           </p>
@@ -64,13 +71,15 @@ export default function AboutPage() {
         <div className="site-container grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="section-kicker">Vår idé</p>
-            <h2 className="section-title">Teknik förändras. Ansvar gör det inte.</h2>
+            <h2 className="section-title">
+              Teknik förändras. Ansvar gör det inte.
+            </h2>
           </div>
           <div className="max-w-3xl space-y-6 text-lg leading-relaxed text-steel/75">
             <p>
               Dagens bilar är rullande nätverk, men de behöver fortfarande någon
-              som ser helheten. Därför kombinerar vi diagnosdata med provkörning,
-              mätning och mekanisk erfarenhet.
+              som ser helheten. Därför kombinerar vi diagnosdata med
+              provkörning, mätning och mekanisk erfarenhet.
             </p>
             <p>
               Vi vill att du ska förstå beslutet, inte bara fakturan. När något
@@ -82,15 +91,22 @@ export default function AboutPage() {
           {values.map((value, index) => {
             const Icon = value.icon;
             return (
-              <article key={value.title} className="rounded-soft bg-concrete-2 p-7 sm:p-9">
+              <article
+                key={value.title}
+                className="rounded-soft bg-concrete-2 p-7 sm:p-9"
+              >
                 <div className="flex items-center justify-between">
                   <Icon aria-hidden="true" className="size-7 text-signal" />
                   <span className="font-sans text-xs font-bold text-steel/40 tabular-nums">
                     0{String(index + 1)}
                   </span>
                 </div>
-                <h3 className="type-display mt-16 text-2xl font-bold">{value.title}</h3>
-                <p className="mt-4 leading-relaxed text-steel/70">{value.text}</p>
+                <h3 className="type-display mt-16 text-2xl font-bold">
+                  {value.title}
+                </h3>
+                <p className="mt-4 leading-relaxed text-steel/70">
+                  {value.text}
+                </p>
               </article>
             );
           })}
@@ -99,8 +115,12 @@ export default function AboutPage() {
       <section className="bg-signal py-16 text-white sm:py-20">
         <div className="site-container flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-center">
           <div>
-            <p className="font-sans text-sm font-semibold text-white/70">Nästa steg</p>
-            <h2 className="type-display mt-3 text-3xl font-bold sm:text-5xl">Låt oss titta på bilen.</h2>
+            <p className="font-sans text-sm font-semibold text-white/70">
+              Nästa steg
+            </p>
+            <h2 className="type-display mt-3 text-3xl font-bold sm:text-5xl">
+              Låt oss titta på bilen.
+            </h2>
           </div>
           <Link href="/boka" className="site-button site-button-hivis shrink-0">
             Boka tid <ArrowRight aria-hidden="true" className="size-4" />

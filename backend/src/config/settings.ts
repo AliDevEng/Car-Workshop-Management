@@ -41,7 +41,7 @@ export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
  */
 export const DEFAULT_WORKSHOP_DETAILS: WorkshopDetails =
   workshopDetailsSchema.parse({
-    name: 'Verkstaden',
+    name: 'Mome Bilservice',
     orgNumber: '556000-0000',
     address: 'Verkstadsgatan 1',
     postalCode: '111 22',

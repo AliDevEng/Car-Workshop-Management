@@ -8,7 +8,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     ...routes.map((route) => ({
       url: `${baseUrl}${route}`,
-      changeFrequency: route === '' ? ('weekly' as const) : ('monthly' as const),
+      changeFrequency:
+        route === '' ? ('weekly' as const) : ('monthly' as const),
       priority: route === '' ? 1 : 0.8,
     })),
     ...services.map((service) => ({

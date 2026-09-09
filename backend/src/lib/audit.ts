@@ -1,4 +1,5 @@
 import { Prisma } from '../generated/prisma/client.js';
+import { toJsonValue, type JsonValue } from './json.js';
 import type { Database } from './prisma.js';
 
 /**
@@ -53,77 +54,23 @@ const REDACTED_KEYS = new Set([
 
 export const REDACTED_PLACEHOLDER = '[redacted]';
 
-/**
- * Depth limit for the walk below. A cycle is impossible in a plain snapshot,
- * but this function accepts `unknown` and a caller can hand it anything;
- * bounding the recursion is cheaper than trusting every future caller.
- */
-const MAX_DEPTH = 8;
-
-/**
- * What the column can actually hold. Declared rather than reached for with a
- * cast: `redact` narrows `unknown` to this as it walks, so the result is
- * assignable to Prisma's `InputJsonValue` on its own merits (CLAUDE.md — a
- * cast means the type is wrong).
- */
-export type JsonValue =
-  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+/** Re-exported so callers of `redact` need not know where the walk lives. */
+export type { JsonValue };
 
 /**
  * Replaces secret values with a placeholder, recursively, leaving the shape
  * intact — the log should still show *that* a password changed, and when.
  *
- * It also does the job `JSON.stringify` would otherwise do later: a `Decimal`,
- * a `Date` or a `bigint` from a Prisma model becomes the string form the
- * column stores, and a value JSON cannot represent becomes `null` rather than
- * disappearing and shifting an array's indices.
+ * The walk itself is `lib/json.ts`; what belongs here is the policy, which is
+ * the half that is specific to an audit log. The idempotency ledger uses the
+ * same walk with **no** redaction, because it has to give back a response
+ * byte-for-byte as it was first sent.
  */
-export function redact(value: unknown, depth = 0): JsonValue {
-  if (depth >= MAX_DEPTH) {
-    return REDACTED_PLACEHOLDER;
-  }
-
-  if (
-    value === null ||
-    typeof value === 'string' ||
-    typeof value === 'boolean'
-  ) {
-    return value;
-  }
-
-  if (typeof value === 'number') {
-    // NaN and Infinity are not JSON; `JSON.stringify` turns them into null.
-    return Number.isFinite(value) ? value : null;
-  }
-
-  if (typeof value === 'bigint') {
-    return value.toString();
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => redact(item, depth + 1));
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (typeof value !== 'object') {
-    // A function, a symbol, or `undefined` inside an array.
-    return null;
-  }
-
-  const entries = Object.entries(value).flatMap<[string, JsonValue]>(
-    ([key, item]) => {
-      if (REDACTED_KEYS.has(key.toLowerCase())) {
-        return [[key, REDACTED_PLACEHOLDER]];
-      }
-      // An absent property stays absent, matching JSON.stringify.
-      return item === undefined ? [] : [[key, redact(item, depth + 1)]];
-    },
-  );
-
-  return Object.fromEntries(entries);
+export function redact(value: unknown): JsonValue {
+  return toJsonValue(value, {
+    redactKey: (key) => REDACTED_KEYS.has(key.toLowerCase()),
+    placeholder: REDACTED_PLACEHOLDER,
+  });
 }
 
 /**

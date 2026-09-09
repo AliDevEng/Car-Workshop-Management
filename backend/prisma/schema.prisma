@@ -59,6 +59,9 @@ model User {
   stockMovements         StockMovement[]
   assignedBookings       Booking[]
   handledBookingRequests BookingRequest[]
+  assignedWorkOrders     WorkOrder[]      @relation("WorkOrderAssignedTo")
+  completedWorkOrders    WorkOrder[]      @relation("WorkOrderCompletedBy")
+  idempotencyKeys        IdempotencyKey[]
 
   @@index([isActive])
 }
@@ -144,8 +147,9 @@ model Customer {
   createdAt       DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime     @updatedAt @db.Timestamptz(3)
 
-  vehicles Vehicle[]
-  bookings Booking[]
+  vehicles   Vehicle[]
+  bookings   Booking[]
+  workOrders WorkOrder[]
 
   @@index([isActive])
   /// §8.2 searches on the normalised form; the global search (§6.3, B3.4)
@@ -196,6 +200,7 @@ model Vehicle {
 
   odometerReadings OdometerReading[]
   bookings         Booking[]
+  workOrders       WorkOrder[]
 
   @@index([customerId])
   /// The dashboard scans this daily for inspections due within 60 days (§8.2).
@@ -230,13 +235,16 @@ model OdometerReading {
   /// by a person (§4.2). `SetNull` because a reading must outlive the account.
   userId      String?
   user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  /// Set when the reading came from completing a work order (B6.7). No
-  /// relation yet — `WorkOrder` does not exist until B6.
+  /// Set when the reading came from a work order's in or out reading (B6.7).
+  /// `SetNull`: §4.3 allows deleting a `DRAFT` work order, and the reading
+  /// taken when the car arrived is a fact about the car either way.
   workOrderId String?
+  workOrder   WorkOrder?     @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
   createdAt   DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
 
   @@index([vehicleId, readAt])
+  @@index([workOrderId])
 }
 
 /// Key/value workshop settings (§4.2). One row per settings group, each value
@@ -303,7 +311,8 @@ model Article {
   createdAt        DateTime @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime @updatedAt @db.Timestamptz(3)
 
-  movements StockMovement[]
+  movements      StockMovement[]
+  workOrderLines WorkOrderLine[]
 
   @@index([isActive])
   /// The global search (§6.3, B4.6) and the article list `?q=` (B4.1.2) match
@@ -330,9 +339,13 @@ model StockMovement {
   /// The cached balance immediately after this movement, so the chain can be
   /// audited without replaying it from the beginning.
   balanceAfter Decimal           @db.Decimal(12, 3)
-  /// Set when the movement came from a work order (B6). No relation yet —
-  /// `WorkOrder` does not exist until B6, mirroring `OdometerReading`.
+  /// Set when the movement came from completing or reverting a work order
+  /// (B6.6). `Restrict` rather than `SetNull`: a ledger row that has lost the
+  /// job it belongs to cannot answer "why did the oil run out?", which is the
+  /// question §4.2 keeps the ledger for. Only a `DRAFT` order is deletable
+  /// (§4.3) and a draft has deducted nothing, so this never actually fires.
   workOrderId  String?
+  workOrder    WorkOrder?        @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
   /// Who recorded it. Required by §4.2; users are deactivated rather than
   /// deleted (§4.3), so `Restrict` never actually fires.
   userId       String
@@ -344,6 +357,7 @@ model StockMovement {
 
   /// §8.2: the per-article movement list reads this newest-first.
   @@index([articleId, occurredAt])
+  @@index([workOrderId])
 }
 
 // ---------------------------------------------------------------------------
@@ -461,7 +475,176 @@ model Booking {
 
   /// §8.2 names this one: the calendar reads a date window, optionally for one
   /// mechanic.
+  workOrders WorkOrder[]
+
   @@index([startsAt, assignedUserId])
   @@index([customerId])
   @@index([vehicleId])
+}
+
+// ---------------------------------------------------------------------------
+// B6 — work orders, their lines and the idempotency ledger (PROJECT_SPEC.md
+// §4.2, §4.4, §6.5).
+//
+// The transactional heart of the system. Three rules hold everything together
+// and each has a comment where it is enforced:
+//
+//   * a line **snapshots** the article's name, price, unit and VAT when it is
+//     added, and never joins back to the live article for display;
+//   * stock is deducted **once**, on the move to `COMPLETED`, guarded by
+//     `stockDeducted` per line, and a revert writes compensating `RETURN`
+//     movements rather than deleting the originals;
+//   * `version` is an optimistic lock over the header and the status, not over
+//     the lines — two mechanics adding different lines to one job is correct
+//     behaviour and must not fail.
+// ---------------------------------------------------------------------------
+
+enum WorkOrderStatus {
+  DRAFT
+  IN_PROGRESS
+  AWAITING_PARTS
+  READY_FOR_PICKUP
+  COMPLETED
+  CANCELLED
+}
+
+enum WorkOrderLineType {
+  LABOUR
+  PART
+  FEE
+}
+
+/// A job (§4.2, §6.5).
+model WorkOrder {
+  id String @id @default(uuid(7))
+
+  /// `AO-2026-0001`, from a Postgres sequence inside the assigning transaction
+  /// (§4.4) — never `SELECT MAX(number) + 1`. **Null while the order is a
+  /// `DRAFT`:** §4.4 assigns a number when a document stops being an
+  /// abandonable draft, and §4.3 permits deleting a `DRAFT` outright, which
+  /// would otherwise leave a gap in the series. Assigned once, the first time
+  /// the order leaves `DRAFT`, and never reassigned.
+  number String? @unique
+
+  /// The calendar slot this job came from, if any. Not unique: a booking that
+  /// turns out to be two jobs is a normal morning.
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  /// Required, and `Restrict` on both: a work order without a car or a payer
+  /// is not a work order, and neither is ever hard-deleted (§4.3).
+  vehicleId  String
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  status WorkOrderStatus @default(DRAFT)
+
+  /// Stored in km, displayed in mil (§3.5). Both are also written to
+  /// `OdometerReading`, which is the history; these are the job's own record
+  /// of what the car showed when it arrived and when it left.
+  odometerKmIn  Int?
+  odometerKmOut Int?
+
+  assignedUserId String?
+  assignedUser   User?   @relation("WorkOrderAssignedTo", fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  description  String
+  internalNote String?
+
+  completedAt       DateTime? @db.Timestamptz(3)
+  /// Who pressed *Slutför* (B6.5.3). `SetNull` because the record must outlive
+  /// the account, exactly as an audit row does.
+  completedByUserId String?
+  completedBy       User?     @relation("WorkOrderCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  /// Optimistic lock (§6.5). Incremented by **every** write, including a line
+  /// write, but only checked on header and status mutations — see
+  /// `modules/work-orders/repository.ts`.
+  version Int @default(0)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  lines            WorkOrderLine[]
+  odometerReadings OdometerReading[]
+  stockMovements   StockMovement[]
+
+  /// §8.2 names this one: the dashboard and the list filter on status.
+  @@index([status])
+  @@index([vehicleId])
+  @@index([customerId])
+  @@index([bookingId])
+  @@index([assignedUserId])
+}
+
+/// One line on a work order (§4.2).
+///
+/// `description`, `unit`, `unitPriceOre` and `vatRateBps` are **snapshots**
+/// taken from the article when the line was added. They are never re-read from
+/// `Article`: if oil goes up 30 kr next month, a quote printed today must
+/// still print today's price. `articleId` is kept so stock can be deducted and
+/// the part traced — not so the row can be joined for display.
+model WorkOrderLine {
+  id          String    @id @default(uuid(7))
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  /// Explicit display order, so a mechanic can group parts under the labour
+  /// they belong to. Contiguous from 0 within an order.
+  sortOrder Int
+  type      WorkOrderLineType
+
+  /// Absent on a free-text line and on labour. `Restrict`, mirroring
+  /// `StockMovement`: articles are deactivated, never deleted (§4.3).
+  articleId String?
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: Restrict)
+
+  description  String
+  quantity     Decimal @db.Decimal(12, 3)
+  unit         Unit
+  /// Excluding VAT, integer öre (§3.2, §3.3).
+  unitPriceOre Int
+  vatRateBps   Int
+
+  /// Set once, when the order moves to `COMPLETED` (§6.4). Adding a `PART`
+  /// line does not deduct stock; this flag is what makes a re-run — a
+  /// double-tapped *Slutför* on a laggy tablet — safe. A revert clears it and
+  /// writes a compensating `RETURN` movement.
+  stockDeducted Boolean @default(false)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([workOrderId, sortOrder])
+  @@index([articleId])
+}
+
+/// A replayed mutation's stored answer (§4.2, §8.1).
+///
+/// The row is written **inside the same transaction as the effect it
+/// describes** (B6.6.3). Written afterwards, a crash between the two leaves a
+/// retry free to deduct stock a second time, which is the exact failure the
+/// mechanism exists to prevent.
+model IdempotencyKey {
+  /// Caller-chosen and globally unique, as §4.2 specifies. `userId` is stored
+  /// beside it and checked on replay, so one caller's key cannot return
+  /// another caller's stored response.
+  key    String @id
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The route the key was used on, and a hash of the request it stood for. A
+  /// matching key with a *different* hash is a `409`: that means a bug, not a
+  /// retry.
+  endpoint    String
+  requestHash String
+
+  responseJson Json
+  statusCode   Int
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  /// Rows older than 24 hours are removed by the hourly cleanup job (§8.4).
+  @@index([createdAt])
+  @@index([userId])
 }

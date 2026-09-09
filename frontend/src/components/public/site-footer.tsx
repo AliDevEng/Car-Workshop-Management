@@ -17,8 +17,11 @@ export function SiteFooter({ info }: { readonly info: PublicWorkshopInfo }) {
       <div className="site-container py-16 sm:py-20">
         <div className="grid gap-12 border-b border-white/15 pb-14 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
           <div>
-            <Link href="/" className="inline-flex items-center gap-3 font-sans text-xl font-bold">
-              <BrandMark className="text-hivis" />
+            <Link
+              href="/"
+              className="inline-flex items-center gap-3 font-sans text-xl font-bold"
+            >
+              <BrandMark className="size-16" />
               {info.workshop.name}
             </Link>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-concrete/75">
@@ -29,12 +32,20 @@ export function SiteFooter({ info }: { readonly info: PublicWorkshopInfo }) {
           <div>
             <h2 className="font-sans text-sm font-bold">Hitta hit</h2>
             <address className="mt-5 grid gap-4 not-italic text-concrete/75">
-              <a className="footer-link" href={getMapUrl(info)} target="_blank" rel="noreferrer">
+              <a
+                className="footer-link"
+                href={getMapUrl(info)}
+                target="_blank"
+                rel="noreferrer"
+              >
                 <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
                 <span>{address}</span>
                 <ArrowUpRight aria-hidden="true" className="size-3.5" />
               </a>
-              <a className="footer-link" href={getTelephoneHref(info.workshop.phone)}>
+              <a
+                className="footer-link"
+                href={getTelephoneHref(info.workshop.phone)}
+              >
                 <Phone aria-hidden="true" className="size-4" />
                 {info.workshop.phone}
               </a>
@@ -64,7 +75,10 @@ export function SiteFooter({ info }: { readonly info: PublicWorkshopInfo }) {
             © {new Date().getFullYear()} {info.workshop.name} · Org.nr{' '}
             <span className="tabular-nums">{info.workshop.orgNumber}</span>
           </p>
-          <Link className="underline underline-offset-4 hover:text-white" href="/integritetspolicy">
+          <Link
+            className="underline underline-offset-4 hover:text-white"
+            href="/integritetspolicy"
+          >
             Integritetspolicy
           </Link>
         </div>

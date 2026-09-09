@@ -5,6 +5,10 @@ import { articleSchema } from '../src/schemas/article.js';
 import { auditLogEntrySchema } from '../src/schemas/audit.js';
 import { bookingSchema, bookingRequestSchema } from '../src/schemas/booking.js';
 import { customerSchema } from '../src/schemas/customer.js';
+import {
+  dashboardSchema,
+  inspectionDueVehicleSchema,
+} from '../src/schemas/dashboard.js';
 import { documentSchema } from '../src/schemas/document.js';
 import { odometerReadingSchema } from '../src/schemas/odometer.js';
 import { partnerLinkSchema } from '../src/schemas/partner-link.js';
@@ -25,6 +29,8 @@ import { vehicleSchema } from '../src/schemas/vehicle.js';
 import {
   workOrderSchema,
   workOrderLineSchema,
+  workOrderListItemSchema,
+  workOrderResponseSchema,
 } from '../src/schemas/work-order.js';
 
 /**
@@ -60,6 +66,10 @@ const _invariants: {
   booking: true satisfies RoundTrips<typeof bookingSchema>,
   bookingRequest: true satisfies RoundTrips<typeof bookingRequestSchema>,
   customer: true satisfies RoundTrips<typeof customerSchema>,
+  dashboard: true satisfies RoundTrips<typeof dashboardSchema>,
+  inspectionDueVehicle: true satisfies RoundTrips<
+    typeof inspectionDueVehicleSchema
+  >,
   document: true satisfies RoundTrips<typeof documentSchema>,
   documentTotals: true satisfies RoundTrips<typeof documentTotalsSchema>,
   lineTotals: true satisfies RoundTrips<typeof lineTotalsSchema>,
@@ -77,6 +87,11 @@ const _invariants: {
   vehicleDataResult: true satisfies RoundTrips<typeof vehicleDataResultSchema>,
   workOrder: true satisfies RoundTrips<typeof workOrderSchema>,
   workOrderLine: true satisfies RoundTrips<typeof workOrderLineSchema>,
+  workOrderListItem: true satisfies RoundTrips<typeof workOrderListItemSchema>,
+  // The mutation envelope specifically: `runIdempotent` parses a *stored*
+  // response back through this schema, so a transform on either side would
+  // make a replay answer with a different shape from the original request.
+  workOrderResponse: true satisfies RoundTrips<typeof workOrderResponseSchema>,
 };
 
 describe('entity schemas round-trip without transforming', () => {
