@@ -170,6 +170,30 @@ describe('the calendar window (§6.2)', () => {
   });
 });
 
+describe('confirming a booking request (§6.2, B5.3.3)', () => {
+  const schema = bookingSchemas.confirmBookingRequestInputSchema;
+  const slot = {
+    startsAt: '2026-03-29T07:00:00Z',
+    endsAt: '2026-03-29T09:00:00Z',
+  };
+
+  it('accepts a slot that moves forward', () => {
+    expect(schema.safeParse(slot).success).toBe(true);
+  });
+
+  it('rejects an empty or reversed slot', () => {
+    // An empty range overlaps nothing, so the exclusion constraint in B5.4
+    // would happily accept two of them in the same slot for one mechanic.
+    expect(schema.safeParse({ ...slot, endsAt: slot.startsAt }).success).toBe(
+      false,
+    );
+    expect(
+      schema.safeParse({ startsAt: slot.endsAt, endsAt: slot.startsAt })
+        .success,
+    ).toBe(false);
+  });
+});
+
 describe('document numbering (§4.4)', () => {
   it('leaves a draft work order and a draft quote without a number', () => {
     // §4.4 assigns a number on finalisation, not at draft creation, so that

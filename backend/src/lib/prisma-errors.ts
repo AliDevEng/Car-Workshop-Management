@@ -36,6 +36,44 @@ export function isPrismaKnownRequestError(
 }
 
 /**
+ * The PostgreSQL SQLSTATE behind a Prisma error, or `null`.
+ *
+ * **The Prisma code is not usable for this and B0.10 measured why.** The same
+ * booking exclusion-constraint violation surfaces as `P2039` from
+ * `prisma.booking.create()` and as `P2010` from a raw insert or from inside an
+ * interactive transaction — so a handler keyed on a Prisma code (`P2002` being
+ * the obvious guess) never fires, and the caller gets a `500` in production.
+ * Both paths nest the driver's own error identically, and the SQLSTATE is
+ * stable across them.
+ *
+ * Read structurally, for the same reason as `isPrismaKnownRequestError`: the
+ * generated client is not importable from here, and the shape is the contract.
+ */
+export function postgresErrorCode(error: unknown): string | null {
+  if (!isPrismaKnownRequestError(error)) {
+    return null;
+  }
+
+  const adapterError: unknown = error.meta?.['driverAdapterError'];
+  if (typeof adapterError !== 'object' || adapterError === null) {
+    return null;
+  }
+  if (!('cause' in adapterError)) {
+    return null;
+  }
+
+  const { cause } = adapterError;
+  if (typeof cause !== 'object' || cause === null || !('code' in cause)) {
+    return null;
+  }
+
+  return typeof cause.code === 'string' ? cause.code : null;
+}
+
+/** `exclusion_violation` — the booking overlap constraint (§6.2, B5.4.5). */
+export const SQLSTATE_EXCLUSION_VIOLATION = '23P01';
+
+/**
  * The columns Prisma names in `meta.target` for a unique-constraint violation.
  * Returned as `error.details` so the client can point at the offending field.
  */

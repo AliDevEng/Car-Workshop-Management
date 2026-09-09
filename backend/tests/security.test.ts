@@ -85,27 +85,19 @@ describe('the CSRF allow-list (§5.2)', () => {
   });
 
   it('lets that one route through without a token', async () => {
-    // B5 builds the real endpoint; this proves the mechanism it will rely on,
-    // including that the route key is matched on the declared path rather than
-    // on the request URL with its query string.
-    const harness = await createTestApp({
-      database: 'none',
-      register: (app) => {
-        app.post(
-          '/api/public/booking-requests',
-          {
-            config: { auth: 'public' },
-            schema: { response: { 200: z.object({ ok: z.literal(true) }) } },
-          },
-          () => ({ ok: true as const }),
-        );
-      },
-    });
+    // The real B5 endpoint, reached with no CSRF header at all. An empty body
+    // fails validation, and that is the point: a `400` means the request got
+    // past the CSRF hook and into the route, whereas a `403` would mean the
+    // exemption had quietly stopped working and the public form was dead.
+    const harness = await createTestApp({ database: 'none' });
 
-    await supertest(harness.app.server)
+    const response = await supertest(harness.app.server)
       .post('/api/public/booking-requests')
       .send({})
-      .expect(200);
+      .expect(400);
+    expect(apiErrorSchema.parse(jsonBody(response)).error.code).toBe(
+      'VALIDATION_FAILED',
+    );
 
     await harness.close();
   });

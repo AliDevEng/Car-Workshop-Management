@@ -7,6 +7,7 @@ import {
   type UpdateCustomerInput,
 } from 'shared';
 import { writeAuditLog } from '../../lib/audit.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../lib/prisma.js';
 import {
   findCustomerWithVehicles,
@@ -42,9 +43,9 @@ function auditSnapshot(record: CustomerRecord): Record<string, unknown> {
  * the caller supply it would allow the two phone columns to disagree, which is
  * the §8.2 failure the pair exists to prevent.
  */
-function normalisedContactFields(input: {
-  phone: string;
-}): { phoneNormalised: string } {
+function normalisedContactFields(input: { phone: string }): {
+  phoneNormalised: string;
+} {
   return { phoneNormalised: normalisePhone(input.phone) };
 }
 
@@ -69,38 +70,56 @@ export async function getCustomerDetail(
   };
 }
 
+/**
+ * Creates a customer inside a transaction the **caller** owns.
+ *
+ * Exported because confirming a booking request creates the customer, the
+ * vehicle and the booking as one atomic unit (§6.2, B5.3.3), and a nested
+ * `$transaction` is not a thing Prisma can do. Sharing this function rather
+ * than repeating the insert is what keeps `phoneNormalised` derived in one
+ * place and every created customer audited the same way.
+ */
+export async function createCustomerInTransaction(
+  tx: Prisma.TransactionClient,
+  actorId: string,
+  ipHash: string | null,
+  input: CreateCustomerInput,
+): Promise<Customer> {
+  const created = await tx.customer.create({
+    data: {
+      type: input.type,
+      name: input.name,
+      phone: input.phone,
+      ...normalisedContactFields(input),
+      ...(input.orgNumber === undefined ? {} : { orgNumber: input.orgNumber }),
+      ...(input.email === undefined ? {} : { email: input.email }),
+      ...(input.address === undefined ? {} : { address: input.address }),
+      ...(input.notes === undefined ? {} : { notes: input.notes }),
+    },
+    select: CUSTOMER_SELECT,
+  });
+
+  await writeAuditLog(tx, {
+    userId: actorId,
+    action: 'customer.created',
+    entityType: 'Customer',
+    entityId: created.id,
+    after: auditSnapshot(created),
+    ipHash,
+  });
+
+  return toCustomerDto(created);
+}
+
 export async function createCustomer(
   db: Database,
   actorId: string,
   ipHash: string | null,
   input: CreateCustomerInput,
 ): Promise<Customer> {
-  return db.$transaction(async (tx) => {
-    const created = await tx.customer.create({
-      data: {
-        type: input.type,
-        name: input.name,
-        phone: input.phone,
-        ...normalisedContactFields(input),
-        ...(input.orgNumber === undefined ? {} : { orgNumber: input.orgNumber }),
-        ...(input.email === undefined ? {} : { email: input.email }),
-        ...(input.address === undefined ? {} : { address: input.address }),
-        ...(input.notes === undefined ? {} : { notes: input.notes }),
-      },
-      select: CUSTOMER_SELECT,
-    });
-
-    await writeAuditLog(tx, {
-      userId: actorId,
-      action: 'customer.created',
-      entityType: 'Customer',
-      entityId: created.id,
-      after: auditSnapshot(created),
-      ipHash,
-    });
-
-    return toCustomerDto(created);
-  });
+  return db.$transaction((tx) =>
+    createCustomerInTransaction(tx, actorId, ipHash, input),
+  );
 }
 
 export async function updateCustomer(
@@ -124,11 +143,16 @@ export async function updateCustomer(
       data: {
         ...(input.type === undefined ? {} : { type: input.type }),
         ...(input.name === undefined ? {} : { name: input.name }),
-        ...(input.orgNumber === undefined ? {} : { orgNumber: input.orgNumber }),
+        ...(input.orgNumber === undefined
+          ? {}
+          : { orgNumber: input.orgNumber }),
         ...(input.email === undefined ? {} : { email: input.email }),
         ...(input.phone === undefined
           ? {}
-          : { phone: input.phone, ...normalisedContactFields({ phone: input.phone }) }),
+          : {
+              phone: input.phone,
+              ...normalisedContactFields({ phone: input.phone }),
+            }),
         ...(input.address === undefined ? {} : { address: input.address }),
         ...(input.notes === undefined ? {} : { notes: input.notes }),
       },

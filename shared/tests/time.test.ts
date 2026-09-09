@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { WORKSHOP_TIMEZONE, isWithinDayRange } from '../src/time.js';
+import {
+  WORKSHOP_TIMEZONE,
+  isPositiveInterval,
+  isWithinDayRange,
+  stockholmDate,
+  stockholmDayEnd,
+  stockholmDayStart,
+  stockholmWallClock,
+  stockholmWallClockToUtc,
+} from '../src/time.js';
 
 describe('WORKSHOP_TIMEZONE', () => {
   it('is an identifier the platform actually recognises', () => {
@@ -55,5 +64,119 @@ describe('isWithinDayRange', () => {
     expect(
       isWithinDayRange('2026-03-01T00:00:00Z', '2026-05-30T00:00:00Z', 90),
     ).toBe(true);
+  });
+});
+
+describe('isPositiveInterval', () => {
+  it('accepts an interval that moves forward', () => {
+    expect(
+      isPositiveInterval('2026-03-29T07:00:00Z', '2026-03-29T08:00:00Z'),
+    ).toBe(true);
+  });
+
+  it('rejects a zero-length interval', () => {
+    // The exclusion constraint cannot catch this one: an empty range overlaps
+    // nothing, so two zero-length bookings in the same slot are both accepted.
+    expect(
+      isPositiveInterval('2026-03-29T07:00:00Z', '2026-03-29T07:00:00Z'),
+    ).toBe(false);
+  });
+
+  it('rejects an interval that runs backwards', () => {
+    expect(
+      isPositiveInterval('2026-03-29T08:00:00Z', '2026-03-29T07:00:00Z'),
+    ).toBe(false);
+  });
+
+  it('rejects an unparseable boundary rather than treating it as now', () => {
+    expect(isPositiveInterval('not-a-date', '2026-03-29T08:00:00Z')).toBe(
+      false,
+    );
+    expect(isPositiveInterval('2026-03-29T07:00:00Z', 'not-a-date')).toBe(
+      false,
+    );
+  });
+});
+
+/**
+ * The two Swedish transitions in 2026: clocks go forward on 29 March (a
+ * 23-hour day) and back on 25 October (a 25-hour day). Every assertion below
+ * is chosen so that an implementation adding a fixed 24 hours, or storing an
+ * offset, fails it.
+ */
+describe('Europe/Stockholm wall-clock conversion (§3.6, B5.5.3)', () => {
+  it('reads an instant as the local date and clock time', () => {
+    expect(stockholmDate(new Date('2026-03-29T07:00:00Z'))).toBe('2026-03-29');
+    expect(stockholmWallClock(new Date('2026-03-29T07:00:00Z'))).toBe(
+      '2026-03-29T09:00',
+    );
+    // The same clock time the day before is one UTC hour earlier: 08:00Z.
+    expect(stockholmWallClock(new Date('2026-03-28T08:00:00Z'))).toBe(
+      '2026-03-28T09:00',
+    );
+  });
+
+  it('converts a wall-clock time to the instant it means', () => {
+    expect(stockholmWallClockToUtc('2026-03-28T09:00').toISOString()).toBe(
+      '2026-03-28T08:00:00.000Z',
+    );
+    expect(stockholmWallClockToUtc('2026-03-29T09:00:00').toISOString()).toBe(
+      '2026-03-29T07:00:00.000Z',
+    );
+    expect(stockholmWallClockToUtc('2026-10-25T09:00').toISOString()).toBe(
+      '2026-10-25T08:00:00.000Z',
+    );
+  });
+
+  it('round-trips a booking time across both transitions', () => {
+    for (const wallClock of ['2026-03-29T09:00', '2026-10-25T09:00']) {
+      expect(stockholmWallClock(stockholmWallClockToUtc(wallClock))).toBe(
+        wallClock,
+      );
+    }
+  });
+
+  it('rejects a malformed or impossible wall-clock time', () => {
+    expect(() => stockholmWallClockToUtc('2026-03-29 09:00')).toThrow(
+      RangeError,
+    );
+    expect(() => stockholmWallClockToUtc('2026-03-29T25:00')).toThrow(
+      RangeError,
+    );
+    expect(() => stockholmWallClockToUtc('2026-02-30T09:00')).toThrow(
+      RangeError,
+    );
+  });
+
+  it('bounds a local day by its own midnights, not by 24 hours', () => {
+    const shortDay = {
+      start: stockholmDayStart('2026-03-29'),
+      end: stockholmDayEnd('2026-03-29'),
+    };
+    const longDay = {
+      start: stockholmDayStart('2026-10-25'),
+      end: stockholmDayEnd('2026-10-25'),
+    };
+    const hour = 60 * 60 * 1000;
+
+    expect(shortDay.start.toISOString()).toBe('2026-03-28T23:00:00.000Z');
+    expect(shortDay.end.toISOString()).toBe('2026-03-29T22:00:00.000Z');
+    expect(shortDay.end.getTime() - shortDay.start.getTime()).toBe(23 * hour);
+    expect(longDay.end.getTime() - longDay.start.getTime()).toBe(25 * hour);
+  });
+
+  it('advances the calendar date across a month and a year boundary', () => {
+    expect(stockholmDayEnd('2026-01-31')).toEqual(
+      stockholmDayStart('2026-02-01'),
+    );
+    expect(stockholmDayEnd('2026-12-31')).toEqual(
+      stockholmDayStart('2027-01-01'),
+    );
+  });
+
+  it('rejects a malformed or impossible calendar date', () => {
+    expect(() => stockholmDayStart('29/03/2026')).toThrow(RangeError);
+    expect(() => stockholmDayStart('2026-02-30')).toThrow(RangeError);
+    expect(() => stockholmDayEnd('2026-13-01')).toThrow(RangeError);
   });
 });

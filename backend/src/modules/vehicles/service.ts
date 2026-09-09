@@ -88,9 +88,7 @@ async function assertCustomerExists(
   });
   if (customer === null) {
     throw new ValidationError('Uppgifterna kunde inte valideras.', {
-      details: [
-        { path: 'customerId', message: 'Kunden kunde inte hittas.' },
-      ],
+      details: [{ path: 'customerId', message: 'Kunden kunde inte hittas.' }],
     });
   }
 }
@@ -120,63 +118,116 @@ export async function getVehicleByRegNr(
   return toVehicleDetailDto(record);
 }
 
-export async function createVehicle(
-  db: Database,
+/**
+ * Creates a vehicle inside a transaction the **caller** owns.
+ *
+ * Exported for the same reason as `createCustomerInTransaction`: confirming a
+ * booking request creates the customer, the vehicle and the booking as one
+ * atomic unit (§6.2, B5.3.3). Sharing this keeps registration-number
+ * normalisation and the audit row in one place instead of two.
+ */
+export async function createVehicleInTransaction(
+  tx: Prisma.TransactionClient,
   actorId: string,
   ipHash: string | null,
   input: CreateVehicleInput,
 ): Promise<Vehicle> {
   const registration = registrationFields(input.registrationNumber);
 
-  return db.$transaction(async (tx) => {
-    if (input.customerId !== undefined) {
-      await assertCustomerExists(tx, input.customerId);
-    }
+  if (input.customerId !== undefined) {
+    await assertCustomerExists(tx, input.customerId);
+  }
 
-    const created = await tx.vehicle.create({
-      data: {
-        ...registration,
-        ...(input.customerId === undefined
-          ? {}
-          : { customerId: input.customerId }),
-        make: input.make,
-        model: input.model,
-        ...(input.variant === undefined ? {} : { variant: input.variant }),
-        ...(input.modelYear === undefined
-          ? {}
-          : { modelYear: input.modelYear }),
-        ...(input.vin === undefined ? {} : { vin: input.vin }),
-        ...(input.engineCode === undefined
-          ? {}
-          : { engineCode: input.engineCode }),
-        ...(input.fuelType === undefined ? {} : { fuelType: input.fuelType }),
-        ...(input.firstRegistrationDate === undefined
-          ? {}
-          : {
-              firstRegistrationDate: toDateColumn(input.firstRegistrationDate),
-            }),
-        ...(input.lastInspectionDate === undefined
-          ? {}
-          : { lastInspectionDate: toDateColumn(input.lastInspectionDate) }),
-        ...(input.nextInspectionDueDate === undefined
-          ? {}
-          : {
-              nextInspectionDueDate: toDateColumn(input.nextInspectionDueDate),
-            }),
-      },
-      select: VEHICLE_SELECT,
-    });
+  const created = await tx.vehicle.create({
+    data: {
+      ...registration,
+      ...(input.customerId === undefined
+        ? {}
+        : { customerId: input.customerId }),
+      make: input.make,
+      model: input.model,
+      ...(input.variant === undefined ? {} : { variant: input.variant }),
+      ...(input.modelYear === undefined ? {} : { modelYear: input.modelYear }),
+      ...(input.vin === undefined ? {} : { vin: input.vin }),
+      ...(input.engineCode === undefined
+        ? {}
+        : { engineCode: input.engineCode }),
+      ...(input.fuelType === undefined ? {} : { fuelType: input.fuelType }),
+      ...(input.firstRegistrationDate === undefined
+        ? {}
+        : { firstRegistrationDate: toDateColumn(input.firstRegistrationDate) }),
+      ...(input.lastInspectionDate === undefined
+        ? {}
+        : { lastInspectionDate: toDateColumn(input.lastInspectionDate) }),
+      ...(input.nextInspectionDueDate === undefined
+        ? {}
+        : { nextInspectionDueDate: toDateColumn(input.nextInspectionDueDate) }),
+    },
+    select: VEHICLE_SELECT,
+  });
 
-    await writeAuditLog(tx, {
-      userId: actorId,
-      action: 'vehicle.created',
-      entityType: 'Vehicle',
-      entityId: created.id,
-      after: auditSnapshot(created),
-      ipHash,
-    });
+  await writeAuditLog(tx, {
+    userId: actorId,
+    action: 'vehicle.created',
+    entityType: 'Vehicle',
+    entityId: created.id,
+    after: auditSnapshot(created),
+    ipHash,
+  });
 
-    return toVehicleDto(created);
+  return toVehicleDto(created);
+}
+
+export function createVehicle(
+  db: Database,
+  actorId: string,
+  ipHash: string | null,
+  input: CreateVehicleInput,
+): Promise<Vehicle> {
+  return db.$transaction((tx) =>
+    createVehicleInTransaction(tx, actorId, ipHash, input),
+  );
+}
+
+/**
+ * Gives an **ownerless** vehicle an owner, inside the caller's transaction.
+ *
+ * Confirming a booking request is the moment a plate stops being anonymous:
+ * the car may already exist because someone looked it up on the public start
+ * page (§6.1), where requiring an owner is exactly what §4.2 refuses to do.
+ * A vehicle that already has an owner is left alone — reassigning a car
+ * because a name and a plate arrived in the same form is a decision for a
+ * human, on the vehicle page, not a side effect of accepting a booking.
+ */
+export async function adoptOwnerlessVehicleInTransaction(
+  tx: Prisma.TransactionClient,
+  actorId: string,
+  ipHash: string | null,
+  vehicleId: string,
+  customerId: string,
+): Promise<void> {
+  const before = await tx.vehicle.findUnique({
+    where: { id: vehicleId },
+    select: VEHICLE_SELECT,
+  });
+  if (before === null || before.customerId !== null) {
+    return;
+  }
+
+  const after = await tx.vehicle.update({
+    where: { id: vehicleId },
+    data: { customerId },
+    select: VEHICLE_SELECT,
+  });
+
+  await writeAuditLog(tx, {
+    userId: actorId,
+    action: 'vehicle.updated',
+    entityType: 'Vehicle',
+    entityId: vehicleId,
+    before: auditSnapshot(before),
+    after: auditSnapshot(after),
+    ipHash,
   });
 }
 

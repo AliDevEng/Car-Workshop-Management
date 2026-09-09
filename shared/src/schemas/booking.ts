@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isWithinDayRange } from '../time.js';
+import { isPositiveInterval, isWithinDayRange } from '../time.js';
 import { cursorQuerySchema } from './common.js';
 import { customerSummarySchema } from './customer.js';
 import {
@@ -195,20 +195,33 @@ export type RejectBookingRequestInput = z.infer<
   typeof rejectBookingRequestInputSchema
 >;
 
+export const bookingRequestIdParamsSchema = z.object({ id: idSchema });
+export type BookingRequestIdParams = z.infer<
+  typeof bookingRequestIdParamsSchema
+>;
+
 /**
  * Confirming creates customer, vehicle and booking in one transaction, reusing
  * existing records matched by phone or registration number (B5.3.3). The staff
  * member may correct anything the customer typed, so the whole record is
  * accepted here rather than only the slot.
  */
-export const confirmBookingRequestInputSchema = z.object({
-  startsAt: isoDateTimeSchema,
-  endsAt: isoDateTimeSchema,
-  assignedUserId: idSchema.optional(),
-  customerId: idSchema.optional(),
-  vehicleId: idSchema.optional(),
-  note: noteSchema.optional(),
-});
+export const BOOKING_INTERVAL_MESSAGE =
+  'Sluttiden måste ligga efter starttiden.';
+
+export const confirmBookingRequestInputSchema = z
+  .object({
+    startsAt: isoDateTimeSchema,
+    endsAt: isoDateTimeSchema,
+    assignedUserId: idSchema.optional(),
+    customerId: idSchema.optional(),
+    vehicleId: idSchema.optional(),
+    note: noteSchema.optional(),
+  })
+  .refine((input) => isPositiveInterval(input.startsAt, input.endsAt), {
+    message: BOOKING_INTERVAL_MESSAGE,
+    path: ['endsAt'],
+  });
 export type ConfirmBookingRequestInput = z.infer<
   typeof confirmBookingRequestInputSchema
 >;
@@ -264,6 +277,21 @@ export const calendarQuerySchema = z
   );
 export type CalendarQuery = z.infer<typeof calendarQuerySchema>;
 
+/**
+ * The calendar is not paginated: the window is already capped at
+ * `CALENDAR_MAX_RANGE_DAYS`, and a view that renders half a week is worse than
+ * one that refuses an unreasonable range. `from`/`to` echo the window the
+ * server actually used, which is **not** always the one that was asked for —
+ * the boundaries are widened to whole Europe/Stockholm days (§3.6, B5.5.3), so
+ * a client can label its columns from the answer rather than recomputing them.
+ */
+export const calendarResponseSchema = z.object({
+  data: z.array(bookingWithRelationsSchema),
+  from: isoDateTimeSchema,
+  to: isoDateTimeSchema,
+});
+export type CalendarResponse = z.infer<typeof calendarResponseSchema>;
+
 /** Reschedule, reassign or change status — `PATCH /api/bookings/:id` (B5.5.2). */
 export const updateBookingInputSchema = z
   .object({
@@ -275,3 +303,6 @@ export const updateBookingInputSchema = z
   })
   .partial();
 export type UpdateBookingInput = z.infer<typeof updateBookingInputSchema>;
+
+export const bookingIdParamsSchema = z.object({ id: idSchema });
+export type BookingIdParams = z.infer<typeof bookingIdParamsSchema>;

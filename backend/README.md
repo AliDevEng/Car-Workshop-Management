@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 34/92 milestones complete; 4/14 iterations Done.**
+**Overall: 40/92 milestones complete; 5/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -42,7 +42,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [3](#b2)   | B2        | 1       | 7/7             | Done        |
 | [4](#b3)   | B3        | 1       | 6/6             | Done        |
 | [5](#b4)   | B4        | 2       | 6/6             | Done        |
-| [6](#b5)   | B5        | 3       | 0/6             | Not started |
+| [6](#b5)   | B5        | 3       | 6/6             | Done        |
 | [7](#b6)   | B6        | 4       | 0/8             | Not started |
 | [8](#b7)   | B7        | 5       | 0/6             | Not started |
 | [9](#b8)   | B8        | 5       | 0/6             | Not started |
@@ -75,6 +75,14 @@ results in the global search are all built and audited. The 50-parallel
 consumption acceptance test was written first and passes; the cached balance
 tracks the ledger sum exactly. Phase 2's backend half is complete; F7 delivers
 the UI.
+
+**Iteration 6 (B5) is Done as of 2026-09-09.** Public booking requests, the
+four anti-spam layers, the staff inbox, the confirmation transaction and the
+calendar are built. The overlap check is a Postgres `EXCLUDE USING gist`
+constraint rather than a read-then-insert, mapped to `409` on SQLSTATE `23P01`
+exactly as B0.10.3 measured; the Europe/Stockholm boundary conversion lives in
+`shared/time.ts` and is tested on both 2026 DST transitions. 83 new backend
+tests. B10.1–B10.4 and B10.6 remain before Phase 3's backend half is complete.
 
 ## Package review
 
@@ -1528,14 +1536,14 @@ is `tests/stock-ledger.test.ts`, written before the ledger mutations.
 
 ## Iteration 6: Creating booking requests and the calendar
 
-- [ ] Creating public booking requests (`B5.1`)
-- [ ] Protecting forms against spam (`B5.2`)
-- [ ] Connecting staff confirmation and rejection (`B5.3`)
-- [ ] Preventing overlapping bookings (`B5.4`)
-- [ ] Creating calendar queries and rescheduling (`B5.5`)
-- [ ] Verifying the booking journey (`B5.6`)
+- [x] Creating public booking requests (`B5.1`)
+- [x] Protecting forms against spam (`B5.2`)
+- [x] Connecting staff confirmation and rejection (`B5.3`)
+- [x] Preventing overlapping bookings (`B5.4`)
+- [x] Creating calendar queries and rescheduling (`B5.5`)
+- [x] Verifying the booking journey (`B5.6`)
 
-**Reference:** B5 · **Phase:** 3 · **Progress:** 0/6 · **Status:** Not started
+**Reference:** B5 · **Phase:** 3 · **Progress:** 6/6 · **Status:** Done
 
 **Depends on:** B3; B5.4 before confirmation.
 
@@ -1548,6 +1556,14 @@ that cannot overlap.
 **Definition of done:** two simultaneous confirmations into the same slot for
 the same mechanic produce exactly one booking and one `409`.
 
+The exclusion constraint is the conflict check — not an optimisation of one.
+`recordMovement`'s equivalent here is the database itself: confirmation and
+rescheduling both insert into `Booking` and both let Postgres refuse an
+overlap, because reading the calendar first and inserting if it looked free is
+the race two owners hit on the same morning. The `409` is keyed on SQLSTATE
+`23P01` exactly as B0.10.3 measured, and the mapping happens **outside** the
+transaction, since a failed statement aborts the surrounding one.
+
 <details>
 <summary>Implementation details — B5</summary>
 
@@ -1555,24 +1571,58 @@ the same mechanic produce exactly one booking and one `409`.
 
 ### B5.1 Booking request model
 
-- [ ] **B5.1.1** Prisma `BookingRequest` with `status` and `sourceIpHash`
-- [ ] **B5.1.2** `POST /api/public/booking-requests` — unauthenticated,
-      CSRF-exempt
-- [ ] **B5.1.3** Zod validation; registration number optional and normalised
-      when present
-- [ ] **B5.1.4** IP stored only as a salted hash
+- [x] **B5.1.1** Prisma `BookingRequest` with `status` and `sourceIpHash`;
+      migration `20260909123353_b5_bookings`. `sourceIpHash` is absent from the
+      repository's `select`, so it cannot reach a response by accident — a
+      GDPR mitigation (§5.5) the browser could read would be a fingerprint
+      instead, and a test asserts the string never appears on the wire.
+- [x] **B5.1.2** `POST /api/public/booking-requests` — unauthenticated, and the
+      one entry in `CSRF_EXEMPT_ROUTES`. `security.test.ts` now points at the
+      real route instead of a stand-in: it posts an empty body with no token
+      and asserts `400`, because a `403` would mean the exemption had quietly
+      stopped working and the public form was dead.
+- [x] **B5.1.3** Zod validation from `publicBookingRequestInputSchema`;
+      the registration number is optional and normalised when present, so
+      confirmation matches `Vehicle.registrationNumber` exactly rather than by
+      spacing.
+- [x] **B5.1.4** IP stored only as a salted SHA-256, through the same
+      `clientIpHash` the sessions and the audit log use.
 
 <a id="b5-2"></a>
 
 ### B5.2 Anti-spam
 
-- [ ] **B5.2.1** Honeypot field required to be empty
-- [ ] **B5.2.2** `GET /api/public/booking-form-token` issuing an HMAC-signed
-      timestamp
-- [ ] **B5.2.3** Reject submissions under 3 seconds or over 2 hours old
-- [ ] **B5.2.4** Rate limit 3 per IP per hour, 20 per day globally
-- [ ] **B5.2.5** Content heuristic flagging as `SPAM` rather than rejecting
-- [ ] **B5.2.6** Tests for each layer independently
+- [x] **B5.2.1** Honeypot: `website` is `z.literal('')` in the shared schema, so
+      a bot filling every field it finds is refused by validation.
+- [x] **B5.2.2** `GET /api/public/booking-form-token` issuing an HMAC-signed
+      timestamp — `lib/form-token.ts`, signed with `FORM_TOKEN_SECRET` and
+      **bound to a purpose string**, so the free booking token is not also
+      valid for B10.4's paid vehicle lookup. Stateless: storing issued tokens
+      would make the public form write to the database before anyone had typed
+      anything.
+- [x] **B5.2.3** Under 3 seconds or over 2 hours is refused, and so is a token
+      from the future — a clock that has moved backwards must not become a way
+      through the trap. All four verdicts return **one** Swedish sentence and
+      log which one fired; a helpful message tells a bot exactly how long to
+      wait, and an unlogged refusal leaves an operator unable to tell "the form
+      is broken" from "a bot found us".
+- [x] **B5.2.4** 3 per IP per hour and 20 per day globally, two
+      `createAttemptLimiter` buckets. **The order is the design:** the token is
+      checked first, before either counter is touched, or a flood of tokenless
+      requests would exhaust the day's twenty and lock out real customers — the
+      outage the measure exists to prevent. The IP bucket then short-circuits
+      the global one, so one abusive visitor spends at most three of the twenty.
+- [x] **B5.2.5** Content heuristic flagging as `SPAM` rather than rejecting —
+      links in the message, Cyrillic or CJK in the name. **Greek, Polish and
+      Turkish names are deliberately not flagged:** §6.2 names two script
+      families, "non-Latin" would be a much wider rule, and a customer sent to
+      the spam folder never finds out and never comes back.
+- [x] **B5.2.6** Each layer tested on its own, in a `describe` with an app of
+      its own — the limiters are per-instance, so one shared harness would
+      leave the later tests measuring the earlier ones' leftovers. The global
+      ceiling is exercised over ten addresses at five attempts each: exactly
+      twenty are stored, which is also what proves an IP-refused submission
+      does not spend the workshop's daily budget.
 
 <a id="b5-3"></a>
 
@@ -1582,60 +1632,165 @@ Create the booking model and exclusion constraint in B5.4 before wiring the
 confirmation transaction here. This dependency is more important than the
 numeric subsection order.
 
-- [ ] **B5.3.1** `GET /api/booking-requests?status=` with an unhandled count
-- [ ] **B5.3.2** `POST /api/booking-requests/:id/reject` with a reason
-- [ ] **B5.3.3** `POST /api/booking-requests/:id/confirm` creating customer,
-      vehicle and booking in one transaction, reusing existing records when
-      matched by phone or registration number
+- [x] **B5.3.1** `GET /api/booking-requests?status=` with an unhandled count,
+      cursor-paginated on `id DESC`. The count is of everything still
+      `PENDING`, not of the filtered page: it drives the badge in the
+      navigation, which has to say "there is work" while the user is looking at
+      the rejected ones.
+- [x] **B5.3.2** `POST /api/booking-requests/:id/reject` with a reason, audited
+      as `booking_request.rejected`. A `SPAM` request can still be acted on —
+      the heuristic is allowed to be wrong, and a real customer whose message
+      happened to contain a link must not become unreachable.
+- [x] **B5.3.3** `POST /api/booking-requests/:id/confirm` creating customer,
+      vehicle and booking in one transaction, reusing records matched by
+      `phoneNormalised` or by registration number. `createCustomer` and
+      `createVehicle` were split into `…InTransaction` halves rather than
+      copied, so normalisation and the audit rows have one definition; an
+      **ownerless** vehicle gains the owner, while one that already has an
+      owner is left alone (reassigning a car because a name and a plate arrived
+      in the same form is a human's decision).
+      Two edges are load-bearing and both are tested. A plate nobody has seen
+      creates a vehicle with placeholder make and model: refusing instead would
+      leave the booking with no car for B6's work order to hang off. A plate
+      that **cannot** be one — free text from a stranger, and that column
+      carries §4.2's unique index — is treated as no plate at all, because
+      throwing would make the request permanently unconfirmable over a typo and
+      §4.2 is explicit that a plate never blocks a booking.
 
 <a id="b5-4"></a>
 
 ### B5.4 Booking model and conflicts
 
-- [ ] **B5.4.1** Prisma `Booking` with `startsAt`, `endsAt`, `assignedUserId`,
-      `status`
-- [ ] **B5.4.2** Verify `btree_gist` from B0.4 exists before adding the
-      constraint; equality on the mechanic column needs its GiST operator class.
-- [ ] **B5.4.3** Postgres `EXCLUDE USING gist` constraint on overlapping ranges
-      per mechanic, added via raw SQL in a migration
-- [ ] **B5.4.4** The constraint is partial
-      (`WHERE assignedUserId IS NOT NULL AND status NOT IN ('CANCELLED','NO_SHOW')`)
-      so that cancelled bookings do not block the slot they no longer occupy
-- [ ] **B5.4.5** The constraint violation is caught and returned as `409`, not a
-      `500`
-- [ ] **B5.4.6** Tests: adjacent bookings allowed, overlapping rejected,
-      unassigned bookings exempt
+- [x] **B5.4.1** Prisma `Booking` with `startsAt`, `endsAt`, `assignedUserId`,
+      `status`, plus §8.2's `@@index([startsAt, assignedUserId])`.
+      `bookingRequestId` is `@unique`: a request becomes at most one booking, so
+      a double-tapped **Bekräfta** is refused by the database and not only by
+      the status check above it.
+- [x] **B5.4.2** `btree_gist` was enabled in `20260908000000_enable_extensions`
+      and the CI job asserts it; equality on the text mechanic column needs its
+      operator class, and without it this migration fails when it runs.
+- [x] **B5.4.3** `EXCLUDE USING gist ("assignedUserId" WITH =,
+      tstzrange("startsAt","endsAt",'[)') WITH &&)`, hand-written at the end of
+      `20260909123353_b5_bookings`. The range is **half-open**, so a job ending
+      at 10:00 and one starting at 10:00 are adjacent rather than overlapping.
+      Prisma models neither this nor the `CHECK ("endsAt" > "startsAt")` added
+      beside it, and `migrate diff` confirms it reports no drift for either.
+- [x] **B5.4.4** Partial on `assignedUserId IS NOT NULL AND status NOT IN
+      ('CANCELLED','NO_SHOW')`, matching
+      `BOOKING_STATUSES_NOT_OCCUPYING_A_SLOT` in `shared` — which
+      `shared/tests/schemas.test.ts` already pins against the status enum.
+- [x] **B5.4.5** Mapped to `409` on **SQLSTATE `23P01`** via
+      `postgresErrorCode`, never on a Prisma code (B0.10.3: the same violation
+      is `P2039` from `booking.create()` and `P2010` from inside a transaction).
+      `withOverlapConflict` wraps the call from **outside** the transaction,
+      because a failed statement aborts the surrounding Postgres transaction
+      and nothing inside it could run afterwards.
+- [x] **B5.4.6** Tested: adjacent allowed, overlapping rejected, the same slot
+      for a different mechanic allowed, two unassigned bookings in one slot
+      allowed, a cancellation freeing the slot, and a reschedule onto an
+      occupied slot refused — the same constraint on the other write path.
+      A rejected confirmation is asserted to roll back **completely**: no
+      booking, the request still `PENDING`, and no customer left behind.
 
 <a id="b5-5"></a>
 
 ### B5.5 Calendar queries
 
-- [ ] **B5.5.1** `GET /api/bookings?from=&to=&userId=` with a maximum 90-day
-      range
-- [ ] **B5.5.2** `PATCH /api/bookings/:id` for reschedule, reassign and status
-- [ ] **B5.5.3** All boundaries interpreted in `Europe/Stockholm`
-- [ ] **B5.5.4** A DST test: a booking on the March and October transition days
-      lands on the correct wall-clock time
+- [x] **B5.5.1** `GET /api/bookings?from=&to=&userId=`, capped at 90 days by
+      `calendarQuerySchema`. Not paginated — the window is already bounded, and
+      a view rendering half a week is worse than one refusing an unreasonable
+      range. Bookings that **overlap** the window are returned, not only those
+      starting inside it: a job that began yesterday and runs until noon
+      belongs on today's calendar.
+- [x] **B5.5.2** `PATCH /api/bookings/:id` for reschedule, reassign and status.
+      One endpoint for all three because all three are the same write and all
+      three can hit the same constraint. The interval is validated on the
+      **merged** result, not on the body — a patch moving only `endsAt` can
+      still leave it before the stored start.
+- [x] **B5.5.3** Boundaries interpreted in `Europe/Stockholm`: the window is
+      widened to whole local days by `stockholmDayStart`/`stockholmDayEnd` in
+      `shared/time.ts`, and the response echoes the window actually used so a
+      view can label its columns from the answer instead of recomputing it.
+      Five pure helpers were added there — the same "one conversion point"
+      arrangement `shared/units.ts` has for km ↔ mil, imported by both sides.
+- [x] **B5.5.4** DST tested on both 2026 transitions: a 09:00 booking reads back
+      as 09:00 on 29 March **and** 25 October, the answered window is 23 hours
+      long on the first and 25 on the second, and a booking in the hour the
+      clocks change stays inside its own day. Every assertion fails for an
+      implementation that adds a fixed 24 hours or stores an offset.
 
 <a id="b5-6"></a>
 
 ### B5.6 Verifying the booking journey
 
-- [ ] **B5.6.1** Submit a public request and confirm it through the
-      authenticated API; verify it becomes one calendar booking.
-- [ ] **B5.6.2** Confirm simultaneous conflicting requests produce one booking
-      and one 409, using the Prisma error mapping measured in B0.10.
-- [ ] **B5.6.3** Verify unhandled counts, rejection reasons, rate-limit
-      responses and the shared public form-token contract used by F2/F3.
-- [ ] **B5.6.4** Record adjacent-slot, cancellation, unassigned-booking and
-      Sweden DST results before marking B5 Done.
+- [x] **B5.6.1** `tests/booking-journey.test.ts` runs the whole arc: a public
+      submission through the real form, confirmation through the authenticated
+      API, and assertions that it became **one** calendar booking with a
+      customer, a vehicle and four audit rows. A second visit from the same
+      number and plate reuses both records rather than duplicating them.
+- [x] **B5.6.2** Two owners confirming two requests into the same slot for the
+      same mechanic: statuses `[201, 409]`, one booking row, and the losing
+      request left `PENDING` so a human can place it elsewhere. The same
+      request double-tapped concurrently also yields exactly one booking.
+- [x] **B5.6.3** Unhandled counts, rejection reasons and both rate-limit
+      responses are covered in `tests/booking-requests.test.ts`. The public
+      form-token contract matches what F2 already calls: the frontend's
+      `usePublicFormToken` fetches `/public/booking-form-token` and parses
+      `formTokenResponseSchema` from `shared`, which is the schema this
+      endpoint's response is declared with.
+- [x] **B5.6.4** Adjacent-slot, cancellation, unassigned-booking and Sweden DST
+      results are all recorded in the Verification block below.
 
 </details>
 
-- [ ] **Iteration 6 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 6 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-09, on Node 22.21.1, pnpm 12.3.4, PostgreSQL 16
+(Docker), Windows 11. B5's Definition of Done — *"two simultaneous
+confirmations into the same slot for the same mechanic produce exactly one
+booking and one `409`"* — is the second describe in
+`tests/booking-journey.test.ts`.
+
+| Command | Result |
+| --- | --- |
+| `pnpm check` | Clean — typecheck, lint (0 warnings), 666 tests, type-coverage 99.61% |
+| `pnpm --filter backend test` | 341 passed, 1 skipped (benchmark) across 33 files — +83 over B4 |
+| `pnpm --filter shared test` | 236 passed across 11 files, 100% coverage of `shared/src` |
+| `pnpm --filter backend test:coverage` | 94.83% statements / 94.8% lines (floor 80%); `modules/bookings` 93.75% |
+| `pnpm build` | All three packages; `next build` compiles against `shared`'s `.d.ts` |
+| `pnpm --filter backend exec prisma migrate dev` | `20260909123353_b5_bookings` applied; `pg_trgm`/`btree_gist` intact |
+| `prisma migrate diff --from-migrations … --to-schema …` | No difference detected — Prisma models neither the `EXCLUDE` nor the `CHECK`, so neither shows as drift |
+| Definition of done (`booking-journey.test.ts`) | Two concurrent confirmations → `[201, 409]`, one `Booking` row, losing request still `PENDING` |
+| Adjacent slots | `10:00` end and `10:00` start both accepted — the range is `[)` |
+| Cancellation | The slot is free again immediately after `status: CANCELLED` |
+| Unassigned bookings | Two in one slot, both accepted; the constraint is partial on `assignedUserId` |
+| DST (29 Mar / 25 Oct 2026) | 09:00 reads back as 09:00 on both; the answered window is 23 h and 25 h respectively |
+| Global daily ceiling | 10 addresses × 5 attempts → exactly 20 stored |
+
+**Two defects were found by reviewing this iteration, and are fixed:**
+
+1. **The spam heuristic flagged Greek.** The script range had been written as
+   "non-Latin" rather than the Cyrillic and CJK §6.2 actually names, so
+   Γιώργος, and by extension a large Swedish community, would have gone to the
+   spam folder — a false positive nobody ever finds out about. The ranges are
+   now `\u` escapes (a file re-saved in another encoding would otherwise change
+   silently) and Greek, Polish and Turkish names have tests of their own.
+2. **A booking request whose plate could not become a `Vehicle` was
+   permanently unconfirmable.** `createVehicleInTransaction` throws on anything
+   `isNormalisedRegNr` rejects, and the plate on a request is free text a
+   stranger typed — so an eleven-character typo would have made the request
+   impossible to accept, in direct contradiction of §4.2's rule that a plate
+   never blocks a booking. An unusable plate is now treated as no plate: the
+   booking is made, the text stays readable on the request, and a human
+   attaches the right car.
+
+One thing worth recording rather than fixing: the exclusion-constraint path
+emits a `pg` deprecation warning (`client.query()` while the client is already
+executing) as Prisma rolls back the aborted transaction. It comes from inside
+`@prisma/adapter-pg`, the rollback itself is asserted to be complete, and
+nothing in this codebase controls it.
+
+**Completed on:** 2026-09-09
 
 ---
 
