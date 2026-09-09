@@ -90,3 +90,6 @@ export const customerListQuerySchema = cursorQuerySchema.extend({
   isActive: booleanQuerySchema.optional(),
 });
 export type CustomerListQuery = z.infer<typeof customerListQuerySchema>;
+
+export const customerIdParamsSchema = z.object({ id: idSchema });
+export type CustomerIdParams = z.infer<typeof customerIdParamsSchema>;

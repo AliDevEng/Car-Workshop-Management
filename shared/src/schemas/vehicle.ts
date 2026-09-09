@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { cursorQuerySchema } from './common.js';
-import { customerSummarySchema } from './customer.js';
+import { customerSchema, customerSummarySchema } from './customer.js';
 import {
   idSchema,
   isoDateSchema,
@@ -116,11 +116,31 @@ export const vehicleDetailSchema = vehicleSchema.extend({
 });
 export type VehicleDetail = z.infer<typeof vehicleDetailSchema>;
 
+/**
+ * `GET /api/customers/:id` — a customer together with the vehicles they own
+ * (B3.1.3). A vehicle's owner can change without losing its service history,
+ * because history hangs off the vehicle (§6.3), so this is a snapshot of the
+ * link rather than the source of truth for either side.
+ *
+ * It is declared here, not in `customer.ts`, on purpose: the mirror import
+ * (customer → vehicle) would close a cycle between two modules that both build
+ * Zod schemas at load time, and whichever evaluated second would read an
+ * uninitialised binding. `vehicle.ts` already depends on `customer.ts`, so the
+ * combined shape is cycle-free only in this direction.
+ */
+export const customerDetailSchema = customerSchema.extend({
+  vehicles: z.array(vehicleSummarySchema),
+});
+export type CustomerDetail = z.infer<typeof customerDetailSchema>;
+
 export const vehicleListQuerySchema = cursorQuerySchema.extend({
   q: searchQuerySchema.optional(),
   customerId: idSchema.optional(),
 });
 export type VehicleListQuery = z.infer<typeof vehicleListQuerySchema>;
+
+export const vehicleIdParamsSchema = z.object({ id: idSchema });
+export type VehicleIdParams = z.infer<typeof vehicleIdParamsSchema>;
 
 /** `GET /api/vehicles/by-regnr/:regnr` — the path parameter, as typed. */
 export const vehicleByRegNrParamsSchema = z.object({

@@ -22,7 +22,7 @@ export function ServiceCard({
   return (
     <article className={cn('service-card group', accentClasses[service.accent])}>
       <div className="flex items-start justify-between gap-6">
-        <span className="font-sans text-sm font-semibold tabular-nums opacity-60">
+        <span className="font-sans text-sm font-semibold text-steel/70 tabular-nums">
           0{String(index + 1)}
         </span>
         <ArrowUpRight

@@ -53,8 +53,9 @@ model User {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
-  sessions  Session[]
-  auditLogs AuditLog[]
+  sessions         Session[]
+  auditLogs        AuditLog[]
+  odometerReadings OdometerReading[]
 
   @@index([isActive])
 }
@@ -102,4 +103,144 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([at])
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// B3 — the core register everything else hangs off (PROJECT_SPEC.md §4.2,
+// §6.3). A vehicle can exist before anyone knows whose it is, and its owner
+// can change without the service history moving, because history hangs off
+// the vehicle rather than the customer.
+// ---------------------------------------------------------------------------
+
+enum CustomerType {
+  PRIVATE
+  COMPANY
+}
+
+/// A workshop customer. Phone is the required contact channel; email is
+/// optional because a real workshop's list is half phone-only (§4.2).
+model Customer {
+  id       String       @id @default(uuid(7))
+  type     CustomerType
+  name     String
+  orgNumber String?
+  email    String?
+  /// Exactly what the customer gave — `070-123 45 67` (§8.2).
+  phone    String
+  /// The same number in E.164, derived by the service via `shared/phone.ts`.
+  /// Both columns are stored and both are searched: normalising only one side
+  /// breaks the moment a customer is looked up by digits they recite, or by a
+  /// number a colleague wrote a different way last year (§8.2).
+  phoneNormalised String
+  address  String?
+  notes    String?
+  /// Set when a GDPR erasure request is honoured. The customer is anonymised,
+  /// never hard-deleted — the documents they appear on must survive (§5.5).
+  anonymisedAt DateTime? @db.Timestamptz(3)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  vehicles Vehicle[]
+
+  @@index([isActive])
+  /// §8.2 searches on the normalised form; the global search (§6.3, B3.4)
+  /// matches every contact column with `ILIKE '%q%'`, which the trigram
+  /// operator class accelerates.
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([phone(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([phoneNormalised(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([email(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+/// A vehicle. `customerId` is optional and this is load-bearing: a
+/// registration number is looked up before anyone knows whose car it is — on
+/// the public start page — and requiring an owner would force fake customer
+/// records (§4.2).
+model Vehicle {
+  id String @id @default(uuid(7))
+  /// The canonical, unspaced form (`shared/regnr.ts`). The unique index is
+  /// what makes two spellings of one plate impossible.
+  registrationNumber String @unique
+  /// `ABC 12D` — what a human reads.
+  registrationNumberDisplay String
+  /// Personalised plates and imports exist: a value failing the standard
+  /// format is accepted and flagged for a human rather than blocking a
+  /// booking (§4.2).
+  isNonStandardPlate Boolean @default(false)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  make    String
+  model   String
+  variant String?
+  modelYear Int?
+  vin       String?
+  engineCode String?
+  fuelType   String?
+  firstRegistrationDate DateTime? @db.Date
+  lastInspectionDate    DateTime? @db.Date
+  nextInspectionDueDate DateTime? @db.Date
+  /// A cache of the newest `OdometerReading`. The reading history is the
+  /// record (§4.2); this column exists so a list does not need a subquery.
+  lastKnownOdometerKm Int?
+  /// When the external provider last answered for this plate (§7.1).
+  dataFetchedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  odometerReadings OdometerReading[]
+
+  @@index([customerId])
+  /// The dashboard scans this daily for inspections due within 60 days (§8.2).
+  @@index([nextInspectionDueDate])
+  /// Global search (§6.3, B3.4): the query is normalised for the canonical
+  /// column and matched as typed against the display, make and model.
+  @@index([registrationNumber(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([registrationNumberDisplay(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([make(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([model(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+enum OdometerSource {
+  WORK_ORDER_IN
+  WORK_ORDER_OUT
+  MANUAL
+  EXTERNAL
+}
+
+/// Kept separate from `Vehicle.lastKnownOdometerKm` so the history — and
+/// therefore the service engine's baseline — survives a correction (§4.2).
+model OdometerReading {
+  id        String   @id @default(uuid(7))
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  /// Stored in km. The UI labels every input `mil` and converts on submit
+  /// (§3.5). `Int`, not `Decimal` — a reading is a whole number of km.
+  km        Int
+  readAt    DateTime @db.Timestamptz(3)
+  source    OdometerSource
+  /// Null for a reading imported from an external source rather than entered
+  /// by a person (§4.2). `SetNull` because a reading must outlive the account.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Set when the reading came from completing a work order (B6.7). No
+  /// relation yet — `WorkOrder` does not exist until B6.
+  workOrderId String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([vehicleId, readAt])
+}
+
+/// Key/value workshop settings (§4.2). One row per settings group, each value
+/// a JSON blob validated by its `shared` schema in `config/settings.ts` — no
+/// feature code does a raw string lookup. Writes are ADMIN-only and arrive in
+/// B9.7; B3 only reads.
+model Setting {
+  key             String   @id
+  valueJson       Json
+  updatedByUserId String?
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
 }

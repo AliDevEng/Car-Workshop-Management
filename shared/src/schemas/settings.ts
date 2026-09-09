@@ -123,6 +123,19 @@ export type WorkshopOperationalSettings = z.infer<
   typeof workshopOperationalSettingsSchema
 >;
 
+/**
+ * `GET /api/settings` (B3.5.3) — the full settings view for the admin panel.
+ * Authenticated rather than public: `operational` carries the lookup ceilings
+ * and the default hourly rate, which stay behind a login. Writes are
+ * `ADMIN`-only and arrive in B9.7.
+ */
+export const settingsResponseSchema = z.object({
+  workshop: workshopDetailsSchema,
+  openingHours: openingHoursSchema,
+  operational: workshopOperationalSettingsSchema,
+});
+export type SettingsResponse = z.infer<typeof settingsResponseSchema>;
+
 export const updateSettingsInputSchema = z
   .object({
     workshop: workshopDetailsSchema,

@@ -70,7 +70,7 @@ export default async function ContactPage() {
                 </div>
               ))}
             </dl>
-            <p className="mt-6 text-sm leading-relaxed text-steel/65">
+            <p className="mt-6 text-sm leading-relaxed text-steel/70">
               Behöver bilen lämnas före öppning? Ring oss så hittar vi en lösning.
             </p>
           </div>

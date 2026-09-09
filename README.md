@@ -163,8 +163,9 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **22/92 backend milestones are complete as of 2026-09-08**: nine
-of B0's ten, all six of B1's, and all seven of B2's. B1 and B2 are Done.
+is complete. **28/92 backend milestones are complete as of 2026-09-09**: nine
+of B0's ten, all six of B1's, all seven of B2's, and all six of B3's. B1, B2
+and B3 are Done.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion
@@ -203,7 +204,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | B0 | Workspace and tooling | 0 | 🟨 (9/10 milestones; everything but B0.9 — CI has not yet run on a PR and branch protection needs a repository owner) |
 | B1 | Shared domain primitives | 0 | ✅ (6/6 — money, quantities, units, regnr, the work-order state machine, the error hierarchy and the 21-file per-domain schema set; 100% coverage of `shared/src`, verified from both consumers) |
 | B2 | Authentication and users | 1 | ✅ (7/7 — argon2id sessions, per-route authorisation with a startup assertion, session-bound CSRF, ADMIN user management and the audit foundation) |
-| B3 | Customers and vehicles | 1 | ⬜ |
+| B3 | Customers and vehicles | 1 | ✅ (6/6 — customer and vehicle CRUD with audited mutations, two-column phone search via `shared/phone.ts`, odometer history with the low-reading warning, the trigram-backed global search box, and the read-only settings surface; 209 backend tests, search benchmark 21 ms / 20 000 rows) |
 | B4 | Inventory and stock ledger | 2 | ⬜ |
 | B5 | Bookings | 3 | ⬜ |
 | B10.1–.4, .6 | Vehicle lookup (mock) and partner links | 3 | ⬜ |
@@ -299,6 +300,11 @@ past row.
 | 2026-09-08 | A variable font's `wdth` axis needs an explicit `font-stretch`; selecting the family is not enough | §9.3's display role is "Archivo at an expanded width", and `font-display` alone rendered headings at `font-stretch: 100%` — identical to body text, which is the flatness §9.1 exists to avoid. A `.type-display` component class sets family and width together so a heading cannot take one and forget the other |
 | 2026-09-08 | Every generated shadcn primitive carried `outline-none`, silently removing the focus ring | A utility-layer rule beats the global `:focus-visible` outline in the base layer, so focused controls had no visible ring at all — a §9.6 failure across the entire component set, invisible to a mouse user. Stripped from all five files; the ring is now one rule that cannot drift between controls. Found by a browser test, not by eye |
 | 2026-09-08 | Playwright drives the machine's installed Chrome (`channel: 'chrome'`) rather than its bundled Chromium | `playwright install chromium` times out reaching `cdn.playwright.dev` from this network, which left the E2E suite configured but never executed — and an unexecuted suite hid a smoke test that asserted `getByRole('alert')` unscoped, satisfied on every page by Next's permanently-present `__next-route-announcer__`. Both are Chromium; CI can reach the CDN and may drop the channel |
+| 2026-09-09 | Swedish phone normalisation is a dependency-free `shared/phone.ts`, not `libphonenumber-js` | §8.2 needs an E.164 `phoneNormalised` beside the entered form; a full phone library is not in §2.2 and the workshop's numbers are overwhelmingly Swedish. `normalisePhone` handles the everyday Swedish forms plus `00`/`+` prefixes and passes any other international prefix through untouched. It is best-effort, not a validator: §8.2 keeps a messy number rather than turning a customer away over formatting, and search matches the entered column too |
+| 2026-09-09 | `customerDetailSchema` (customer + owned vehicles) is declared in `shared/src/schemas/vehicle.ts`, not `customer.ts` | The mirror import — `customer.ts` pulling the vehicle-summary shape from `vehicle.ts` — closes a cycle between two modules that build Zod schemas at load time, and whichever evaluated second would read an uninitialised binding (a `ReferenceError`, not a type error). `vehicle.ts` already depends on `customer.ts`, so the combined shape is cycle-free only in that direction. `booking.ts` and `work-order.ts` compose both summaries the same way, from above |
+| 2026-09-09 | `Setting` is one row per group as a JSON blob; the typed accessor falls back on a missing key and throws on a malformed one | A missing key is a fresh install before the seed or B9.7 has written it, and the public page must still render — so `getWorkshopDetails` / `getOpeningHours` / `getOperationalSettings` return a built-in default. A present-but-invalid row cannot happen through the application (the B9.7 write validates against the same schema), so it is a corrupted setting and is allowed to surface as a 500 rather than be silently papered over |
+| 2026-09-09 | `Vehicle.lastKnownOdometerKm` mirrors the **newest reading by `readAt`**, not the highest km | §4.2 calls it "a cache of the newest `OdometerReading`". A back-dated correction — lower than the current reading but earlier in time — must not overwrite the cache, so the update re-queries the newest reading (including the one just inserted, ordered `readAt DESC, km DESC`) rather than taking `MAX(km)` or blindly writing the incoming value |
+| 2026-09-09 | `tmp/` added to `.gitignore` and the ESLint ignore list | F2.6's Lighthouse run downloads a Chrome into `tmp/lighthouse-chrome/`; ESLint was linting ~6 500 lines of third-party JS and failing the whole `pnpm lint`. It predates B3 and is not repository source. Unrelated: the frontend's own `type-coverage` sits at 98.6% in `HEAD` — pre-existing F2 debt, left for the F2 owner |
 
 ---
 

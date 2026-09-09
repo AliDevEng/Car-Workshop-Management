@@ -18,9 +18,11 @@ import localFont from 'next/font/local';
  * backend PDF renderer, which does require a static `.ttf`; CLAUDE.md's
  * trap table entry on variable/`.woff2` PDF fonts does not apply here).
  *
- * Both files are subset to Google Fonts' `latin` + `latin-ext` ranges
- * (F0.3.1). The `fvar`, `gvar`, `avar`, `HVAR` and `STAT` tables survive
- * subsetting, so the axes below are still the real ones.
+ * The browser files are WOFF2 subsets covering Swedish and the shared UI
+ * punctuation (F0.3.1). Archivo keeps its `wght` and `wdth` axes. Source
+ * Serif keeps `wght`; its optical-size axis is pinned to the body-text
+ * master before subsetting, avoiding a large unused axis on the critical
+ * rendering path.
  *
  * **`weight` is a range, and it is not optional.** An omitted `font-weight`
  * descriptor defaults to the single value `400`, which makes the browser
@@ -31,20 +33,18 @@ import localFont from 'next/font/local';
  * file's `fvar` declares.
  */
 export const archivo = localFont({
-  src: './archivo/Archivo-Variable.ttf',
+  src: './archivo/Archivo-Variable.woff2',
   variable: '--font-archivo',
-  display: 'swap',
+  display: 'optional',
   // fvar: wght 100–900 (default 600), wdth 62–125 (default 100).
   weight: '100 900',
   declarations: [{ prop: 'font-stretch', value: '62% 125%' }],
 });
 
 export const sourceSerif4 = localFont({
-  src: './source-serif-4/SourceSerif4-Variable.ttf',
+  src: './source-serif-4/SourceSerif4-Variable.woff2',
   variable: '--font-source-serif-4',
   display: 'swap',
-  // fvar: wght 200–900 (default 400), opsz 8–60. `font-optical-sizing`
-  // defaults to `auto`, so the optical size follows the rendered size
-  // without a descriptor.
+  // fvar after browser subsetting: wght 200–900 (default 400).
   weight: '200 900',
 });

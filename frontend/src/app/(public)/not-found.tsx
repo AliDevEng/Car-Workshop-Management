@@ -7,7 +7,7 @@ export default function NotFoundPage() {
       <div>
         <p className="font-sans text-sm font-bold text-signal">404 · FEL VÄG</p>
         <h1 className="page-title mt-4">Här tog vägen slut.</h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-steel/65">
+        <p className="mx-auto mt-6 max-w-xl text-lg text-steel/70">
           Sidan finns inte längre, men verkstaden är precis där den ska vara.
         </p>
         <Link href="/" className="site-button site-button-primary mt-8">

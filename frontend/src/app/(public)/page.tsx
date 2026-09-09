@@ -54,7 +54,7 @@ export default async function HomePage() {
     <main id="main-content">
       <section className="hero-section">
         <div className="site-container grid items-center gap-10 py-12 lg:min-h-[calc(100svh-76px)] lg:grid-cols-[1.04fr_0.96fr] lg:py-20">
-          <div className="relative z-10">
+          <div className="relative z-10 flex min-h-[calc(100svh-4.75rem)] flex-col justify-center lg:min-h-0">
             <p className="hero-kicker">
               <span className="size-2 rounded-full bg-hivis" />
               Oberoende bilverkstad i {info.workshop.city}
@@ -76,7 +76,6 @@ export default async function HomePage() {
               src="/images/workshop-team.png"
               alt="Två mekaniker som arbetar vid en bil i verkstaden"
               fill
-              priority
               sizes="(max-width: 1023px) 100vw, 48vw"
               className="object-cover"
             />
@@ -101,7 +100,7 @@ export default async function HomePage() {
               <span className="font-sans text-xs font-bold text-signal tabular-nums">{promise.number}</span>
               <div>
                 <strong className="font-sans text-sm">{promise.title}</strong>
-                <p className="mt-1 text-sm text-steel/65">{promise.text}</p>
+                <p className="mt-1 text-sm text-steel/70">{promise.text}</p>
               </div>
             </div>
           ))}
@@ -143,7 +142,7 @@ export default async function HomePage() {
                 <article key={step.title} className="bg-concrete-2 p-7 sm:p-8">
                   <ItemIcon aria-hidden="true" className="size-6 text-signal" />
                   <h3 className="type-display mt-12 text-2xl font-bold">{step.title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-steel/65">{step.text}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-steel/70">{step.text}</p>
                 </article>
               );
             })}

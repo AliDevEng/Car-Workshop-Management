@@ -33,14 +33,14 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 22/92 milestones complete; 2/14 iterations Done.**
+**Overall: 28/92 milestones complete; 3/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
 | [1](#b0)   | B0        | 0       | 9/10            | In progress |
 | [2](#b1)   | B1        | 0       | 6/6             | Done        |
 | [3](#b2)   | B2        | 1       | 7/7             | Done        |
-| [4](#b3)   | B3        | 1       | 0/6             | Not started |
+| [4](#b3)   | B3        | 1       | 6/6             | Done        |
 | [5](#b4)   | B4        | 2       | 0/6             | Not started |
 | [6](#b5)   | B5        | 3       | 0/6             | Not started |
 | [7](#b6)   | B6        | 4       | 0/8             | Not started |
@@ -61,6 +61,12 @@ yet run on a pull request.
 the full per-domain schema set are in place, verified from both consumers.
 Phase 0 therefore has one open item in total — B0.9, which needs a repository
 owner rather than code.
+
+**Iteration 4 (B3) is Done as of 2026-09-09.** Customers, vehicles, odometer
+history, the global search box and the read-only settings surface are built,
+audited where §4.2 requires it, and covered by six route-test files plus an
+opt-in search benchmark. The core register the rest of the system hangs off is
+in place.
 
 ## Package review
 
@@ -1151,14 +1157,14 @@ fixed:**
 
 ## Iteration 4: Creating customer and vehicle management
 
-- [ ] Creating customer records (`B3.1`)
-- [ ] Creating vehicle records (`B3.2`)
-- [ ] Recording odometer readings (`B3.3`)
-- [ ] Creating global search (`B3.4`)
-- [ ] Creating settings readers and API contracts (`B3.5`)
-- [ ] Verifying customer and vehicle journeys (`B3.6`)
+- [x] Creating customer records (`B3.1`)
+- [x] Creating vehicle records (`B3.2`)
+- [x] Recording odometer readings (`B3.3`)
+- [x] Creating global search (`B3.4`)
+- [x] Creating settings readers and API contracts (`B3.5`)
+- [x] Verifying customer and vehicle journeys (`B3.6`)
 
-**Reference:** B3 · **Phase:** 1 · **Progress:** 0/6 · **Status:** Not started
+**Reference:** B3 · **Phase:** 1 · **Progress:** 6/6 · **Status:** Done
 
 **Depends on:** B2.
 
@@ -1178,89 +1184,169 @@ on 10 000 seeded rows.
 
 ### B3.1 Customer model and CRUD
 
-- [ ] **B3.1.1** Prisma `Customer` with `type`, indexes on `phone` and `name`
-- [ ] **B3.1.2** `GET /api/customers` — cursor pagination, `?q=` search on name,
-      phone, email
-- [ ] **B3.1.3** `GET /api/customers/:id` including vehicles
-- [ ] **B3.1.4** `POST` and `PATCH` with Zod schemas from `shared`
-- [ ] **B3.1.5** Deactivate instead of delete; a customer with work orders
-      cannot be deleted
-- [ ] **B3.1.6** Swedish phone stored in **both** forms: `phoneNormalised` in
-      E.164 and `phone` as entered. Both indexed. Search normalises the query
-      and matches either column — normalising only one side breaks the moment a
-      customer is looked up by the digits they actually recite
-      (`PROJECT_SPEC.md` §8.2)
+- [x] **B3.1.1** Prisma `Customer` with `type`; migration
+      `20260909091612_b3_customers_vehicles_odometer_settings`. `name` and
+      `phone` are covered by GIN trigram indexes (the search matches them with
+      `ILIKE '%q%'`); `phoneNormalised` also carries a plain btree per §8.2.
+- [x] **B3.1.2** `GET /api/customers` — cursor pagination on `id DESC` (UUIDv7,
+      so unique **and** monotonic; no composite cursor, same as `listUsers`),
+      `?q=` matching name, either phone column and email, `?isActive=`.
+- [x] **B3.1.3** `GET /api/customers/:id` returns `customerDetailSchema` — the
+      customer with a `vehicleSummary` list. That composite is declared in
+      `shared/src/schemas/vehicle.ts`, not `customer.ts`: the mirror import
+      would close a load-time cycle between two Zod modules.
+- [x] **B3.1.4** `POST` and `PATCH` from `createCustomerInputSchema` /
+      `updateCustomerInputSchema`. Every mutation runs in a transaction with an
+      audit row (`customer.created` / `.updated` / `.deactivated` /
+      `.reactivated`) — a customer is personal data (§4.2).
+- [x] **B3.1.5** Deactivate and reactivate are their own routes; there is **no
+      delete route at all** (§4.3 — a customer is only ever `isActive`-toggled),
+      and a test asserts `DELETE /api/customers/:id` is a 404.
+- [x] **B3.1.6** `phoneNormalised` is derived by the service through the new
+      `shared/src/phone.ts` (`normalisePhone` / `isNormalisedPhone`), never
+      accepted from the client. Search normalises the query the same way and
+      matches **either** column — a test looks the same number up by the digits
+      a customer recites and by a differently-grouped E.164 form (§8.2).
 
 <a id="b3-2"></a>
 
 ### B3.2 Vehicle model and CRUD
 
-- [ ] **B3.2.1** Prisma `Vehicle`; unique index on normalised
-      `registrationNumber`
-- [ ] **B3.2.2** `customerId` nullable, with the reason in a schema comment
-- [ ] **B3.2.3** `POST /api/vehicles` normalising the registration number before
-      insert
-- [ ] **B3.2.4** `PATCH` including reassigning the owner
-- [ ] **B3.2.5** Define the vehicle-detail response for core data now; connect
-      newest-first work-order history in B6.8 once WorkOrder exists.
-- [ ] **B3.2.6** `GET /api/vehicles/by-regnr/:regnr` returning `404` cleanly for
-      unknown
+- [x] **B3.2.1** Prisma `Vehicle`; `@unique` on `registrationNumber`, plus
+      `nextInspectionDueDate` (the dashboard scans it daily, §8.2) and four GIN
+      trigram indexes for search.
+- [x] **B3.2.2** `customerId` nullable, `onDelete: SetNull`, with the reason in
+      the schema doc comment (a plate is looked up before anyone knows whose it
+      is, §4.2).
+- [x] **B3.2.3** `POST /api/vehicles` — the service normalises the plate,
+      derives the display form and the `isNonStandardPlate` flag, and throws a
+      Swedish `VALIDATION_FAILED` (400) when the value cannot be a plate at all
+      (`'- -'` → empty after normalisation). A personalised plate (`MINBIL`) is
+      accepted and flagged.
+- [x] **B3.2.4** `PATCH /api/vehicles/:id`, `customerId` handled as three
+      states: `undefined` leaves the owner, `null` detaches, a string reassigns
+      (and the target customer's existence is checked in the transaction).
+- [x] **B3.2.5** `vehicleDetailSchema` (vehicle + `customerSummary`) is the
+      core response now; B6.8 extends it with newest-first work-order history.
+- [x] **B3.2.6** `GET /api/vehicles/by-regnr/:regnr` normalises the path
+      parameter and answers a clean §3.7 `404` for an unknown or unparseable
+      plate.
 
 <a id="b3-3"></a>
 
 ### B3.3 Odometer history
 
-- [ ] **B3.3.1** `OdometerReading` model: `vehicleId`, `km`, `readAt`, `source`,
-      `userId?`
-- [ ] **B3.3.2** Implement manual odometer entry now; connect work-order in/out
-      readings in B6.7.
-- [ ] **B3.3.3** A reading below the previous maximum is accepted but returns a
-      `warnings` array in the response — tested
+- [x] **B3.3.1** `OdometerReading` model: `vehicleId` (cascade), `km` (`Int`),
+      `readAt` (`timestamptz`), `source`, `userId?` (`SetNull`), `workOrderId?`
+      (a bare column until B6). `@@index([vehicleId, readAt])`.
+- [x] **B3.3.2** `POST /api/vehicles/:id/odometer-readings` records a `MANUAL`
+      reading; the source is set by the endpoint, never the caller. `GET` lists
+      a vehicle's readings, newest-entered first, cursor-paginated on `id`. B6.7
+      adds the `WORK_ORDER_IN` / `_OUT` readings.
+- [x] **B3.3.3** A reading below the vehicle's previous highest is stored and
+      the response carries a Swedish warning in `mil` for a human to confirm.
+      The `Vehicle.lastKnownOdometerKm` cache follows the *newest by `readAt`*
+      reading, so a back-dated correction cannot overwrite a later value —
+      tested three ways.
 
 <a id="b3-4"></a>
 
 ### B3.4 Global search
 
-- [ ] **B3.4.1** Implement `GET /api/search?q=` for customers and vehicles;
-      declare the shared result union and activate article queries in B4.6 after
-      Article exists.
-- [ ] **B3.4.2** Typed discriminated-union result, capped at 10 per category
-- [ ] **B3.4.3** Verify `pg_trgm` from B0.4 is enabled, then add GIN trigram
-      indexes on the searched columns.
-- [ ] **B3.4.4** Benchmark against seeded volume, asserting the latency budget.
-      **Tagged so it does not gate CI** — shared runners have unpredictable I/O
-      and a timing assertion there produces flaky red builds that get ignored.
-      It runs locally and on the VPS in B13.
+- [x] **B3.4.1** `GET /api/search?q=` (authenticated) covers customers and
+      vehicles. The `WHERE` predicates are reused from the two repositories, so
+      the list endpoints and the box agree on what "matches" means. Article
+      queries are added in B4.6.
+- [x] **B3.4.2** Returns `searchResponseSchema` — the `z.discriminatedUnion`
+      from `shared`, capped at `SEARCH_RESULTS_PER_CATEGORY` (10) per kind, not
+      paginated (a jump-to box, not a report).
+- [x] **B3.4.3** GIN trigram indexes are declared natively in `schema.prisma`
+      (`@@index([col(ops: raw("gin_trgm_ops"))], type: Gin)`), so the drift
+      check sees them; `pg_trgm` from B0.4.6 is what makes them creatable and
+      the CI extension assertion still passes.
+- [x] **B3.4.4** `backend/tests/search-benchmark.test.ts`, gated behind
+      `RUN_SEARCH_BENCHMARK=1` with `describe.skipIf` so it never runs in CI or
+      a normal `pnpm test`. Seeds 10 000 customers + 10 000 vehicles and asserts
+      a fuzzy name and a fuzzy registration-number search each finish under
+      100 ms. Recorded run below.
 
 <a id="b3-5"></a>
 
 ### B3.5 Creating settings readers and API contracts
 
-- [ ] **B3.5.1** Implement the specified Setting model and typed accessors for
-      workshop details, opening hours and default values needed before public
-      booking launches.
-- [ ] **B3.5.2** Define shared schemas and the read contracts needed by the
-      public pages; expose only explicitly public workshop fields.
-- [ ] **B3.5.3** Document list sorting, pagination and error responses for
-      F4/F6; administrative settings writes are delivered in B9.7.
+- [x] **B3.5.1** `Setting` model (key/value, one row per group as a JSON blob)
+      and `backend/src/config/settings.ts` typed accessors —
+      `getWorkshopDetails`, `getOpeningHours`, `getOperationalSettings`. A
+      missing key falls back to a built-in default (a fresh install renders);
+      a present-but-invalid row is allowed to throw, because it cannot happen
+      through the application. The seed writes dev-realistic values.
+- [x] **B3.5.2** `GET /api/public/workshop` (public) returns
+      `publicWorkshopInfoSchema` — workshop details and opening hours only; the
+      lookup ceilings and the default hourly rate stay behind a login and a
+      test asserts they never appear in the public payload. `GET /api/settings`
+      (authenticated) returns the full `settingsResponseSchema`, added to
+      `shared` this iteration.
+- [x] **B3.5.3** List sorting and pagination are documented per endpoint in the
+      milestones above (all cursor-on-`id`, `?q=` and the declared filters);
+      error responses are the standard §3.7 envelope. Administrative settings
+      **writes** remain B9.7.
 
 <a id="b3-6"></a>
 
 ### B3.6 Verifying customer and vehicle journeys
 
-- [ ] **B3.6.1** Create an ownerless vehicle, attach it to a customer and
-      reassign it without losing vehicle or odometer history.
-- [ ] **B3.6.2** Test entered and normalised telephone searches,
-      registration-number formatting, optional fields and access denial.
-- [ ] **B3.6.3** Record the core-register acceptance result and the local search
-      benchmark; work-order history remains assigned to B6.8.
+- [x] **B3.6.1** `backend/tests/customer-vehicle-journey.test.ts` runs the whole
+      arc: create an ownerless vehicle, record two readings, create a customer
+      and attach the car, reassign it to a second customer — and asserts the
+      first owner ends with no cars, the vehicle keeps both odometer readings,
+      and the cache column is intact through both reassignments.
+- [x] **B3.6.2** Covered across `customers.test.ts`, `vehicles.test.ts` and
+      `search.test.ts`: the entered and the normalised phone search, plate
+      normalisation and display formatting, optional fields left unset, and
+      `401` / `403` on the unauthenticated paths.
+- [x] **B3.6.3** Benchmark recorded below; work-order history stays assigned to
+      B6.8.
 
 </details>
 
-- [ ] **Iteration 4 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 4 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-09, on Node 22.21.1, pnpm 12.3.4, PostgreSQL 16
+(Docker), Windows 11. B3's Definition of Done is *"a vehicle can be created
+without an owner, later linked to a customer, and found by a fuzzy
+registration-number search in under 100 ms on 10 000 seeded rows"* — the
+journey test covers the first two, the benchmark the third.
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter backend typecheck` | Clean |
+| `pnpm --filter shared typecheck` | Clean |
+| `pnpm lint` | Clean (added `tmp/**` — Lighthouse's downloaded Chrome — to the ESLint ignores and `.gitignore`; it predates B3 and was breaking the lint run) |
+| `pnpm --filter backend test` | 209 passed, 1 skipped (the benchmark) across 24 files |
+| `pnpm --filter shared test` | 223 passed |
+| `pnpm --filter backend test:coverage` | 94.84% statements / 94.82% lines (floor 80%) |
+| `type-coverage --at-least 99.5 -p backend` | 99.95% |
+| `type-coverage --at-least 99.5 -p shared` | 100% |
+| `pnpm --filter backend prisma:migrate` | `20260909091612_b3_...` applied; `pg_trgm` / `btree_gist` present |
+| `prisma migrate diff --from-migrations … --to-schema …` | No difference detected |
+| `pnpm --filter backend exec prisma db seed` | Staff, settings, 3 customers, 4 vehicles, 2 readings; idempotent on a second run |
+| `RUN_SEARCH_BENCHMARK=1 … search-benchmark.test.ts` | 20 000 rows — name **21.4 ms**, regnr **15.8 ms** (budget 100 ms) |
+
+**Note on `pnpm check`:** the full workspace gate is red on `type-coverage`
+because of pre-existing frontend F2 work (`frontend/src/app/(public)/tjanster/*`
+sits at 98.6%, both in `HEAD` and in the uncommitted working tree). That is
+outside B3's scope — backend and shared both pass their own `type-coverage` —
+and is left for the F2 owner.
+
+**One design decision worth keeping:** `customerDetailSchema` lives in
+`shared/src/schemas/vehicle.ts`. `customer.ts` importing `vehicle.ts` for the
+vehicle-summary shape would close a cycle between two modules that build Zod
+schemas at load time, and the one evaluated second would touch an
+uninitialised binding. `vehicle.ts` already depends on `customer.ts`, so the
+combined shape is cycle-free only in that direction. Recorded in the root
+decision log.
+
+**Completed on:** 2026-09-09
 
 ---
 

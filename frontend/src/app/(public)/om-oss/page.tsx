@@ -90,7 +90,7 @@ export default function AboutPage() {
                   </span>
                 </div>
                 <h3 className="type-display mt-16 text-2xl font-bold">{value.title}</h3>
-                <p className="mt-4 leading-relaxed text-steel/65">{value.text}</p>
+                <p className="mt-4 leading-relaxed text-steel/70">{value.text}</p>
               </article>
             );
           })}

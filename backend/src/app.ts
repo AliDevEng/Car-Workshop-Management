@@ -15,8 +15,12 @@ import requestIdPlugin, {
 } from './plugins/request-id.js';
 import { registerSecurity } from './plugins/security.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
+import { registerCustomerRoutes } from './modules/customers/routes.js';
 import { registerHealthRoutes } from './modules/health/routes.js';
+import { registerSearchRoutes } from './modules/search/routes.js';
+import { registerSettingsRoutes } from './modules/settings/routes.js';
 import { registerUserRoutes } from './modules/users/routes.js';
+import { registerVehicleRoutes } from './modules/vehicles/routes.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -83,6 +87,10 @@ export async function buildApp(
   registerHealthRoutes(app);
   registerAuthRoutes(app);
   registerUserRoutes(app);
+  registerCustomerRoutes(app);
+  registerVehicleRoutes(app);
+  registerSearchRoutes(app);
+  registerSettingsRoutes(app);
 
   // Derived now, off the request path, rather than on the first login with an
   // unknown email. Computing it lazily would make that one request ~40 ms

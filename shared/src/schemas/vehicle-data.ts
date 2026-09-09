@@ -9,6 +9,10 @@ import {
   shortTextSchema,
   timestampFields,
 } from './primitives.js';
+import {
+  recommendationSeveritySchema,
+  serviceTypeSchema,
+} from './service-rule.js';
 import { modelYearSchema, vinSchema } from './vehicle.js';
 
 /**
@@ -72,6 +76,33 @@ export type VehicleLookupSource = (typeof VEHICLE_LOOKUP_SOURCES)[number];
 export const vehicleLookupSourceSchema = z.enum(VEHICLE_LOOKUP_SOURCES);
 
 /**
+ * A deliberately public projection of a service recommendation. Internal ids,
+ * decision state and vehicle history never belong in the anonymous lookup.
+ * B9 supplies these values later; the default empty list keeps the Phase 3
+ * endpoint backwards-compatible until that integration is activated.
+ */
+export const publicServiceSuggestionSchema = z.object({
+  serviceType: serviceTypeSchema,
+  severity: recommendationSeveritySchema,
+  explanation: shortTextSchema,
+  sourceNote: shortTextSchema,
+});
+export type PublicServiceSuggestion = z.infer<
+  typeof publicServiceSuggestionSchema
+>;
+
+export const VEHICLE_LOOKUP_UNAVAILABLE_REASONS = [
+  'PUBLIC_LIMIT_REACHED',
+  'PROVIDER_UNAVAILABLE',
+] as const;
+export type VehicleLookupUnavailableReason =
+  (typeof VEHICLE_LOOKUP_UNAVAILABLE_REASONS)[number];
+
+export const vehicleLookupUnavailableReasonSchema = z.enum(
+  VEHICLE_LOOKUP_UNAVAILABLE_REASONS,
+);
+
+/**
  * `data` is `null` for both "no such registration number" and "we could not
  * ask" — the two are distinguished by `source`, so the UI can say *"vi hittade
  * ingen bil"* in one case and *"uppgifterna är tillfälligt otillgängliga"* in
@@ -81,6 +112,8 @@ export const vehicleLookupResponseSchema = z.object({
   registrationNumber: normalisedRegistrationNumberSchema,
   data: vehicleDataResultSchema.nullable(),
   source: vehicleLookupSourceSchema,
+  unavailableReason: vehicleLookupUnavailableReasonSchema.nullable().default(null),
   fetchedAt: isoDateTimeSchema.nullable(),
+  suggestedServices: z.array(publicServiceSuggestionSchema).max(10).default([]),
 });
 export type VehicleLookupResponse = z.infer<typeof vehicleLookupResponseSchema>;

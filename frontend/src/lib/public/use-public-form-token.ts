@@ -1,44 +1,56 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { formTokenResponseSchema } from 'shared';
-import { apiFetch } from '@/lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type TokenState =
+  | { readonly status: 'idle'; readonly token: null }
   | { readonly status: 'loading'; readonly token: null }
   | { readonly status: 'ready'; readonly token: string }
   | { readonly status: 'error'; readonly token: null };
 
-export function usePublicFormToken() {
+interface PublicFormTokenOptions {
+  readonly eager?: boolean;
+}
+
+export function usePublicFormToken({ eager = true }: PublicFormTokenOptions = {}) {
   const [state, setState] = useState<TokenState>({
-    status: 'loading',
+    status: eager ? 'loading' : 'idle',
     token: null,
   });
+  const tokenPromise = useRef<Promise<string> | null>(null);
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadToken() {
-      try {
+  const getToken = useCallback(async (): Promise<string> => {
+    if (tokenPromise.current === null) {
+      tokenPromise.current = (async () => {
+        const [{ formTokenResponseSchema }, { apiFetch }] = await Promise.all([
+          import('shared'),
+          import('@/lib/api'),
+        ]);
         const response = await apiFetch(
           '/public/booking-form-token',
           formTokenResponseSchema,
         );
-        if (active) {
-          setState({ status: 'ready', token: response.token });
-        }
-      } catch {
-        if (active) {
-          setState({ status: 'error', token: null });
-        }
-      }
+        return response.token;
+      })();
     }
 
-    void loadToken();
-    return () => {
-      active = false;
-    };
+    setState({ status: 'loading', token: null });
+    try {
+      const token = await tokenPromise.current;
+      setState({ status: 'ready', token });
+      return token;
+    } catch (error) {
+      tokenPromise.current = null;
+      setState({ status: 'error', token: null });
+      throw error;
+    }
   }, []);
 
-  return state;
+  useEffect(() => {
+    if (eager) {
+      void getToken().catch(() => undefined);
+    }
+  }, [eager, getToken]);
+
+  return { ...state, getToken } as const;
 }

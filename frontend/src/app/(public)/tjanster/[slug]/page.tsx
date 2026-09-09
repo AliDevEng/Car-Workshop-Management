@@ -97,18 +97,18 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
               <div className="flex gap-4 border-b border-steel/15 pb-6">
                 <ReceiptText aria-hidden="true" className="size-6 text-signal" />
                 <div>
-                  <p className="text-sm text-steel/60">Vägledande pris</p>
+                  <p className="text-sm text-steel/70">Vägledande pris</p>
                   <p className="type-display mt-1 text-2xl font-bold tabular-nums">{service.fromPrice}</p>
                 </div>
               </div>
               <div className="flex gap-4 py-6">
                 <Clock3 aria-hidden="true" className="size-6 text-signal" />
                 <div>
-                  <p className="text-sm text-steel/60">Normal tidsåtgång</p>
+                  <p className="text-sm text-steel/70">Normal tidsåtgång</p>
                   <p className="mt-1 font-sans font-semibold tabular-nums">{service.duration}</p>
                 </div>
               </div>
-              <p className="mb-6 text-sm leading-relaxed text-steel/65">
+              <p className="mb-6 text-sm leading-relaxed text-steel/70">
                 Slutpriset beror på bilmodell och vad kontrollen visar. Vi stämmer alltid av innan vi gör mer.
               </p>
               <Link href={`/boka?tjanst=${service.slug}`} className="site-button site-button-primary w-full">

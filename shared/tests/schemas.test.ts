@@ -312,6 +312,45 @@ describe('service rules (§7.3)', () => {
   });
 });
 
+describe('public vehicle lookup suggestions (§6.1)', () => {
+  it('keeps the public projection useful without leaking internal fields', () => {
+    const result = vehicleDataSchemas.vehicleLookupResponseSchema.parse({
+      registrationNumber: 'ABC123',
+      data: null,
+      source: 'PROVIDER',
+      fetchedAt: '2026-09-09T08:00:00.000Z',
+      ownerName: 'Must not leave the API boundary',
+      suggestedServices: [
+        {
+          serviceType: 'BRAKE_FLUID',
+          severity: 'DUE_SOON',
+          explanation: 'Bromsvätskan närmar sig bytesintervallet.',
+          sourceNote: 'Volvo serviceschema 2022',
+          vehicleId: 'internal-id',
+        },
+      ],
+    });
+
+    expect(result.unavailableReason).toBeNull();
+    expect(result.suggestedServices).toHaveLength(1);
+    expect(result).not.toHaveProperty('ownerName');
+    expect(result.suggestedServices[0]).not.toHaveProperty('vehicleId');
+  });
+
+  it('distinguishes a spent public budget from provider downtime', () => {
+    const result = vehicleDataSchemas.vehicleLookupResponseSchema.parse({
+      registrationNumber: 'ABC123',
+      data: null,
+      source: 'UNAVAILABLE',
+      unavailableReason: 'PUBLIC_LIMIT_REACHED',
+      fetchedAt: null,
+    });
+
+    expect(result.unavailableReason).toBe('PUBLIC_LIMIT_REACHED');
+    expect(result.suggestedServices).toEqual([]);
+  });
+});
+
 describe('partner links (§7.2)', () => {
   it('requires https and at least one placeholder', () => {
     const schema = partnerLinkSchemas.partnerLinkUrlTemplateSchema;
@@ -363,6 +402,39 @@ describe('opening hours (§3.6)', () => {
     expect(settingsSchemas.openingHoursSchema.safeParse([]).success).toBe(
       false,
     );
+  });
+});
+
+describe('customer detail (B3.1.3)', () => {
+  it('composes a customer with the vehicles they own', () => {
+    // Declared in vehicle.ts rather than customer.ts to keep the two schema
+    // modules from importing each other at load time; this asserts the
+    // composite is still reachable and shaped right.
+    const parsed = vehicleSchemas.customerDetailSchema.safeParse({
+      id: 'c1',
+      type: 'PRIVATE',
+      name: 'Test Kund',
+      orgNumber: null,
+      email: null,
+      phone: '070-000 00 00',
+      phoneNormalised: '+46700000000',
+      address: null,
+      notes: null,
+      anonymisedAt: null,
+      isActive: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      vehicles: [
+        {
+          id: 'v1',
+          registrationNumber: 'ABC12D',
+          registrationNumberDisplay: 'ABC 12D',
+          make: 'Volvo',
+          model: 'V70',
+        },
+      ],
+    });
+    expect(parsed.success).toBe(true);
   });
 });
 

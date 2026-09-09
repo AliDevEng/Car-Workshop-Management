@@ -16,7 +16,7 @@ export default function ServicesPage() {
     <main id="main-content">
       <header className="page-hero">
         <div className="site-container">
-          <p className="hero-kicker text-steel/65 before:bg-signal">Tjänster</p>
+          <p className="hero-kicker text-steel/70 before:bg-signal">Tjänster</p>
           <h1 className="page-title max-w-5xl">Allt bilen behöver. Inget den inte behöver.</h1>
           <p className="page-lead">
             Vi kombinerar modern diagnos med mekaniskt hantverk. Priserna är

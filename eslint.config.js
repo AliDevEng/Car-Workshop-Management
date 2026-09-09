@@ -28,6 +28,9 @@ export default tseslint.config(
       'backend/prisma/migrations/**',
       'frontend/next-env.d.ts',
       'infra/**',
+      // Scratch space — Lighthouse's downloaded Chrome, review artefacts. Also
+      // git-ignored; nothing here is repository source.
+      'tmp/**',
     ],
   },
   js.configs.recommended,

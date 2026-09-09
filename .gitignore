@@ -92,6 +92,11 @@ yarn-error.log*
 .cache/
 .turbo/
 
+# --------------------------------------------------------------- scratch space
+# Lighthouse downloads a Chrome here for F2.6's budget check; review artefacts
+# land here too. Never repository source.
+/tmp/
+
 # ------------------------------------------------------- editors and machines
 .vscode/*
 !.vscode/extensions.json
