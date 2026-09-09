@@ -56,6 +56,7 @@ model User {
   sessions         Session[]
   auditLogs        AuditLog[]
   odometerReadings OdometerReading[]
+  stockMovements   StockMovement[]
 
   @@index([isActive])
 }
@@ -243,4 +244,100 @@ model Setting {
   valueJson       Json
   updatedByUserId String?
   updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+}
+
+// ---------------------------------------------------------------------------
+// B4 — the article catalogue and the stock ledger (PROJECT_SPEC.md §4.2,
+// §6.4). The ledger is the truth and `Article.stockQuantity` is a cache: every
+// movement writes a ledger row and updates the cache in one transaction, with
+// the article row locked (`SELECT ... FOR UPDATE`). A nightly job re-derives
+// the balance from the ledger and logs any drift.
+// ---------------------------------------------------------------------------
+
+enum Unit {
+  PIECE
+  LITRE
+  HOUR
+  KIT
+}
+
+enum StockMovementType {
+  PURCHASE
+  CONSUMPTION
+  ADJUSTMENT
+  STOCKTAKE
+  RETURN
+}
+
+/// A stocked part, consumable or labour rate. Prices are integer öre (§3.2) —
+/// never a float, never a Decimal. Quantities are `Decimal(12, 3)` (§3.4). A
+/// work-order line snapshots this row's name, price, unit and VAT when it is
+/// added (§4.2, B6); it never joins back to the live article for display.
+model Article {
+  id               String   @id @default(uuid(7))
+  sku              String   @unique
+  name             String
+  description      String?
+  unit             Unit
+  /// Excluding VAT (§3.3), in integer öre (§3.2).
+  salesPriceOre    Int
+  purchasePriceOre Int?
+  /// VAT rate in basis points; `2500` is 25 % (§3.3). Stored per row so a
+  /// future rate change does not rewrite history.
+  vatRateBps       Int      @default(2500)
+  /// A **cache** of the ledger, not the truth. `StockMovement` is the record;
+  /// this column exists so reading a balance is one cheap column read (§4.2),
+  /// and it is only ever written inside the same transaction as a movement.
+  stockQuantity    Decimal  @default(0) @db.Decimal(12, 3)
+  minimumQuantity  Decimal  @default(0) @db.Decimal(12, 3)
+  /// Shelf location.
+  location         String?
+  /// OE numbers as printed on the part — what makes the partner-link buttons
+  /// useful (§7.2). Uppercased and stripped of spaces by the service.
+  oeNumbers        String[]
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  movements StockMovement[]
+
+  @@index([isActive])
+  /// The global search (§6.3, B4.6) and the article list `?q=` (B4.1.2) match
+  /// SKU and name with `ILIKE '%q%'`, which the trigram operator class
+  /// accelerates — the arrangement B3 uses for customers and vehicles.
+  @@index([sku(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  /// `?q=` also matches an OE number exactly; a GIN index serves the array
+  /// containment lookup.
+  @@index([oeNumbers], type: Gin)
+}
+
+/// One entry in the stock ledger (§4.2, §6.4). Append-only — a correction is a
+/// new movement, never an edit. `quantity` is signed: a consumption is
+/// negative, a purchase positive, and the running sum of the column is the
+/// balance, so there is no separate direction flag that could disagree with
+/// the sign.
+model StockMovement {
+  id           String            @id @default(uuid(7))
+  articleId    String
+  article      Article           @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  type         StockMovementType
+  quantity     Decimal           @db.Decimal(12, 3)
+  /// The cached balance immediately after this movement, so the chain can be
+  /// audited without replaying it from the beginning.
+  balanceAfter Decimal           @db.Decimal(12, 3)
+  /// Set when the movement came from a work order (B6). No relation yet —
+  /// `WorkOrder` does not exist until B6, mirroring `OdometerReading`.
+  workOrderId  String?
+  /// Who recorded it. Required by §4.2; users are deactivated rather than
+  /// deleted (§4.3), so `Restrict` never actually fires.
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  note         String?
+  occurredAt   DateTime          @db.Timestamptz(3)
+  createdAt    DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(3)
+
+  /// §8.2: the per-article movement list reads this newest-first.
+  @@index([articleId, occurredAt])
 }

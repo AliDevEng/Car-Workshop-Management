@@ -37,13 +37,13 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 15/83 milestones complete; 2/13 iterations Done.**
+**Overall: 17/83 milestones complete; 2/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
 | [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 7/7             | Done        |
 | [F1](#f1)   | Design system                             | 1     | F0                                 | 6/6             | Done        |
-| [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 2/6             | In progress |
+| [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 4/6             | Blocked     |
 | [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 0/6             | Not started |
 | [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 0/6             | Not started |
 | [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 0/6             | Not started |
@@ -981,14 +981,14 @@ Build B5.2 before the shared form-token hook in F2.2. Workshop-settings reads
 must be available for opening hours; coordinate the API contract with backend
 work. Service advice is activated later in F11.6.
 
-**Milestone checklist — 2/6 complete:**
+**Milestone checklist — 4/6 complete:**
 
 - [x] **[F2.1](#f2-1)** — Public layout
 - [ ] **[F2.2](#f2-2)** ? — Start page and hero
 - [x] **[F2.3](#f2-3)** — Services pages
 - [ ] **[F2.4](#f2-4)** ? — About and contact
-- [ ] **[F2.5](#f2-5)** ? — SEO and metadata
-- [ ] **[F2.6](#f2-6)** ? — Public performance
+- [x] **[F2.5](#f2-5)** — SEO and metadata
+- [x] **[F2.6](#f2-6)** — Public performance
 
 <a id="f2-1"></a>
 
@@ -1022,7 +1022,7 @@ fallback.
       must not depend on an unbuilt F3 form.
 - [x] **F2.2.4** Result panel: make, model, model year, last inspection, next
       inspection due
-- [ ] **F2.2.5** The panel reserves a section for suggested services, rendered
+- [x] **F2.2.5** The panel reserves a section for suggested services, rendered
       only when the API returns them. **That data arrives in Phase 6 with B9** —
       build the layout for it now so adding it later is not a redesign
 - [x] **F2.2.6** The one orchestrated motion moment — the panel revealing,
@@ -1035,7 +1035,7 @@ fallback.
       booking form)
 - [x] **F2.2.9** Below the hero: three services, opening hours, address with a
       map link
-- [ ] **F2.2.10** Verify cached results, public daily-limit fallback and a
+- [x] **F2.2.10** Verify cached results, public daily-limit fallback and a
       provider failure with fixtures; booking remains reachable when lookup
       fails.
 
@@ -1064,7 +1064,7 @@ Swedish.
 
 - [ ] **F2.4.1** `/om-oss` — the workshop, the two owners, real photographs
 - [x] **F2.4.2** `/kontakt` — address, map, opening hours, phone, email
-- [ ] **F2.4.3** Opening hours read from the API so they are edited in one place
+- [x] **F2.4.3** Opening hours read from the API so they are edited in one place
 - [x] **F2.4.4** `/integritetspolicy` — what is collected, why, how long, and
       the contact route for erasure
 
@@ -1079,7 +1079,7 @@ Swedish.
 - [x] **F2.5.3** `sitemap.ts` and `robots.ts`
 - [x] **F2.5.4** Open Graph image
 - [x] **F2.5.5** One `<h1>` per page and a correct heading hierarchy
-- [ ] **F2.5.6** Confirm public pages remain indexable and staff routes are
+- [x] **F2.5.6** Confirm public pages remain indexable and staff routes are
       excluded from the sitemap and indexing.
 
 <a id="f2-6"></a>
@@ -1088,13 +1088,32 @@ Swedish.
 
 **Acceptance:** Production public pages meet the recorded Lighthouse budget.
 
-- [ ] **F2.6.1** All public pages server-rendered; client JavaScript only in the
+- [x] **F2.6.1** All public pages server-rendered; client JavaScript only in the
       hero and the booking form
 - [x] **F2.6.2** Images via `next/image`, correct sizes, explicit dimensions to
       prevent layout shift
-- [ ] **F2.6.3** Lighthouse budget met and recorded here
-- [ ] **F2.6.4** Record the measured URL, production build, device profile and
+- [x] **F2.6.3** Lighthouse budget met and recorded here
+- [x] **F2.6.4** Record the measured URL, production build, device profile and
       report location for each Lighthouse run.
+
+Lighthouse 13.4.1 was run on 2026-09-09 against `next build` + `next start`
+with its mobile profile and simulated throttling. Scores are
+performance/accessibility/SEO; reports live in
+`frontend/reports/lighthouse/2026-09-09-production/`.
+
+| URL | Score | Report |
+| --- | --- | --- |
+| `/` | 95/100/100 | `home.html` |
+| `/tjanster` | 97/100/100 | `services.html` |
+| `/tjanster/bilservice` | 98/100/100 | `service-bilservice.html` |
+| `/tjanster/felsokning` | 98/100/100 | `service-felsokning.html` |
+| `/tjanster/bromsar` | 98/100/100 | `service-bromsar.html` |
+| `/tjanster/dack-hjulinstallning` | 97/100/100 | `service-dack-hjulinstallning.html` |
+| `/tjanster/ac-klimat` | 98/100/100 | `service-ac-klimat.html` |
+| `/tjanster/motor-vaxellada` | 98/100/100 | `service-motor-vaxellada.html` |
+| `/om-oss` | 96/96/100 | `about.html` |
+| `/kontakt` | 98/100/100 | `contact.html` |
+| `/integritetspolicy` | 98/100/100 | `privacy.html` |
 
 **Iteration acceptance record**
 
@@ -1103,8 +1122,8 @@ Swedish.
 
 | Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Current milestone / blocker | In progress. Public layout and typed service pages are complete. The start page, lookup/result states, about, contact, privacy, metadata and crawl files are implemented. Live completion remains blocked by backend B3.5/B5.2/B10.1–B10.4: the workshop/settings read, form-token issuer and vehicle-lookup endpoint do not exist yet. F2.4.1 also awaits real photographs of the two owners. Remaining acceptance work: suggested-service result layout, API-fixture journeys, staff no-index confirmation, the public-JavaScript budget decision, and recorded throttled-mobile Lighthouse runs. |
-| Verification evidence       | 2026-09-08. `pnpm --filter frontend typecheck` passed. `pnpm lint` passed with zero warnings. `pnpm --filter frontend test` passed — 89 tests. `pnpm --filter frontend build` passed. A fresh Turbopack development server returned HTTP 200 for `/`, `/tjanster` and `/om-oss`; the direct public stylesheet import fixed the development-only CSS resolution failure.                                                                                                                                                |
+| Current milestone / blocker | Blocked at 4/6. Every frontend-owned implementation, fixture journey, crawl check and performance check is complete. F2.2 remains blocked until B5.2 and B10.1–B10.4 provide the live form-token and vehicle-lookup endpoints. F2.4 awaits real photographs of the two owners; the workshop/opening-hours API from B3.5 is now connected. |
+| Verification evidence       | 2026-09-09. `pnpm --filter frontend typecheck` passed. `pnpm --filter frontend test` passed — 89 tests. `pnpm --filter frontend test:e2e -- --reporter=line` passed — 39 browser tests. `pnpm --filter frontend build` passed. Eleven Lighthouse 13.4.1 mobile/simulated-throttling reports passed the 95 performance/accessibility/SEO budget; scores and report paths are recorded above. |
 | Completed on                | —                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ---

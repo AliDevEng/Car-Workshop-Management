@@ -14,6 +14,7 @@ import requestIdPlugin, {
   requestIdServerOptions,
 } from './plugins/request-id.js';
 import { registerSecurity } from './plugins/security.js';
+import { registerArticleRoutes } from './modules/articles/routes.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerCustomerRoutes } from './modules/customers/routes.js';
 import { registerHealthRoutes } from './modules/health/routes.js';
@@ -89,6 +90,7 @@ export async function buildApp(
   registerUserRoutes(app);
   registerCustomerRoutes(app);
   registerVehicleRoutes(app);
+  registerArticleRoutes(app);
   registerSearchRoutes(app);
   registerSettingsRoutes(app);
 

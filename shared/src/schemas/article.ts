@@ -121,3 +121,15 @@ export const lowStockArticleSchema = articleSummarySchema.extend({
   location: shortTextSchema.nullable(),
 });
 export type LowStockArticle = z.infer<typeof lowStockArticleSchema>;
+
+/**
+ * `GET /api/articles/low-stock` — a focused report ordered by how far below
+ * minimum each article is (F7.5.1), not a cursor list, so no `nextCursor`.
+ */
+export const lowStockReportSchema = z.object({
+  data: z.array(lowStockArticleSchema),
+});
+export type LowStockReport = z.infer<typeof lowStockReportSchema>;
+
+export const articleIdParamsSchema = z.object({ id: idSchema });
+export type ArticleIdParams = z.infer<typeof articleIdParamsSchema>;

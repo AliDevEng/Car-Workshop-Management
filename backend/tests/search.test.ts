@@ -11,11 +11,21 @@ import { jsonBody } from './helpers/http.js';
 import { loginAs, withAgent, type Agent } from './helpers/auth.js';
 
 /**
- * B3.4 — the one search box in the top bar (PROJECT_SPEC.md §6.3).
+ * B3.4 / B4.6 — the one search box in the top bar (PROJECT_SPEC.md §6.3).
  *
- * Customers and vehicles now; articles join in B4.6. Each category is capped
- * so one crowded kind cannot fill the list.
+ * Customers, vehicles and articles. Each category is capped so one crowded
+ * kind cannot fill the list.
  */
+
+async function createArticle(
+  harness: TestApp,
+  agent: Agent,
+  body: Record<string, unknown>,
+): Promise<void> {
+  await withAgent(supertest(harness.app.server).post('/api/articles'), agent)
+    .send(body)
+    .expect(201);
+}
 
 async function createCustomer(
   harness: TestApp,
@@ -48,6 +58,7 @@ describe('global search', () => {
   beforeAll(async () => {
     harness = await createTestApp();
     agent = await loginAs(harness);
+    const admin = await loginAs(harness, { role: 'ADMIN' });
 
     const owner = await createCustomer(harness, agent, {
       type: 'PRIVATE',
@@ -64,6 +75,13 @@ describe('global search', () => {
       registrationNumber: 'ORP999',
       make: 'Volvo',
       model: 'XC90',
+    });
+    await createArticle(harness, admin, {
+      sku: 'SEARCH-OLJA-1',
+      name: 'Motorolja Volvo Long Life',
+      unit: 'LITRE',
+      salesPriceOre: 12_900,
+      oeNumbers: ['31414412'],
     });
   });
 
@@ -117,12 +135,31 @@ describe('global search', () => {
       });
     }
     const results = await search('Sökbar Person');
-    expect(
-      results.filter((hit) => hit.type === 'CUSTOMER'),
-    ).toHaveLength(SEARCH_RESULTS_PER_CATEGORY);
+    expect(results.filter((hit) => hit.type === 'CUSTOMER')).toHaveLength(
+      SEARCH_RESULTS_PER_CATEGORY,
+    );
   });
 
   it('returns nothing for a query that is only wildcards', async () => {
     expect(await search('%%%')).toEqual([]);
+  });
+
+  it('finds an article by name (B4.6.1)', async () => {
+    const results = await search('long life');
+    const article = results.find((hit) => hit.type === 'ARTICLE');
+    expect(article?.type).toBe('ARTICLE');
+    if (article?.type === 'ARTICLE') {
+      expect(article.sku).toBe('SEARCH-OLJA-1');
+      expect(article.unit).toBe('LITRE');
+    }
+  });
+
+  it('finds an article by OE number', async () => {
+    const results = await search('31414412');
+    expect(
+      results.some(
+        (hit) => hit.type === 'ARTICLE' && hit.sku === 'SEARCH-OLJA-1',
+      ),
+    ).toBe(true);
   });
 });

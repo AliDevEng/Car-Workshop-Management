@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 28/92 milestones complete; 3/14 iterations Done.**
+**Overall: 34/92 milestones complete; 4/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -41,7 +41,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [2](#b1)   | B1        | 0       | 6/6             | Done        |
 | [3](#b2)   | B2        | 1       | 7/7             | Done        |
 | [4](#b3)   | B3        | 1       | 6/6             | Done        |
-| [5](#b4)   | B4        | 2       | 0/6             | Not started |
+| [5](#b4)   | B4        | 2       | 6/6             | Done        |
 | [6](#b5)   | B5        | 3       | 0/6             | Not started |
 | [7](#b6)   | B6        | 4       | 0/8             | Not started |
 | [8](#b7)   | B7        | 5       | 0/6             | Not started |
@@ -67,6 +67,14 @@ history, the global search box and the read-only settings surface are built,
 audited where §4.2 requires it, and covered by six route-test files plus an
 opt-in search benchmark. The core register the rest of the system hangs off is
 in place.
+
+**Iteration 5 (B4) is Done as of 2026-09-09.** The article catalogue, the
+append-only stock ledger with its `SELECT … FOR UPDATE` chokepoint, stocktake
+and manual adjustments, the low-stock report and its BOM'd CSV, and article
+results in the global search are all built and audited. The 50-parallel
+consumption acceptance test was written first and passes; the cached balance
+tracks the ledger sum exactly. Phase 2's backend half is complete; F7 delivers
+the UI.
 
 ## Package review
 
@@ -1354,19 +1362,31 @@ decision log.
 
 ## Iteration 5: Creating inventory and stock tracking
 
-- [ ] Creating the article catalogue (`B4.1`)
-- [ ] Recording stock movements (`B4.2`)
-- [ ] Testing concurrent stock changes (`B4.3`)
-- [ ] Creating stocktake operations (`B4.4`)
-- [ ] Creating low-stock reports and CSV exports (`B4.5`)
-- [ ] Connecting inventory to the admin panel (`B4.6`)
+- [x] Creating the article catalogue (`B4.1`)
+- [x] Recording stock movements (`B4.2`)
+- [x] Testing concurrent stock changes (`B4.3`)
+- [x] Creating stocktake operations (`B4.4`)
+- [x] Creating low-stock reports and CSV exports (`B4.5`)
+- [x] Connecting inventory to the admin panel (`B4.6`)
 
-**Reference:** B4 · **Phase:** 2 · **Progress:** 0/6 · **Status:** Not started
+**Reference:** B4 · **Phase:** 2 · **Progress:** 6/6 · **Status:** Done
 
 **Depends on:** B2; B3.4 for article search.
 
 Write the stock-concurrency acceptance test before implementing ledger
 mutations. B2.7 provides the required audit helper.
+
+The whole article-write surface is `ADMIN` except `PATCH` and
+deactivate/reactivate: §5.3 puts "price changes on articles" and "stock
+adjustments other than consumption" behind `ADMIN`, so creating an article
+(which sets a price), stocktake and stock adjustments are `ADMIN` routes,
+while a `PATCH` is `authenticated` and the service refuses a change to
+`salesPriceOre`/`purchasePriceOre`/`vatRateBps` from a non-admin — which is
+what backs F7.2.4's disabled-not-hidden price fields with real API
+authorisation. `recordMovement` is the single chokepoint for stock: it locks
+the article row, reads the balance, writes the ledger row and updates the
+cache, and it runs **inside the caller's transaction** so B6 can deduct
+several lines and write one audit row atomically.
 
 **Goal:** full article CRUD and a stock ledger that cannot silently drift.
 
@@ -1381,73 +1401,126 @@ the iteration and it must be written before the implementation.
 
 ### B4.1 Article model and CRUD
 
-- [ ] **B4.1.1** Prisma `Article` with unique `sku`, `unit` enum,
-      `oeNumbers String[]`
-- [ ] **B4.1.2** `GET /api/articles` with `?q=`, `?lowStock=`, `?isActive=` and
-      pagination
-- [ ] **B4.1.3** `POST`, `PATCH`, deactivate. Price changes are `ADMIN`-only and
-      audited
-- [ ] **B4.1.4** `salesPriceOre` validated as a non-negative integer — reject
-      `199.50` explicitly, with a Swedish message explaining öre
+- [x] **B4.1.1** Prisma `Article` with unique `sku`, `unit` enum,
+      `oeNumbers String[]`. `salesPriceOre`/`purchasePriceOre` are `Int` öre;
+      `stockQuantity`/`minimumQuantity` are `Decimal(12, 3)`. GIN trigram
+      indexes on `sku` and `name`, and a GIN index on `oeNumbers` for the
+      exact-match `?q=` lookup (extends B3's search-index pattern; §8.2 lists
+      its indexes "at minimum").
+- [x] **B4.1.2** `GET /api/articles` with `?q=` (SKU, name, exact OE number),
+      `?lowStock=` (a Prisma field reference `stockQuantity < minimumQuantity`,
+      not raw SQL), `?isActive=` and cursor pagination on `id DESC`.
+- [x] **B4.1.3** `POST` (`ADMIN`), `PATCH` (`authenticated`, price fields
+      guarded), deactivate/reactivate (`authenticated`). Every mutation is
+      audited; a price/VAT change is recorded as `article.price_changed`.
+- [x] **B4.1.4** `salesPriceOre` validated by `nonNegativeOreSchema` — `199.50`
+      is rejected 400 with "Beloppet måste anges i hela ören, utan decimaler."
 
 <a id="b4-2"></a>
 
 ### B4.2 Stock ledger
 
-- [ ] **B4.2.1** Prisma `StockMovement` with `type`, signed `quantity`,
-      `balanceAfter`
-- [ ] **B4.2.2** `recordMovement` running in a transaction with
-      `SELECT ... FOR UPDATE` on the article row, writing the movement and
-      updating the cached balance
-- [ ] **B4.2.3** Negative resulting balances allowed, returning a warning, never
-      blocking
-- [ ] **B4.2.4** `GET /api/articles/:id/movements`, newest first, paginated
+- [x] **B4.2.1** Prisma `StockMovement` — `type`, signed `quantity`,
+      `balanceAfter`, `occurredAt`, `userId` (required), `workOrderId?` (a bare
+      column until B6). `@@index([articleId, occurredAt])` per §8.2.
+- [x] **B4.2.2** `recordMovement(tx, …)` locks the article row
+      (`SELECT … FOR UPDATE`, raw — the one statement outside §5.4's allowances,
+      anticipated by the decision log), reads the balance, writes the movement
+      with `balanceAfter`, and updates the cache — all in the caller's
+      transaction. A `target` amount (stocktake) resolves to a delta inside the
+      lock.
+- [x] **B4.2.3** A negative resulting balance is stored with a Swedish warning
+      and never blocked (§6.4). A resulting balance outside `Decimal(12, 3)` is
+      a `400`, not a `RangeError` → `500`.
+- [x] **B4.2.4** `GET /api/articles/:id/movements` — `stockMovementWithUser`
+      rows (who/when/why), newest-entered first, cursor on `id DESC` (the
+      odometer rule: `occurredAt` is backdatable, not a cursor key), `?type=`
+      filter.
 
 <a id="b4-3"></a>
 
 ### B4.3 Concurrency test
 
-- [ ] **B4.3.1** The 50-parallel-consumption test from the Definition of Done
-- [ ] **B4.3.2** A test proving a failure mid-transaction leaves no partial
-      movement
+- [x] **B4.3.1** `tests/stock-ledger.test.ts` — 50 parallel consumptions of one
+      article. Final cache = ledger sum = 50, and all 50 `balanceAfter` values
+      are distinct (50…99), which is what proves the lock serialised the
+      read-modify-write rather than letting it interleave. Fails without the
+      `FOR UPDATE`.
+- [x] **B4.3.2** Two tests: a resulting-balance overflow rolls back with
+      nothing written, and a caller that throws **after** `recordMovement`
+      returns has the completed movement and the cache change both rolled back
+      with the transaction — the B6 completion shape.
 
 <a id="b4-4"></a>
 
 ### B4.4 Stocktake
 
-- [ ] **B4.4.1** `POST /api/articles/:id/stocktake` with the counted quantity
-- [ ] **B4.4.2** Writes a `STOCKTAKE` movement for the difference and returns
-      the delta
-- [ ] **B4.4.3** `ADMIN`-only, audited
+- [x] **B4.4.1** `POST /api/articles/:id/stocktake` — `stocktakeInputSchema`
+      (counted quantity, optional note).
+- [x] **B4.4.2** Writes a `STOCKTAKE` movement for `counted − balanceBefore`
+      and returns `{ movement, differenceQuantity, balanceAfter }`.
+- [x] **B4.4.3** `{ role: 'ADMIN' }`; a `stock.stocktake` audit row carries the
+      before/after balance and the difference.
 
 <a id="b4-5"></a>
 
 ### B4.5 Low-stock reporting
 
-- [ ] **B4.5.1** `GET /api/articles/low-stock` comparing balance to
-      `minimumQuantity`
-- [ ] **B4.5.2** CSV export with a UTF-8 BOM so Excel opens å, ä and ö correctly
-- [ ] **B4.5.3** Test asserting the BOM is present
+- [x] **B4.5.1** `GET /api/articles/low-stock` — active articles with
+      `stockQuantity < minimumQuantity`, ordered by deficit (F7.5.1); returns
+      `lowStockReportSchema` (`{ data }`, no cursor — a focused report).
+- [x] **B4.5.2** `GET /api/articles/low-stock/export` streams `text/csv;
+      charset=utf-8` with a leading UTF-8 BOM, `;` separator (Swedish Excel)
+      and decimal-comma quantities. Serialisation is a pure
+      `toLowStockCsv` so it is unit-tested without HTTP.
+- [x] **B4.5.3** `low-stock-csv.test.ts` asserts `charCodeAt(0) === 0xFEFF`,
+      the CRLF rows, the field quoting and the escaping; a route test asserts
+      the BOM on the wire.
 
 <a id="b4-6"></a>
 
 ### B4.6 Connecting inventory to the admin panel
 
-- [ ] **B4.6.1** Activate article results in global search and verify the shared
-      discriminated result union.
-- [ ] **B4.6.2** Verify every article response maps Decimal quantities to
-      strings and prices to integer ore.
-- [ ] **B4.6.3** Test role restrictions and audit records for price changes,
-      stocktake and stock adjustments.
-- [ ] **B4.6.4** Record the concurrency, rollback and low-stock export evidence
-      required by F7.
+- [x] **B4.6.1** `search/service.ts` gains `searchArticles` (active articles,
+      SKU/name/OE, capped); `search.test.ts` asserts an `ARTICLE` hit by name
+      and by OE number against the shared discriminated union.
+- [x] **B4.6.2** `toDecimalString` in the repository maps every `Decimal` to a
+      string; `articles.test.ts` asserts `minimumQuantity` serialises as
+      `"4.25"`, `salesPriceOre` stays an integer, and no `[object Object]`
+      escapes.
+- [x] **B4.6.3** `articles.test.ts` / `stock-movements.test.ts`: a MECHANIC is
+      403 on create, on a price `PATCH`, on stocktake and on an adjustment; the
+      `article.price_changed`, `stock.adjusted` and `stock.stocktake` audit
+      rows are asserted.
+- [x] **B4.6.4** Evidence recorded in the Verification block below and in F7's
+      entry dependencies.
 
 </details>
 
-- [ ] **Iteration 5 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 5 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-09, on Node 22.21.1, pnpm 12.3.4, PostgreSQL 16
+(Docker), Windows 11. B4's Definition of Done — *"50 concurrent consumptions of
+the same article leave the cached balance exactly equal to the ledger sum"* —
+is `tests/stock-ledger.test.ts`, written before the ledger mutations.
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter backend typecheck` | Clean |
+| `pnpm --filter shared typecheck` | Clean |
+| `pnpm lint` | Clean (0 warnings) |
+| `pnpm --filter backend test` | 258 passed, 1 skipped (benchmark) across 28 files — +49 over B3 |
+| `pnpm --filter shared test` | 223 passed |
+| `pnpm --filter backend test:coverage` | 95.3% statements / lines (floor 80%); `modules/articles` 97.5% |
+| `pnpm type-coverage` | 99.53% (threshold 99.5) |
+| `pnpm --filter backend exec prisma migrate dev` | `20260909102804_b4_articles_stock_ledger` applied; `pg_trgm`/`btree_gist` intact |
+| `prisma migrate diff --from-migrations … --to-schema …` | No difference detected |
+| `pnpm --filter backend exec prisma db seed` | Staff, settings, 3 customers, 4 vehicles, 5 articles; ledger sum = cache for every seeded article; idempotent on a second run |
+| 50-parallel consumption (`stock-ledger.test.ts`) | final cache 50 = ledger sum 50; 50 distinct `balanceAfter` values; stable over 3 runs |
+| Rollback (`stock-ledger.test.ts`) | a movement written by `recordMovement` and a caller `throw` after it: both rolled back, ledger untouched |
+| Low-stock CSV | BOM `0xFEFF` on the wire, `text/csv; charset=utf-8`, Swedish characters and decimal commas readable |
+
+**Completed on:** 2026-09-09
 
 ---
 

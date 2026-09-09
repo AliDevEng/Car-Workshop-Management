@@ -22,7 +22,7 @@ import localFont from 'next/font/local';
  * punctuation (F0.3.1). Archivo keeps its `wght` and `wdth` axes. Source
  * Serif keeps `wght`; its optical-size axis is pinned to the body-text
  * master before subsetting, avoiding a large unused axis on the critical
- * rendering path.
+ * rendering path. Both retain kerning and standard ligatures.
  *
  * **`weight` is a range, and it is not optional.** An omitted `font-weight`
  * descriptor defaults to the single value `400`, which makes the browser

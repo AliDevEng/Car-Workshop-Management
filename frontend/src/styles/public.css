@@ -264,6 +264,22 @@
     font-weight: 700;
   }
 
+  .lookup-spinner {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    animation: spin 0.8s linear infinite;
+    border: 2px solid rgb(28 43 51 / 25%);
+    border-top-color: var(--color-signal);
+    border-radius: 9999px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lookup-spinner {
+      animation: none;
+    }
+  }
+
   .lookup-control {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;

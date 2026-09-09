@@ -34,6 +34,9 @@ export function usePublicFormToken({ eager = true }: PublicFormTokenOptions = {}
       })();
     }
 
+    // Keep eager loading asynchronous when this callback is started by the
+    // effect below; React effects must not synchronously cascade state.
+    await Promise.resolve();
     setState({ status: 'loading', token: null });
     try {
       const token = await tokenPromise.current;
@@ -47,9 +50,15 @@ export function usePublicFormToken({ eager = true }: PublicFormTokenOptions = {}
   }, []);
 
   useEffect(() => {
-    if (eager) {
-      void getToken().catch(() => undefined);
+    if (!eager) {
+      return;
     }
+    const timer = window.setTimeout(() => {
+      void getToken().catch(() => undefined);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [eager, getToken]);
 
   return { ...state, getToken } as const;

@@ -163,9 +163,9 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **28/92 backend milestones are complete as of 2026-09-09**: nine
-of B0's ten, all six of B1's, all seven of B2's, and all six of B3's. B1, B2
-and B3 are Done.
+is complete. **34/92 backend milestones are complete as of 2026-09-09**: nine
+of B0's ten, all six of B1's, all seven of B2's, all six of B3's, and all six
+of B4's. B1, B2, B3 and B4 are Done.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion
@@ -173,12 +173,11 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**13/83 frontend milestones are complete as of 2026-09-08:** all seven of F0's
-and all six of F1's. F0 is Done — its Definition of Done was verified against a
-running B0/B2 backend and PostgreSQL rather than fixtures, which is what
-surfaced the three foundation defects in the decision log below. F1 is Done,
-and measuring its own contrast ratios in the browser is what surfaced the
-surface-aware ink problem recorded there.
+**17/83 frontend milestones are complete as of 2026-09-09:** all seven of F0's,
+all six of F1's, and four of F2's six milestones. F0 and F1 are Done. F2's
+public layout, service pages, SEO and recorded performance budget are complete;
+the live lookup awaits B5.2/B10.1–B10.4 and the about page awaits real owner
+photographs.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -187,8 +186,8 @@ surface-aware ink problem recorded there.
 |---|---|---|---|
 | 0 — Foundation | 🟨 In progress | 2026-09-07 | |
 | 1 — Core data | 🟨 In progress | 2026-09-08 | |
-| 2 — Inventory | ⬜ Not started | | |
-| 3 — Booking | ⬜ Not started | | |
+| 2 — Inventory | 🟨 In progress | 2026-09-09 | |
+| 3 — Booking | 🟨 In progress | 2026-09-09 | |
 | 4 — Work | ⬜ Not started | | |
 | 5 — Documents | ⬜ Not started | | |
 | 6 — Intelligence | ⬜ Not started | | |
@@ -205,7 +204,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | B1 | Shared domain primitives | 0 | ✅ (6/6 — money, quantities, units, regnr, the work-order state machine, the error hierarchy and the 21-file per-domain schema set; 100% coverage of `shared/src`, verified from both consumers) |
 | B2 | Authentication and users | 1 | ✅ (7/7 — argon2id sessions, per-route authorisation with a startup assertion, session-bound CSRF, ADMIN user management and the audit foundation) |
 | B3 | Customers and vehicles | 1 | ✅ (6/6 — customer and vehicle CRUD with audited mutations, two-column phone search via `shared/phone.ts`, odometer history with the low-reading warning, the trigram-backed global search box, and the read-only settings surface; 209 backend tests, search benchmark 21 ms / 20 000 rows) |
-| B4 | Inventory and stock ledger | 2 | ⬜ |
+| B4 | Inventory and stock ledger | 2 | ✅ (6/6 — article CRUD with a non-admin price-field guard, the append-only stock ledger behind a `SELECT … FOR UPDATE` chokepoint, stocktake and manual adjustments, the deficit-ordered low-stock report and its BOM'd Swedish-Excel CSV, and articles in the global search; the 50-parallel consumption acceptance test written first, cache = ledger sum, 49 new backend tests) |
 | B5 | Bookings | 3 | ⬜ |
 | B10.1–.4, .6 | Vehicle lookup (mock) and partner links | 3 | ⬜ |
 | B6 | Work orders | 4 | ⬜ |
@@ -224,7 +223,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | F4 | Admin shell and authentication | 1 | ⬜ |
 | F6 | Customers and vehicles | 1 | ⬜ |
 | F7 | Inventory | 2 | ⬜ |
-| F2 | Public site | 3 | ⬜ |
+| F2 | Public site | 3 | ⛔ (4/6 — frontend work and the Lighthouse budget pass; live form-token/vehicle lookup and real owner photos remain external blockers) |
 | F3 | Public booking flow | 3 | ⬜ |
 | F8 | Calendar and booking requests | 3 | ⬜ |
 | F5 | Dashboard | 4 | ⬜ |
@@ -291,7 +290,7 @@ past row.
 | 2026-09-08 | **`INTERNAL_API_URL` is an origin; the frontend appends `/api` itself.** Both base-URL branches must end in the same prefix | Found completing F0.7. The variable is documented as `http://backend:3001` while every route is mounted under `/api`, and the resolver returned it verbatim — so server components asked for `/health`, got a 404, and rendered "backend unreachable". Indistinguishable from the backend being down, which is exactly how it survived. The client test had stubbed the variable with an `/api` suffix the documentation never uses, so it agreed with the bug |
 | 2026-09-08 | **`frontend/next.config.ts` loads the repository-root `.env`**, mirroring `backend/src/config/dotenv.ts` | Next.js reads `.env` files from its own project directory, and this workspace deliberately keeps one `.env` at the root. Nothing bridged the two, so `INTERNAL_API_URL` was undefined in every `next dev` and `next start` process and no server component could ever reach the backend. A missing file stays non-fatal (production supplies real variables) and existing environment values win |
 | 2026-09-08 | **A variable font registered with `next/font/local` must declare an explicit `weight` range** | An omitted `font-weight` descriptor defaults to the single value `400`, so the browser treats the file as a one-weight face and *synthesises* every other weight instead of moving the `wght` axis. Archivo made it visible — its `fvar` default is 600, so body text rendered as faux-emboldened 600. Now `'100 900'` and `'200 900'`, matching each `fvar`. The advance-width check does **not** catch this (synthetic bold also changes widths); `e2e/typography.spec.ts` asserts the declared descriptor, and was verified to fail without the fix |
-| 2026-09-08 | Frontend fonts **are** subset to `latin` + `latin-ext`, superseding the 2026-09-07 row | `fonttools` 4.64.0 installed after all, so `pyftsubset` cut both variable files to Google Fonts' published ranges: Archivo −25 %, Source Serif 4 −51 %, with `fvar`/`gvar`/`avar`/`HVAR`/`STAT` and both axes intact and `--name-IDs='*'` keeping the OFL records inside the file. Removes the caveat flagged against F2.6's Lighthouse budget |
+| 2026-09-08 | Frontend fonts were subset to `latin` + `latin-ext`, superseding the 2026-09-07 row and later refined by the production subset below | `fonttools` 4.64.0 established that both browser variable fonts could be safely subset while retaining their axes; the first broad subset removed the original F2.6 caveat but still carried shaping and optical-size data the Swedish public UI did not use. |
 | 2026-09-08 | The frontend takes cookie and header names from `shared`, never from local literals | B2 issues `verkstad_session` and `verkstad_csrf`; the F0 client still carried its `sessionId`/`csrfToken` placeholders, which would have been a 403 on every save presenting as a permissions bug. `SESSION_COOKIE_NAME`, `CSRF_COOKIE_NAME` and `CSRF_TOKEN_HEADER` already existed in `shared` and the backend already imported them — CLAUDE.md's "types are defined once, in `shared/`" applies to protocol constants too |
 | 2026-09-08 | shadcn/ui generated on the **Radix** base, not shadcn 4's newer Base UI default | Both are headless, so neither affects how anything looks and the choice is purely about stability: Radix has been shadcn's base since 2023 and is what nearly all its documentation assumes. This project's traps are mostly copied setups that do not match the installed versions, so the option with the most matching material wins. `radix-ui` 1.6.7 pinned |
 | 2026-09-08 | `sonner` 2.0.8 and `tw-animate-css` 1.4.0 added; `next-themes` and `cn` **removed** | Sonner is the toast primitive the chosen registry ships, which F1.1.5 anticipated; `tw-animate-css` is what replaces the Tailwind 3 animate plugin under Tailwind 4. `next-themes` was pulled in by the generated toaster to read a theme this project deliberately does not have (§9.1 — two fixed surfaces, not a user preference). `cn` 0.2.6 is a third-party package for four lines of code when `clsx` and `tailwind-merge` are already direct dependencies. **A future `shadcn add` reintroduces both** and imports `cn` from the package rather than the `@/lib/utils` alias `components.json` declares |
@@ -305,6 +304,12 @@ past row.
 | 2026-09-09 | `Setting` is one row per group as a JSON blob; the typed accessor falls back on a missing key and throws on a malformed one | A missing key is a fresh install before the seed or B9.7 has written it, and the public page must still render — so `getWorkshopDetails` / `getOpeningHours` / `getOperationalSettings` return a built-in default. A present-but-invalid row cannot happen through the application (the B9.7 write validates against the same schema), so it is a corrupted setting and is allowed to surface as a 500 rather than be silently papered over |
 | 2026-09-09 | `Vehicle.lastKnownOdometerKm` mirrors the **newest reading by `readAt`**, not the highest km | §4.2 calls it "a cache of the newest `OdometerReading`". A back-dated correction — lower than the current reading but earlier in time — must not overwrite the cache, so the update re-queries the newest reading (including the one just inserted, ordered `readAt DESC, km DESC`) rather than taking `MAX(km)` or blindly writing the incoming value |
 | 2026-09-09 | `tmp/` added to `.gitignore` and the ESLint ignore list | F2.6's Lighthouse run downloads a Chrome into `tmp/lighthouse-chrome/`; ESLint was linting ~6 500 lines of third-party JS and failing the whole `pnpm lint`. It predates B3 and is not repository source. Unrelated: the frontend's own `type-coverage` sits at 98.6% in `HEAD` — pre-existing F2 debt, left for the F2 owner |
+| 2026-09-09 | Browser fonts use focused Swedish WOFF2 subsets, while the licensed source TTF files remain in the repository | Archivo retains `wght` + `wdth`; Source Serif retains `wght` with its unused optical-size axis pinned to the body master. Both keep kerning and standard ligatures. Together the cold browser assets fell from roughly 500 KB transferred to 109 KB, which made every F2 public route clear the throttled-mobile Lighthouse budget without replacing the specified type system. |
+| 2026-09-09 | **B4 — the article-write surface splits: `POST`/stocktake/adjustment are `ADMIN`, `PATCH` is `authenticated` with a service-level price-field guard** | §5.3 names "price changes on articles" and "stock adjustments other than consumption" as `ADMIN`, not "all article writes". A static per-route declaration cannot express "admin only if the price changed", so creating an article (which sets a price) is `ADMIN`, and `updateArticle` refuses a change to `salesPriceOre`/`purchasePriceOre`/`vatRateBps` from a non-admin (`ForbiddenError`) — the same conditional-in-the-service pattern as `assertNotLastActiveAdmin`. This is what lets F7.2.4 show disabled-not-hidden price fields to a mechanic with the API actually enforcing it (F7.6.2). deactivate/reactivate stay `authenticated`, mirroring the customer module — they are neither a price change nor a stock adjustment |
+| 2026-09-09 | **B4 — `recordMovement` runs inside the caller's transaction, never its own** | The stock chokepoint takes a `Prisma.TransactionClient`: it locks the article row (`SELECT … FOR UPDATE`), reads the balance, writes the ledger row with `balanceAfter` and updates the cache. B6 completion deducts several lines and writes one `work_order.completed` audit row as a single atomic unit, so the movement helper must compose into a larger transaction rather than opening a nested one. A `target` amount (stocktake's counted quantity) is resolved to a signed delta *inside* the lock, so the read and the arithmetic cannot straddle a concurrent write |
+| 2026-09-09 | **B4 — the stock ledger's `SELECT … FOR UPDATE` is the second raw statement outside §5.4's allowances**, joining `assertNotLastActiveAdmin` | The decision log for B2 already anticipated this ("the same explicit-row-lock pattern §8.2 requires of B4's stock ledger"). Prisma has no `FOR UPDATE`; the tagged template parameterises the id and carries no interpolation. The low-stock `stockQuantity < minimumQuantity` filter stays pure Prisma via a field reference (`db.article.fields.minimumQuantity`), not raw SQL |
+| 2026-09-09 | **B4 — the low-stock CSV uses a `;` separator and a decimal comma, not RFC-4180 defaults** | The consumer is Swedish Excel, which treats `,` as the decimal separator and defaults to `;` as the field delimiter. With a UTF-8 BOM (B4.5.2) this opens cleanly with å/ä/ö and aligned numbers; a `,`-separated file would split `129,00` across two columns. Serialisation is a pure `toLowStockCsv`, unit-tested for the BOM, the CRLF rows and the quote-escaping |
+| 2026-09-09 | **B4 — `StockMovement` list paginates on `id DESC` alone**, like odometer readings | §8.1 wants a stable cursor; `id` is a UUIDv7, unique and monotonic by insertion. `occurredAt` is the display sort and B6 can backdate it, so it is not a cursor key. GIN trigram indexes were added on `Article.sku`/`name` and a GIN index on `oeNumbers`, extending B3's search-index approach (§8.2 lists its indexes "at minimum") |
 
 ---
 

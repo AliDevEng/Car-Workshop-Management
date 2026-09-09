@@ -76,6 +76,7 @@ export default async function HomePage() {
               src="/images/workshop-team.png"
               alt="Två mekaniker som arbetar vid en bil i verkstaden"
               fill
+              loading="eager"
               sizes="(max-width: 1023px) 100vw, 48vw"
               className="object-cover"
             />

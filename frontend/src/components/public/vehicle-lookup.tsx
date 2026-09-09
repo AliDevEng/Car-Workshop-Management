@@ -1,6 +1,5 @@
 'use client';
 
-import { ArrowRight, RotateCw } from 'lucide-react';
 import Link from 'next/link';
 import { lazy, Suspense, useState, type FormEvent } from 'react';
 import type { VehicleLookupResponse } from 'shared';
@@ -113,7 +112,9 @@ export function VehicleLookup() {
             disabled={state.status === 'loading'}
           >
             {state.status === 'loading' ? 'Söker…' : 'Hitta bilen'}
-            <ArrowRight aria-hidden="true" className="size-5" />
+            <span aria-hidden="true" className="text-xl leading-none">
+              →
+            </span>
           </button>
         </div>
         <p id="lookup-help" className="mt-3 text-sm text-white/65">
@@ -124,7 +125,7 @@ export function VehicleLookup() {
       <div id="lookup-result" aria-live="polite" aria-busy={state.status === 'loading'}>
         {state.status === 'loading' ? (
           <div className="lookup-result mt-6" role="status">
-            <RotateCw aria-hidden="true" className="size-5 animate-spin" />
+            <span aria-hidden="true" className="lookup-spinner" />
             <p className="font-sans font-semibold">Vi hämtar biluppgifterna…</p>
           </div>
         ) : null}
@@ -147,7 +148,7 @@ export function VehicleLookup() {
           <Suspense
             fallback={
               <div className="lookup-result mt-6" role="status">
-                <RotateCw aria-hidden="true" className="size-5 animate-spin" />
+                <span aria-hidden="true" className="lookup-spinner" />
                 <p className="font-sans font-semibold">Vi visar biluppgifterna…</p>
               </div>
             }

@@ -162,6 +162,83 @@ const SEED_VEHICLES = [
   },
 ] as const;
 
+/**
+ * A handful of catalogue rows, upserting on stable ids (B4). Prices are
+ * integer öre excluding VAT; quantities are decimal strings. Each article that
+ * carries stock also gets one opening `PURCHASE` movement, so the ledger sum
+ * matches the cached balance the reconciliation job checks (§8.4) — the same
+ * consistency the odometer seed keeps between history and cache.
+ * `HANDPAPPER` is seeded below its minimum so the low-stock view has something
+ * to show.
+ */
+const SEED_ARTICLES = [
+  {
+    id: '01900000-0000-7000-8000-0000000a0001',
+    movementId: '01900000-0000-7000-8000-0000000b0001',
+    sku: 'OLJA-5W30-1L',
+    name: 'Motorolja 5W-30 helsyntet',
+    unit: 'LITRE',
+    salesPriceOre: 12_900,
+    purchasePriceOre: 6_400,
+    minimumQuantity: '20',
+    openingQuantity: '48.5',
+    location: 'A1-03',
+    oeNumbers: ['GM 93165557', '5W30-LL'],
+  },
+  {
+    id: '01900000-0000-7000-8000-0000000a0002',
+    movementId: '01900000-0000-7000-8000-0000000b0002',
+    sku: 'FILTER-OLJA-VOLVO',
+    name: 'Oljefilter Volvo 2.0D',
+    unit: 'PIECE',
+    salesPriceOre: 14_500,
+    purchasePriceOre: 7_100,
+    minimumQuantity: '8',
+    openingQuantity: '12',
+    location: 'B2-11',
+    oeNumbers: ['31372212'],
+  },
+  {
+    id: '01900000-0000-7000-8000-0000000a0003',
+    movementId: '01900000-0000-7000-8000-0000000b0003',
+    sku: 'BROMSVATSKA-DOT4',
+    name: 'Bromsvätska DOT 4 (1 l)',
+    unit: 'PIECE',
+    salesPriceOre: 9_900,
+    purchasePriceOre: 3_800,
+    minimumQuantity: '6',
+    openingQuantity: '5',
+    location: 'A3-01',
+    oeNumbers: [],
+  },
+  {
+    id: '01900000-0000-7000-8000-0000000a0004',
+    movementId: '01900000-0000-7000-8000-0000000b0004',
+    sku: 'HANDPAPPER',
+    name: 'Industritorkrulle',
+    unit: 'PIECE',
+    salesPriceOre: 21_900,
+    purchasePriceOre: 12_500,
+    minimumQuantity: '4',
+    openingQuantity: '1',
+    location: 'Lager',
+    oeNumbers: [],
+  },
+  {
+    id: '01900000-0000-7000-8000-0000000a0005',
+    movementId: null,
+    sku: 'ARBETE-VERKSTAD',
+    name: 'Verkstadsarbete',
+    unit: 'HOUR',
+    salesPriceOre: 65_000,
+    purchasePriceOre: null,
+    minimumQuantity: '0',
+    openingQuantity: '0',
+    location: null,
+    oeNumbers: [],
+  },
+] as const;
+
 /** `(vehicleRegNr, id)` so readings upsert rather than pile up on re-run. */
 const SEED_ODOMETER_READINGS = [
   {
@@ -299,13 +376,54 @@ try {
     }
   }
 
+  const seedAdmin = await prisma.user.findUniqueOrThrow({
+    where: { email: SEED_USERS[0].email },
+    select: { id: true },
+  });
+
+  for (const article of SEED_ARTICLES) {
+    const shared = {
+      name: article.name,
+      unit: article.unit,
+      salesPriceOre: article.salesPriceOre,
+      purchasePriceOre: article.purchasePriceOre,
+      minimumQuantity: article.minimumQuantity,
+      stockQuantity: article.openingQuantity,
+      location: article.location,
+      oeNumbers: [...article.oeNumbers],
+    };
+    await prisma.article.upsert({
+      where: { id: article.id },
+      update: shared,
+      create: { id: article.id, sku: article.sku, ...shared },
+    });
+
+    if (article.movementId !== null) {
+      const movement = {
+        articleId: article.id,
+        type: 'PURCHASE',
+        quantity: article.openingQuantity,
+        balanceAfter: article.openingQuantity,
+        userId: seedAdmin.id,
+        note: 'Ingående lagersaldo (seed)',
+        occurredAt: new Date('2026-01-02T08:00:00.000Z'),
+      } as const;
+      await prisma.stockMovement.upsert({
+        where: { id: article.movementId },
+        update: movement,
+        create: { id: article.movementId, ...movement },
+      });
+    }
+  }
+
   logger.info(
     {
       users: SEED_USERS.map((user) => `${user.email} / ${user.password}`),
       customers: SEED_CUSTOMERS.length,
       vehicles: SEED_VEHICLES.length,
+      articles: SEED_ARTICLES.length,
     },
-    'Seed complete — staff, workshop settings, customers and vehicles ready (B2, B3).',
+    'Seed complete — staff, settings, customers, vehicles and articles ready (B2–B4).',
   );
 } finally {
   await prisma.$disconnect();
