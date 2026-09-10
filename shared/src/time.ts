@@ -138,19 +138,34 @@ export function stockholmDayStart(localDate: string): Date {
 }
 
 /**
+ * A local calendar date shifted by whole days — `2026-02-27` + 2 is
+ * `2026-03-01`.
+ *
+ * Calendar arithmetic in UTC, where every day is exactly 24 hours, so months
+ * and years roll over correctly and no DST rule is involved: the result is a
+ * *date*, and 29 March being 23 hours long does not change which date is two
+ * days after it. B7 uses it to derive a quote's `validUntil` from the
+ * `quoteValidityDays` setting (§4.2, §6.6).
+ */
+export function addStockholmDays(localDate: string, days: number): string {
+  if (!Number.isSafeInteger(days)) {
+    throw new RangeError(
+      `Expected a whole number of days, got ${String(days)}`,
+    );
+  }
+
+  const { year, month, day } = parseLocalDate(localDate);
+  return new Date(Date.UTC(year, month - 1, day + days))
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
  * The **exclusive** end of a local calendar day: midnight at the start of the
  * next one. Derived by advancing the calendar date rather than by adding 24
  * hours, because 29 March is 23 hours long and 25 October is 25 — adding a
  * fixed duration loses an hour of bookings twice a year.
  */
 export function stockholmDayEnd(localDate: string): Date {
-  const { year, month, day } = parseLocalDate(localDate);
-
-  // Calendar arithmetic in UTC, where every day is exactly 24 hours, so the
-  // month and year roll over correctly and no DST rule is involved yet.
-  const nextDate = new Date(Date.UTC(year, month - 1, day + 1))
-    .toISOString()
-    .slice(0, 10);
-
-  return stockholmDayStart(nextDate);
+  return stockholmDayStart(addStockholmDays(localDate, 1));
 }

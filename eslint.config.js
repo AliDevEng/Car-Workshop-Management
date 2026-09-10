@@ -35,6 +35,21 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
+    // Plain-JavaScript build scripts run under Node, so `process`, `URL` and
+    // the rest are globals rather than undefined names. `js.configs.recommended`
+    // assumes no environment at all, which makes `no-undef` fire on every one
+    // of them. Not type-checked: these files are outside every `tsconfig`, by
+    // design — they are build tooling, not application code.
+    files: ['**/scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        URL: 'readonly',
+        console: 'readonly',
+      },
+    },
+  },
+  {
     // Scoped to TypeScript files only: `eslint-config-next`'s first
     // fragment reassigns the parser to a Babel-based one for plain
     // `.js`/`.mjs` config files, and a type-aware rule crashes outright if

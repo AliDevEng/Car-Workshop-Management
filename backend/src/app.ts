@@ -19,7 +19,9 @@ import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerBookingRoutes } from './modules/bookings/routes.js';
 import { registerCustomerRoutes } from './modules/customers/routes.js';
 import { registerDashboardRoutes } from './modules/dashboard/routes.js';
+import { registerDocumentRoutes } from './modules/documents/routes.js';
 import { registerHealthRoutes } from './modules/health/routes.js';
+import { registerQuoteRoutes } from './modules/quotes/routes.js';
 import { registerSearchRoutes } from './modules/search/routes.js';
 import { registerSettingsRoutes } from './modules/settings/routes.js';
 import { registerUserRoutes } from './modules/users/routes.js';
@@ -96,6 +98,8 @@ export async function buildApp(
   registerArticleRoutes(app);
   registerBookingRoutes(app);
   registerWorkOrderRoutes(app);
+  registerQuoteRoutes(app);
+  registerDocumentRoutes(app);
   registerDashboardRoutes(app);
   registerSearchRoutes(app);
   registerSettingsRoutes(app);

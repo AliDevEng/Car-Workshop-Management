@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
 
 import * as barrel from '../src/index.js';
+import { QUOTE_STATUSES } from '../src/quote-state.js';
 import * as articleSchemas from '../src/schemas/article.js';
 import * as auditSchemas from '../src/schemas/audit.js';
 import * as authSchemas from '../src/schemas/auth.js';
@@ -534,11 +535,7 @@ describe('enum values match their Zod schemas', () => {
       workOrderSchemas.WORK_ORDER_LINE_TYPES,
       workOrderSchemas.workOrderLineTypeSchema,
     ],
-    [
-      'quote status',
-      quoteSchemas.QUOTE_STATUSES,
-      quoteSchemas.quoteStatusSchema,
-    ],
+    ['quote status', QUOTE_STATUSES, quoteSchemas.quoteStatusSchema],
     [
       'document type',
       documentSchemas.DOCUMENT_TYPES,

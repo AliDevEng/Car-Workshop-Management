@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 48/92 milestones complete; 6/14 iterations Done.**
+**Overall: 54/92 milestones complete; 7/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -44,7 +44,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [5](#b4)   | B4        | 2       | 6/6             | Done        |
 | [6](#b5)   | B5        | 3       | 6/6             | Done        |
 | [7](#b6)   | B6        | 4       | 8/8             | Done        |
-| [8](#b7)   | B7        | 5       | 0/6             | Not started |
+| [8](#b7)   | B7        | 5       | 6/6             | Done        |
 | [9](#b8)   | B8        | 5       | 0/6             | Not started |
 | [10](#b9)  | B9        | 6       | 0/7             | Not started |
 | [11](#b10) | B10       | 3 and 6 | 0/6             | Not started |
@@ -83,6 +83,19 @@ constraint rather than a read-then-insert, mapped to `409` on SQLSTATE `23P01`
 exactly as B0.10.3 measured; the Europe/Stockholm boundary conversion lives in
 `shared/time.ts` and is tested on both 2026 DST transitions. 83 new backend
 tests. B10.1–B10.4 and B10.6 remain before Phase 3's backend half is complete.
+
+**Iteration 8 (B7) is Done as of 2026-09-10.** The PDF pipeline and the quote
+that rides on it: `@react-pdf/renderer` behind a single entry point with a
+concurrency-one queue and a 10-second cap, two committed static Archivo
+instances, a `Document` store whose stored SHA-256 is verified on **every**
+download, and quotes that snapshot their work order's lines rather than reading
+them back. Sending spends the §4.4 number, renders, stores and freezes in one
+transaction; a change afterwards is a new version pointing at the one it
+replaces. B0.10.1's determinism held, so B7.4.6 took its strict branch — a
+document rebuilt from `payloadJson` is byte-for-byte the file on disk. 81 new
+backend tests and 20 new shared ones; three defects and two renderer findings
+were produced by writing them and are recorded below. Phase 5's quote half is
+complete; B8 delivers the service protocol and F10 the UI.
 
 **Iteration 7 (B6) is Done as of 2026-09-09.** The transactional heart of the
 system: work orders, snapshotting lines, totals computed on read, optimistic
@@ -2123,14 +2136,14 @@ equals the ledger. Four consecutive `pnpm check` runs are clean.
 
 ## Iteration 8: Creating quotes and PDF documents
 
-- [ ] Connecting the PDF renderer and fonts (`B7.1`)
-- [ ] Storing and serving document files (`B7.2`)
-- [ ] Creating quote records (`B7.3`)
-- [ ] Creating the quote PDF template (`B7.4`)
-- [ ] Preserving sent quote versions (`B7.5`)
-- [ ] Verifying document delivery (`B7.6`)
+- [x] Connecting the PDF renderer and fonts (`B7.1`)
+- [x] Storing and serving document files (`B7.2`)
+- [x] Creating quote records (`B7.3`)
+- [x] Creating the quote PDF template (`B7.4`)
+- [x] Preserving sent quote versions (`B7.5`)
+- [x] Verifying document delivery (`B7.6`)
 
-**Reference:** B7 · **Phase:** 5 · **Progress:** 0/6 · **Status:** Not started
+**Reference:** B7 · **Phase:** 5 · **Progress:** 6/6 · **Status:** Done
 
 **Depends on:** B6; B0.10 PDF findings.
 
@@ -2150,85 +2163,228 @@ outcome recorded in B0.10 is reflected in the tests below.
 
 ### B7.1 PDF infrastructure
 
-- [ ] **B7.1.1** `@react-pdf/renderer` set up in `backend/src/pdf/`
-- [ ] **B7.1.2** Fonts committed to the repo and registered explicitly
-- [ ] **B7.1.3** A test rendering `ÅÄÖ åäö` and asserting the extracted text
-      matches — this catches the missing-glyph failure that otherwise reaches
-      customers
-- [ ] **B7.1.4** Shared layout components: header with workshop details, footer
-      with page numbers, a table primitive
-- [ ] **B7.1.5** Rendering queued at concurrency 1, with a 10-second timeout
-- [ ] **B7.1.6** Measure API responsiveness while rendering. A concurrency-one
-      queue alone does not isolate CPU work; if required, use a worker/process
-      so the timeout and cancellation can actually be enforced.
+- [x] **B7.1.1** `@react-pdf/renderer` set up in `backend/src/pdf/`.
+      `renderPdf` is the single entry point, so the concurrency cap and the
+      timeout are real rather than a convention — a second call site using
+      `renderToBuffer` directly would sit outside both.
+- [x] **B7.1.2** Fonts committed to the repo and registered explicitly —
+      `backend/src/pdf/fonts/Archivo-{Regular,Bold}.ttf`, cut from the
+      committed variable source with `fontTools.varLib.instancer` at
+      `wght=400` / `wght=700`, `wdth=100`, with `--update-name-table`.
+      **Static instances are used even though B0.10.2 proved they are not
+      required, and the reason is a new one.** `@react-pdf/font` resolves a
+      weight by choosing the nearest *registered source*; it cannot move a
+      variation axis. Archivo's `fvar` default is **600**, so one variable file
+      registered for both weights renders body text semibold and makes bold
+      indistinguishable from it. `--update-name-table` is not cosmetic either:
+      without it both instances keep the PostScript name `Archivo-SemiBold`,
+      react-pdf keys its subsets on that name, and the renderer emitted **one
+      subset per text run** — fourteen embedded fonts and a 130 KB file where
+      two and 16 KB were correct.
+      The build copies the directory into `dist`
+      (`scripts/copy-pdf-assets.mjs`); `tsc` emits JavaScript and nothing else,
+      so without that step the first quote in production fails inside a font
+      library.
+- [x] **B7.1.3** A test rendering `ÅÄÖ åäö` and asserting the extracted text
+      matches — `tests/pdf-quote-template.test.ts`, in body text, in bold text
+      and through a `textTransform: uppercase` heading. This is the
+      load-bearing check of the iteration: B0.10.2 established that the file
+      format is **not** a guard, so nothing else stands between a missing glyph
+      and a customer's copy.
+- [x] **B7.1.4** Shared layout components in `pdf/templates/layout.tsx` — a
+      header carrying the workshop's details, a `fixed` footer with
+      `Sida n av m`, and a table primitive whose head repeats after a page
+      break and whose rows do not split across one. B8's protocol renders
+      through the same components.
+- [x] **B7.1.5** Rendering queued at concurrency 1 with a 10-second timeout —
+      `pdf/queue.ts`, thirty lines rather than a dependency. The queue advances
+      on a task's *outcome*, so a timed-out render — which cannot be cancelled,
+      only abandoned — does not hold the next document behind it.
+- [x] **B7.1.6** API responsiveness measured —
+      `tests/pdf-responsiveness.test.ts`. **Finding: a worker process is not
+      warranted for B7.** A quote renders in ~100 ms warm and ~370 ms cold, and
+      `/api/health` answers during a render because react-pdf yields to the
+      event loop rather than blocking it. What concurrency 1 buys is bounded
+      *memory*, not bounded latency, and `pdf/queue.ts` says so rather than
+      implying otherwise. B13 revisits it if B8's protocol templates prove
+      heavier.
 
 <a id="b7-2"></a>
 
 ### B7.2 Document storage
 
-- [ ] **B7.2.1** Prisma `Document` with `filePath`, `fileHashSha256`,
-      `payloadJson`
-- [ ] **B7.2.2** Files written to `STORAGE_PATH/documents/YYYY/MM/`
-- [ ] **B7.2.3** `GET /api/documents/:id/file` streaming with the correct
-      content type, authenticated, with a path-traversal test
-- [ ] **B7.2.4** Storage path resolved and asserted to be inside `STORAGE_PATH`
+- [x] **B7.2.1** Prisma `Document` with `filePath`, `fileHashSha256`,
+      `payloadJson`, plus `sizeBytes`, `generatedAt` and `generatedByUserId`
+      (§4.2). `number` is globally unique because the §4.4 prefix is part of
+      the value.
+- [x] **B7.2.2** Files written to `STORAGE_PATH/documents/YYYY/MM/`, named by
+      the document number. The path is stored **relative** to `STORAGE_PATH`,
+      so a restore onto a different volume finds its own files, and always with
+      forward slashes, because a Windows development machine must not write a
+      row only it can resolve.
+- [x] **B7.2.3** `GET /api/documents/:id/file` streaming with the correct
+      content type, authenticated, with a path-traversal test. `filePath` is
+      deliberately absent from the read contract: the only thing a client can
+      do with a document's bytes is ask for them by id.
+- [x] **B7.2.4** Storage path resolved and asserted to be inside
+      `STORAGE_PATH` — absolute paths, `..` traversal and a sibling directory
+      sharing the root's prefix (`/srv/storage-old`) are each refused and each
+      tested. The filenames this application writes are safe by construction;
+      the assertion exists because a path read back out of a database row is a
+      boundary.
 
 <a id="b7-3"></a>
 
 ### B7.3 Quote model
 
-- [ ] **B7.3.1** Prisma `Quote` with totals, `validUntil`, `status`, numbering
-      as in B6.1
-- [ ] **B7.3.2** `POST /api/work-orders/:id/quotes` snapshotting the current
-      lines
-- [ ] **B7.3.3** Status transitions: draft, sent, accepted, declined, expired
+- [x] **B7.3.1** Prisma `Quote` with totals, `validUntil`, `status` and
+      numbering as in B6.1, plus `QuoteLine` — **a snapshot of the work order's
+      lines, required by B7.3.2 and not named in §4.2's field list** (decision
+      log). `revision` and `supersedesQuoteId` carry B7.5's version chain.
+- [x] **B7.3.2** `POST /api/work-orders/:id/quotes` snapshotting the current
+      lines, and freezing the totals with them. Refuses a work order with no
+      lines and a cancelled one; every other status is allowed, because quoting
+      is a conversation.
+- [x] **B7.3.3** Status transitions: draft, sent, accepted, declined, expired —
+      `shared/quote-state.ts`, built like B1.4's work-order machine, with all
+      25 ordered pairs asserted against a hand-written table. Expiry is a sweep
+      (`expireOverdueQuotes`) rather than a status derived on read; B11 owns
+      scheduling it.
 
 <a id="b7-4"></a>
 
 ### B7.4 Quote PDF
 
-- [ ] **B7.4.1** Template with workshop, customer, vehicle, lines, VAT summary
-      and totals
-- [ ] **B7.4.2** Öresavrundning shown as its own line, taken from the stored
-      field
-- [ ] **B7.4.3** Golden-file test asserting extracted text and totals
-- [ ] **B7.4.4** PDF creation and modification dates set explicitly from
-      `payloadJson.generatedAt`, plus a fixed producer string
-- [ ] **B7.4.5** Integrity test: the stored file's SHA-256 matches
-      `fileHashSha256` on read
-- [ ] **B7.4.6** **Conditional on B0.10.** If determinism was achievable, add
-      the test that renders the same fixture twice and asserts matching hashes.
-      If it was not, add a test that regeneration from `payloadJson` produces
-      the same _extracted text_, and record in this file that the stored file is
-      authoritative. Do not weaken the integrity check to make a determinism
-      test pass (`PROJECT_SPEC.md` §8.3)
+- [x] **B7.4.1** Template with workshop, customer, vehicle, lines, VAT summary
+      and totals. The VAT summary is **one row per rate**, each summed from
+      already-rounded line values (§3.3) — a single figure is not enough once a
+      fee at 6 % sits beside labour at 25 %.
+- [x] **B7.4.2** Öresavrundning shown as its own line, taken from the stored
+      field, and omitted entirely when it is zero.
+- [x] **B7.4.3** Golden-file test asserting extracted text and totals. The
+      extractor is `tests/helpers/pdf-text.ts`, written rather than taken from
+      `pdfjs-dist` (agreed 2026-09-10; decision log).
+- [x] **B7.4.4** PDF creation and modification dates set explicitly from
+      `payloadJson.generatedAt`, plus a fixed producer string. Asserted against
+      the raw bytes (`D:20260910080000Z`), since neither is ever drawn on a
+      page.
+- [x] **B7.4.5** Integrity test: the stored file's SHA-256 matches
+      `fileHashSha256` on read. The check runs on **every download**, not in a
+      maintenance job — the moment a customer asks for their copy is when the
+      workshop needs to know the record has been altered.
+- [x] **B7.4.6** **Conditional on B0.10 — the strict branch.** B0.10.1 found
+      regeneration byte-identical, and it still is here: the same fixture
+      rendered twice gives one SHA-256, and a document rebuilt from its stored
+      `payloadJson` reproduces the file on disk byte for byte. A control case
+      asserts that a *different* payload gives different bytes, so the
+      determinism assertion cannot pass vacuously. The integrity check is
+      untouched: the stored file remains the authoritative record (§8.3).
 
 <a id="b7-5"></a>
 
 ### B7.5 Immutability
 
-- [ ] **B7.5.1** A sent quote cannot be edited; a new version is created instead
-- [ ] **B7.5.2** Versions listed on the work order
-- [ ] **B7.5.3** Test asserting a `PATCH` on a sent quote returns `409`
+- [x] **B7.5.1** A sent quote cannot be edited; a new version is created
+      instead — `POST /api/quotes/:id/revise`, which snapshots the work order's
+      lines *as they are now* and points back at the quote it supersedes.
+      `supersedesQuoteId` is unique, so two people revising the same quote at
+      once produce one version and one `409` rather than a version tree.
+- [x] **B7.5.2** Versions listed on the work order —
+      `GET /api/work-orders/:id/quotes`. The same list filtered by order rather
+      than a shape of its own: "the versions on this order" and "the quotes on
+      this order" are the same set.
+- [x] **B7.5.3** Test asserting a `PATCH` on a sent quote returns `409`. The
+      status is checked by a `where`-clause compare-and-swap, not by a read
+      followed by an update, so an edit cannot land on a quote that was sent in
+      between.
 
 <a id="b7-6"></a>
 
 ### B7.6 Verifying document delivery
 
-- [ ] **B7.6.1** Generate, store and download a quote through the authenticated
+- [x] **B7.6.1** Generate, store and download a quote through the authenticated
       API; compare displayed totals with extracted PDF text.
-- [ ] **B7.6.2** Verify missing files, invalid paths and unauthenticated
-      requests produce the defined errors.
-- [ ] **B7.6.3** Verify stored-file integrity and the regeneration result
+      `tests/quote-documents.test.ts` asserts each of the four totals the API
+      reports appears verbatim in the rendered document — the only check that
+      the number on the screen and the number in the customer's hand came from
+      the same arithmetic.
+- [x] **B7.6.2** Verify missing files, invalid paths and unauthenticated
+      requests produce the defined errors — `404` for an unknown document,
+      `401` for both endpoints unauthenticated, and `500` for a missing file, a
+      traversing stored path and a file whose bytes no longer match the
+      recorded hash.
+- [x] **B7.6.3** Verify stored-file integrity and the regeneration result
       established in B0.10; record evidence without assuming byte-identical
-      regeneration.
+      regeneration. Recorded under **Verification** below. The payload also
+      keeps the customer as they were: renaming the customer afterwards does
+      not change the stored document, which is what §5.5 needs when a customer
+      is anonymised.
 
 </details>
 
-- [ ] **Iteration 8 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 8 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-10, on Node 22.21.1, pnpm 12.3.4, PostgreSQL 16.15
+(Debian), Windows 11.
+
+| Command                                                                  | Result                                                         |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `pnpm check`                                                              | Clean — typecheck, lint (0 warnings), tests, type-coverage      |
+| `vitest run tests/quotes.test.ts`                                         | 35/35                                                           |
+| `vitest run tests/quote-documents.test.ts`                                | 13/13                                                           |
+| `vitest run tests/pdf-quote-template.test.ts`                             | 20/20 — glyphs, totals, pinned dates, byte-identical re-render  |
+| `vitest run tests/document-storage.test.ts`                               | 13/13 — traversal, containment, overwrite refusal, hash         |
+| `vitest run src/pdf src/modules/quotes`                                   | 30/30 — formatters, serial queue, VAT summary                   |
+| Two renders of one payload                                                | Identical SHA-256; a different payload gives different bytes    |
+| Regeneration from stored `payloadJson`                                    | Byte-for-byte equal to the file on disk                         |
+
+The Definition of Done holds in all three parts: `ÅÄÖ åäö` are asserted out of
+the rendered bytes in both weights, the four document totals the API reports
+are asserted verbatim in the PDF, the stored SHA-256 is verified on every read,
+and B0.10.1's determinism outcome is reflected as B7.4.6's strict branch.
+
+**Three defects were found by writing these tests and are fixed:**
+
+1. **A PDF render inside a Prisma interactive transaction aborts under load.**
+   Sending a quote renders inside its transaction, because the §4.4 number is
+   printed on the document and drawn from a sequence. Prisma's default
+   interactive-transaction ceiling is **5 seconds**, while §8.3 caps a render at
+   10 and serialises renders — so a perfectly healthy send can exceed it, and
+   Prisma then aborts the transaction while the render carries on. Reproduced
+   by running two PDF-rendering test files in parallel: one file went from 13
+   seconds to 268, with a request that never returned. `runIdempotent` now
+   accepts transaction limits and the send passes `maxWait: 15 s`,
+   `timeout: 30 s` — 30 seconds matching the statement timeout already
+   configured on the pool.
+2. **A second quote on the same work order returned a generic `409`.**
+   `revision` defaulted to 1 on a plain create, so quoting a job, abandoning
+   the draft and quoting again collided with the `(workOrderId, revision)`
+   unique index and answered *"uppgifterna krockar med något som redan finns"* —
+   wrong and unactionable. Every quote on an order now takes the next revision,
+   which is also what makes B7.5.2's version list coherent.
+3. **A document was filed under the wrong year for one hour a year.** The
+   `documents/YYYY/MM/` folder was derived from the UTC date while §4.4 draws
+   the number from the Europe/Stockholm year — so a quote sent at 00:30 on
+   1 January would be written as `documents/2025/12/OF-2026-0001.pdf`: the first
+   document of the year, in last year's folder, exactly when someone goes
+   looking for it. Both now use `stockholmDate`.
+
+**Two findings about the renderer are worth keeping, because neither is in
+B0.10 and both cost real time:**
+
+- **A variable font is registerable but not usable at two weights.** B0.10.2
+  established that `@react-pdf/renderer` registers a variable `.ttf` and a
+  `.woff2` without complaint. What it did not establish is that
+  `@react-pdf/font` picks a weight by nearest *registered source* and cannot
+  move a variation axis — so a single variable file serving 400 and 700 renders
+  both at its `fvar` default, which for Archivo is 600. §8.3's "static
+  instances" requirement turns out to be right, for a reason it does not state.
+- **Subsets are keyed on the PostScript name.** Two instances sharing one
+  PostScript name made the renderer emit a fresh embedded subset per text run:
+  fourteen fonts, 130 KB, and a text extractor that could not tell them apart.
+  With distinct names it is two fonts and 16 KB.
+
+**Completed on:** 2026-09-10
 
 ---
 

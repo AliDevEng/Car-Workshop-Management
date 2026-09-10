@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   WORKSHOP_TIMEZONE,
+  addStockholmDays,
   isPositiveInterval,
   isWithinDayRange,
   stockholmDate,
@@ -178,5 +179,32 @@ describe('Europe/Stockholm wall-clock conversion (§3.6, B5.5.3)', () => {
     expect(() => stockholmDayStart('29/03/2026')).toThrow(RangeError);
     expect(() => stockholmDayStart('2026-02-30')).toThrow(RangeError);
     expect(() => stockholmDayEnd('2026-13-01')).toThrow(RangeError);
+  });
+});
+
+describe('addStockholmDays (B7.3.1)', () => {
+  it('adds whole days to a calendar date', () => {
+    expect(addStockholmDays('2026-09-10', 30)).toBe('2026-10-10');
+    expect(addStockholmDays('2026-09-10', 0)).toBe('2026-09-10');
+    expect(addStockholmDays('2026-09-10', -1)).toBe('2026-09-09');
+  });
+
+  it('rolls over a month, a year and a leap day', () => {
+    expect(addStockholmDays('2026-01-31', 1)).toBe('2026-02-01');
+    expect(addStockholmDays('2026-12-31', 1)).toBe('2027-01-01');
+    expect(addStockholmDays('2028-02-28', 1)).toBe('2028-02-29');
+  });
+
+  it('is unaffected by a DST transition inside the span', () => {
+    // The result is a *date*. 29 March being 23 hours long does not change
+    // which date is two days after 28 March, and an implementation that added
+    // 48 hours of milliseconds would get this wrong.
+    expect(addStockholmDays('2026-03-28', 2)).toBe('2026-03-30');
+    expect(addStockholmDays('2026-10-24', 2)).toBe('2026-10-26');
+  });
+
+  it('rejects a malformed date or a fractional number of days', () => {
+    expect(() => addStockholmDays('2026-02-30', 1)).toThrow(RangeError);
+    expect(() => addStockholmDays('2026-09-10', 1.5)).toThrow(RangeError);
   });
 });

@@ -97,6 +97,23 @@ export type IdempotentMutation<T> = {
    * `unknown`).
    */
   readonly responseSchema: z.ZodType<T>;
+  /**
+   * Prisma interactive-transaction limits, for a mutation that legitimately
+   * takes longer than the 5-second default.
+   *
+   * Added for B7: sending a quote renders a PDF **inside** its transaction,
+   * because the §4.4 number is printed on the document and drawn from a
+   * sequence. §8.3 caps a render at 10 seconds and runs renders one at a time,
+   * so a send can sit above the default for a perfectly healthy reason — and
+   * when it does, Prisma aborts the transaction with `P2028` while the render
+   * carries on, which presents as an unexplained failure on the busiest
+   * morning of the month. Measured, not guessed: two PDF-rendering test files
+   * running in parallel reproduced it.
+   */
+  readonly transaction?: {
+    readonly maxWait?: number;
+    readonly timeout?: number;
+  };
 };
 
 type StoredResponse = {
@@ -168,8 +185,13 @@ export async function runIdempotent<T>(
   mutate: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
   const { key } = descriptor;
+  // Spread rather than passed as `undefined`: `exactOptionalPropertyTypes` is
+  // on, and Prisma reads an explicit `undefined` differently from an absent
+  // key on some of these options.
+  const options = descriptor.transaction ?? {};
+
   if (key === undefined) {
-    return db.$transaction((tx) => mutate(tx));
+    return db.$transaction((tx) => mutate(tx), options);
   }
 
   const requestHash = hashIdempotentRequest(
@@ -216,7 +238,7 @@ export async function runIdempotent<T>(
       });
 
       return result;
-    });
+    }, options);
   } catch (error) {
     // The waiting duplicate, once the first request commits. Its own effect
     // rolled back with its claim, so the right answer is the first request's

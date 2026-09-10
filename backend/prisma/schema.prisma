@@ -59,9 +59,10 @@ model User {
   stockMovements         StockMovement[]
   assignedBookings       Booking[]
   handledBookingRequests BookingRequest[]
-  assignedWorkOrders     WorkOrder[]      @relation("WorkOrderAssignedTo")
-  completedWorkOrders    WorkOrder[]      @relation("WorkOrderCompletedBy")
+  assignedWorkOrders     WorkOrder[]       @relation("WorkOrderAssignedTo")
+  completedWorkOrders    WorkOrder[]       @relation("WorkOrderCompletedBy")
   idempotencyKeys        IdempotencyKey[]
+  generatedDocuments     Document[]
 
   @@index([isActive])
 }
@@ -313,6 +314,7 @@ model Article {
 
   movements      StockMovement[]
   workOrderLines WorkOrderLine[]
+  quoteLines     QuoteLine[]
 
   @@index([isActive])
   /// The global search (§6.3, B4.6) and the article list `?q=` (B4.1.2) match
@@ -569,6 +571,7 @@ model WorkOrder {
   lines            WorkOrderLine[]
   odometerReadings OdometerReading[]
   stockMovements   StockMovement[]
+  quotes           Quote[]
 
   /// §8.2 names this one: the dashboard and the list filter on status.
   @@index([status])
@@ -647,4 +650,172 @@ model IdempotencyKey {
   /// Rows older than 24 hours are removed by the hourly cleanup job (§8.4).
   @@index([createdAt])
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// B7 — quotes and the generated-document store (PROJECT_SPEC.md §4.2, §6.6,
+// §8.3).
+//
+// Two rules hold this pair together:
+//
+//   * **The stored file is the record.** `Document` carries the SHA-256 of the
+//     bytes on disk plus the exact payload they were rendered from, so a
+//     three-year-old offert can be verified and explained even after the
+//     template has changed. It is never regenerated in place and never
+//     deleted.
+//   * **A sent quote is immutable.** Its lines are copied out of the work
+//     order when the quote is created, not joined back to it, and a change
+//     after sending is a new `Quote` row pointing at the one it replaces —
+//     what the customer received always still exists (§6.6).
+// ---------------------------------------------------------------------------
+
+enum DocumentType {
+  QUOTE
+  SERVICE_PROTOCOL
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+/// A rendered PDF and everything needed to account for it (§4.2, §8.3).
+model Document {
+  id     String       @id @default(uuid(7))
+  type   DocumentType
+  /// `OF-2026-0001` / `SP-2026-0001`, from the same per-type-per-year sequence
+  /// the work order draws `AO-` from (§4.4). Globally unique because the
+  /// prefix is part of the value.
+  number String       @unique
+
+  /// Relative to `STORAGE_PATH`, as `documents/YYYY/MM/<number>.pdf`. Stored
+  /// relative rather than absolute so a restore onto a different volume — or
+  /// into a container with a different mount point — finds its own files.
+  /// Never returned by the API: the bytes are fetched by document id.
+  filePath       String
+  /// Proves the **stored** file has not been altered since it was written
+  /// (§4.2). It is an integrity check on the artefact, not a determinism
+  /// claim about the renderer.
+  fileHashSha256 String
+  sizeBytes      Int
+
+  /// The exact data the PDF was rendered from, so the content can be
+  /// reconstructed and explained even if the template has changed since
+  /// (§4.2). Without it, a template change silently rewrites the past.
+  payloadJson Json
+
+  /// Also the PDF's pinned creation and modification date. B0.10.1 established
+  /// that pinning it is what makes a re-render byte-identical; reading the
+  /// clock at render time is what makes it not.
+  generatedAt       DateTime @db.Timestamptz(3)
+  /// Required by §4.2. `Restrict` because users are deactivated rather than
+  /// deleted (§4.3), so it never actually fires — and a document that has lost
+  /// the person who issued it cannot answer the question it is kept for.
+  generatedByUserId String
+  generatedBy       User     @relation(fields: [generatedByUserId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  quote Quote?
+
+  @@index([type, generatedAt])
+  @@index([generatedByUserId])
+}
+
+/// An offert (§4.2, §6.6).
+model Quote {
+  id String @id @default(uuid(7))
+
+  /// `Restrict`, not `Cascade`: §4.3 permits deleting a `DRAFT` work order,
+  /// and a quote — even an unsent one — is a promise that was made about a
+  /// price. The order must be emptied of quotes deliberately, never as a side
+  /// effect of removing a draft.
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+
+  /// `OF-2026-0001`, from the §4.4 sequence, **null while the quote is a
+  /// `DRAFT`**: §4.4 spends a number when a document is finalised, and for a
+  /// quote that moment is unambiguously the send (§6.6).
+  number String? @unique
+
+  /// Which version of this work order's quote this is, counting from 1
+  /// (B7.5.2). Unique per order, so two people revising the same sent quote
+  /// at once produce one winner and one `409` rather than two "version 2"s.
+  revision Int @default(1)
+
+  /// The sent quote this one replaces (B7.5.1). Unique: a quote is superseded
+  /// at most once, which is what stops a version *tree* forming where §6.6
+  /// describes a chain.
+  supersedesQuoteId String? @unique
+  supersedes        Quote?  @relation("QuoteRevision", fields: [supersedesQuoteId], references: [id], onDelete: Restrict)
+  supersededBy      Quote?  @relation("QuoteRevision")
+
+  status     QuoteStatus @default(DRAFT)
+  /// A calendar date, not an instant: a quote valid until the 30th is valid
+  /// for the whole of the 30th in the workshop's own day (§3.6).
+  validUntil DateTime    @db.Date
+
+  /// Frozen at creation, summed from already-rounded line values (§3.3). A
+  /// work order computes its totals on read because its lines change; a quote
+  /// stores them because its lines do not, and because the numbers the
+  /// customer was given must survive a change to how totals are calculated.
+  netOre      Int
+  vatOre      Int
+  grossOre    Int
+  /// Display-only öresavrundning; never fed back into a line value (§3.3).
+  roundingOre Int
+
+  /// Written on send, together with the number and the `SENT` status (§6.6).
+  documentId String?   @unique
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  sentAt      DateTime? @db.Timestamptz(3)
+  respondedAt DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  lines QuoteLine[]
+
+  @@unique([workOrderId, revision])
+  @@index([workOrderId])
+  /// The expiry sweep (§8.4, wired by B11) scans `SENT` rows by `validUntil`.
+  @@index([status, validUntil])
+}
+
+/// A line as it stood when the quote was created (B7.3.2).
+///
+/// Copied out of `WorkOrderLine`, never joined back to it. The work order's
+/// lines go on changing — that is what a work order is for — and §6.6 requires
+/// that what the customer received always still exists. This is the same
+/// snapshot rule §4.2 applies between a work-order line and its article, one
+/// level up.
+model QuoteLine {
+  id      String @id @default(uuid(7))
+  quoteId String
+  quote   Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  sortOrder Int
+  type      WorkOrderLineType
+
+  /// Traceability only — which part was quoted. `Restrict`, mirroring
+  /// `WorkOrderLine`: articles are deactivated, never deleted (§4.3).
+  articleId String?
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: Restrict)
+
+  description  String
+  quantity     Decimal @db.Decimal(12, 3)
+  unit         Unit
+  unitPriceOre Int
+  vatRateBps   Int
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([quoteId, sortOrder])
+  @@index([articleId])
 }

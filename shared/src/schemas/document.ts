@@ -71,3 +71,20 @@ export const documentWithPayloadSchema = documentSchema.extend({
 export type WorkshopDocumentWithPayload = z.infer<
   typeof documentWithPayloadSchema
 >;
+
+export const documentIdParamsSchema = z.object({ id: idSchema });
+export type DocumentIdParams = z.infer<typeof documentIdParamsSchema>;
+
+/**
+ * `filePath` is deliberately **not** in the read contract (B7.2.3).
+ *
+ * It is a server-side path under `STORAGE_PATH`, and the only thing a client
+ * can legitimately do with a document's bytes is ask for them by id at
+ * `/api/documents/:id/file`. Publishing the path invites a caller to construct
+ * one, which is the path-traversal surface that endpoint exists to close.
+ */
+export const documentReadSchema = documentSchema.omit({ filePath: true });
+export type WorkshopDocumentRead = z.infer<typeof documentReadSchema>;
+
+/** The PDF's media type, used by the download route and by the tests. */
+export const PDF_CONTENT_TYPE = 'application/pdf';
