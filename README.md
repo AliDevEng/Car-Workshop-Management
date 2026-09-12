@@ -163,10 +163,10 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **54/92 backend milestones are complete as of 2026-09-10**: nine
+is complete. **60/92 backend milestones are complete as of 2026-09-13**: nine
 of B0's ten, all six of B1's, all seven of B2's, all six of B3's, all six of
-B4's, all six of B5's, all eight of B6's and all six of B7's. B1, B2, B3, B4,
-B5, B6 and B7 are Done.
+B4's, all six of B5's, all eight of B6's, all six of B7's and all six of B8's.
+B1, B2, B3, B4, B5, B6, B7 and B8 are Done.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion
@@ -174,11 +174,13 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**17/83 frontend milestones are complete as of 2026-09-09:** all seven of F0's,
-all six of F1's, and four of F2's six milestones. F0 and F1 are Done. F2's
-public layout, service pages, SEO and recorded performance budget are complete;
-the live lookup awaits B5.2/B10.1–B10.4 and the about page awaits real owner
-photographs.
+**23/83 frontend milestones are complete as of 2026-09-13:** all seven of F0's,
+all six of F1's, four of F2's six milestones and all six of F3's milestones.
+F0, F1 and F3 are Done. F2's public layout, service pages, SEO and recorded
+performance budget are complete; the live lookup awaits B10.1–B10.4 and the
+about page awaits real owner photographs. F3 replaces the `/boka` placeholder
+with a schema-validated public request form, token recovery, spam-response
+fallbacks and a staff-review thank-you page.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -210,7 +212,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | B10.1–.4, .6 | Vehicle lookup (mock) and partner links | 3 | ⬜ |
 | B6 | Work orders | 4 | ✅ (8/8 — work orders with snapshotting lines, totals computed on read from one calculation, optimistic locking as a `where`-clause compare-and-swap, the B1.4 state machine on transitions, stock deducted once on completion behind an `Idempotency-Key` claimed *before* the effect, compensating `RETURN` movements on a revert, odometer capture at both ends, the vehicle and customer service histories, and the dashboard; document numbers from a Postgres sequence per type per year; 79 new backend tests, 754 in the workspace, backend coverage 95.1%) |
 | B7 | Quotes and PDF pipeline | 5 | ✅ (6/6 — `@react-pdf/renderer` behind one entry point with a concurrency-one queue and a 10 s cap, two committed static Archivo instances, a `Document` store whose SHA-256 is verified on every download and whose path is asserted inside `STORAGE_PATH`, quotes that snapshot their work order's lines and freeze their totals, sending as one transaction that spends the §4.4 number and renders and stores the PDF, and versions rather than edits after send; B7.4.6 took its strict branch — a document rebuilt from `payloadJson` is byte-for-byte the file on disk. 81 new backend tests, 526 in the backend suite) |
-| B8 | Service protocols | 5 | ⬜ |
+| B8 | Service protocols | 5 | ✅ (6/6 — checklist templates copied into each protocol rather than referenced, creation gated on a `COMPLETED` work order, finalisation as one transaction that spends the §4.4 `SP-` number and renders and stores the PDF exactly as B7's quote send does, and corrections as a `revision`/`supersedesProtocolId` chain — the same shape B7.5 gave `Quote`, needed to reconcile §4.2's plain unique `workOrderId` against §6.7's correction requirement; 53 new backend tests) |
 | B9 | Service rules and recommendations | 6 | ⬜ |
 | B10.5 | Real vehicle-data provider | 6 | ⬜ |
 | B11 | Audit, GDPR and scheduled jobs | 7 | ⬜ |
@@ -224,8 +226,8 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | F4 | Admin shell and authentication | 1 | ⬜ |
 | F6 | Customers and vehicles | 1 | ⬜ |
 | F7 | Inventory | 2 | ⬜ |
-| F2 | Public site | 3 | ⛔ (4/6 — frontend work and the Lighthouse budget pass; live form-token/vehicle lookup and real owner photos remain external blockers) |
-| F3 | Public booking flow | 3 | ⬜ |
+| F2 | Public site | 3 | ⛔ (4/6 — frontend work and the Lighthouse budget pass; live vehicle lookup and real owner photos remain external blockers) |
+| F3 | Public booking flow | 3 | ✅ (6/6 — `/boka` is a real public booking-request form with pre-filled registration numbers, preferred date/time, service choices, honeypot and HMAC form token; `/boka/tack` promises staff review rather than a guaranteed slot; 6 Playwright checks cover success, honeypot, early/expired tokens, rate limits, preserved input and the 360 px keyboard flow) |
 | F8 | Calendar and booking requests | 3 | ⬜ |
 | F5 | Dashboard | 4 | ⬜ |
 | F9 | Work orders | 4 | ⬜ |
@@ -334,6 +336,10 @@ past row.
 | 2026-09-10 | **B7 — a document is filed by the Europe/Stockholm date, not the UTC one** | Found in review. §4.4 draws the number from a sequence keyed on the workshop's calendar year, so a quote sent at 00:30 on 1 January is `OF-2026-0001` while UTC is still on 31 December — and deriving `documents/YYYY/MM/` from UTC filed it as `documents/2025/12/OF-2026-0001.pdf`. The first document of the year, in last year's folder, for exactly the hour someone would go looking for it |
 | 2026-09-10 | **B7 — every quote on a work order takes the next `revision`, not only a revision of a sent one** | Found in review. Defaulting a plain create to revision 1 made "quote the job, abandon the draft, quote it again" collide with the `(workOrderId, revision)` unique index and answer a generic `409 — uppgifterna krockar med något som redan finns`: wrong, and unactionable for the person reading it. §6.6 treats an order's quotes as a series, so the number is simply the position in it — which is also what makes B7.5.2's "versions listed on the work order" coherent |
 | 2026-09-10 | **B7 — expiry is a sweep, and a quote past its date is still answerable until the sweep runs** | A status derived on read is a second answer to "what is this quote", and the two disagree the moment anything queries the column — the list filter most obviously, which would hide rows the detail page calls expired. So `expireOverdueQuotes` writes the status and B11 schedules it (§8.4 owns the runner). A `SENT` quote whose date has passed can still be accepted or declined: the customer who rings back a day late is a customer, and refusing to record it would leave the workshop describing reality by editing a date. Once the sweep has written `EXPIRED` the quote is terminal, and the route out is a revision — a price formally let lapse should be re-confirmed on a new document |
+| 2026-09-13 | **B8 — needs a §4.2 correction: `ServiceProtocol` gains `revision` and `supersedesProtocolId`, and loses its bare `workOrderId` unique index; `number` and `documentId` become nullable** | §4.2 lists `workOrderId` as unique and `number`/`documentId` as plain fields, which describes a protocol that is finalised the moment it is created. B8.2 and B8.4 split those into two steps — creation from a `COMPLETED` work order, then a separate finalisation that spends the number — exactly the shape B7.3/B7.4 already gave `Quote`, and a `DRAFT`-equivalent record cannot have a number or a document yet. Worse, §6.7 requires "corrections produce a new, clearly numbered document", which a bare-unique `workOrderId` makes impossible: a correction is a second row for the same order. Resolved with the identical `revision`/`supersedesId` shape the 2026-09-10 B7.5 rows below already establish for `Quote`, rather than inventing a second mechanism for one schema over from it |
+| 2026-09-13 | **B8 — the checklist result enum is confirmed as `OK \| ATTENTION \| NOT_APPLICABLE`**, not the four-value `OK \| NOT_OK \| NOT_APPLICABLE \| VALUE` with a measured unit that `backend/README.md`'s B8.1.2 line described | The 2026-09-08 B1.5 row below declared the three-value enum "provisional pending B8" — confirming or replacing it is this iteration's job. PROJECT_SPEC.md §6.7 asks only for "a checklist" and never itself promises a measured value with a unit; a measured item (a value, a unit, a pass/fail threshold) is a materially larger feature with no spec text requesting it, and CLAUDE.md asks that a requirement not be invented. `backend/README.md`'s B8.1.2 line is corrected to match rather than left to contradict the schema actually built |
+| 2026-09-13 | **`checklistTemplateId` and `notes` added to `ServiceProtocol`**, beyond §4.2's field list | `checklistTemplateId` is traceability only, mirroring `WorkOrderLine.articleId`: the checklist itself is still copied, never referenced (§6.7) — the same reasoning that added `WorkOrder.completedByUserId` in B6. `notes` holds §6.7's "free-text notes", which §4.2's field list had no field for at all |
+| 2026-09-13 | **`ServiceProtocol.performedByUserId` is always the staff member who created the record**, not a separately chosen mechanic | §6.7 names "mechanic" as a field the document prints, and B6 already distinguishes `WorkOrder.assignedUserId` from `completedByUserId` for the same reason — but nothing in §4.2 or §6.7 asks for a protocol to be filed on someone else's behalf, and adding that selection would be an unrequested feature. A protocol filed by the wrong person is corrected the same way any other mistake in it is: `POST /api/service-protocols/:id/correct` |
 
 ---
 

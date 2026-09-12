@@ -1,8 +1,9 @@
 import supertest from 'supertest';
-import { parseQuantity } from 'shared';
+import { parseQuantity, workOrderDetailSchema } from 'shared';
 import { recordMovement } from '../../src/modules/articles/stock.service.js';
 import type { TestApp } from './app.js';
 import { withAgent, type Agent } from './auth.js';
+import { jsonBody } from './http.js';
 
 /**
  * Fixtures for the B6 work-order tests.
@@ -169,4 +170,35 @@ export function labourLine(
     vatRateBps: 2500,
     ...overrides,
   };
+}
+
+/**
+ * Drives a work order from `DRAFT` to `COMPLETED` through the real status
+ * endpoint (§6.5: `DRAFT` cannot jump straight to `COMPLETED`, so this always
+ * passes through `IN_PROGRESS`). Used by tests — B8's service protocols among
+ * them — whose subject is a job that has already finished, not the state
+ * machine itself, which B6 already covers.
+ */
+export async function completeWorkOrder(
+  harness: TestApp,
+  agent: Agent,
+  workOrderId: string,
+  odometerKmOut = 12_345,
+): Promise<void> {
+  const current = workOrderDetailSchema.parse(
+    jsonBody(
+      await get(harness, agent, `/api/work-orders/${workOrderId}`).expect(200),
+    ),
+  );
+
+  await post(harness, agent, `/api/work-orders/${workOrderId}/status`, {
+    status: 'IN_PROGRESS',
+    version: current.version,
+  }).expect(200);
+
+  await post(harness, agent, `/api/work-orders/${workOrderId}/status`, {
+    status: 'COMPLETED',
+    version: current.version + 1,
+    odometerKmOut,
+  }).expect(200);
 }

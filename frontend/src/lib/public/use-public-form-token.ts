@@ -12,6 +12,10 @@ interface PublicFormTokenOptions {
   readonly eager?: boolean;
 }
 
+interface GetTokenOptions {
+  readonly refresh?: boolean;
+}
+
 export function usePublicFormToken({
   eager = true,
 }: PublicFormTokenOptions = {}) {
@@ -21,35 +25,46 @@ export function usePublicFormToken({
   });
   const tokenPromise = useRef<Promise<string> | null>(null);
 
-  const getToken = useCallback(async (): Promise<string> => {
-    if (tokenPromise.current === null) {
-      tokenPromise.current = (async () => {
-        const [{ formTokenResponseSchema }, { apiFetch }] = await Promise.all([
-          import('shared'),
-          import('@/lib/api'),
-        ]);
-        const response = await apiFetch(
-          '/public/booking-form-token',
-          formTokenResponseSchema,
-        );
-        return response.token;
-      })();
-    }
+  const getToken = useCallback(
+    async ({ refresh = false }: GetTokenOptions = {}): Promise<string> => {
+      if (refresh) {
+        tokenPromise.current = null;
+      }
 
-    // Keep eager loading asynchronous when this callback is started by the
-    // effect below; React effects must not synchronously cascade state.
-    await Promise.resolve();
-    setState({ status: 'loading', token: null });
-    try {
-      const token = await tokenPromise.current;
-      setState({ status: 'ready', token });
-      return token;
-    } catch (error) {
-      tokenPromise.current = null;
-      setState({ status: 'error', token: null });
-      throw error;
-    }
-  }, []);
+      if (tokenPromise.current === null) {
+        tokenPromise.current = (async () => {
+          const [{ formTokenResponseSchema }, { apiFetch }] = await Promise.all(
+            [import('shared'), import('@/lib/api')],
+          );
+          const response = await apiFetch(
+            '/public/booking-form-token',
+            formTokenResponseSchema,
+          );
+          return response.token;
+        })();
+      }
+
+      // Keep eager loading asynchronous when this callback is started by the
+      // effect below; React effects must not synchronously cascade state.
+      await Promise.resolve();
+      setState({ status: 'loading', token: null });
+      try {
+        const token = await tokenPromise.current;
+        setState({ status: 'ready', token });
+        return token;
+      } catch (error) {
+        tokenPromise.current = null;
+        setState({ status: 'error', token: null });
+        throw error;
+      }
+    },
+    [],
+  );
+
+  const refreshToken = useCallback(
+    () => getToken({ refresh: true }),
+    [getToken],
+  );
 
   useEffect(() => {
     if (!eager) {
@@ -63,5 +78,5 @@ export function usePublicFormToken({
     };
   }, [eager, getToken]);
 
-  return { ...state, getToken } as const;
+  return { ...state, getToken, refreshToken } as const;
 }

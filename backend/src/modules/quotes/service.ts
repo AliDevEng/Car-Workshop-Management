@@ -21,6 +21,7 @@ import {
   getWorkshopDetails,
 } from '../../config/settings.js';
 import { writeAuditLog } from '../../lib/audit.js';
+import { toDateColumn } from '../../lib/date-column.js';
 import {
   DOCUMENT_NUMBER_PREFIXES,
   nextDocumentNumber,
@@ -133,19 +134,6 @@ async function loadQuoteResponse(
 /** A `date` column as the wire format writes it — `YYYY-MM-DD` (§3.6). */
 function toLocalDate(value: Date): string {
   return toIsoDateOrNull(value) ?? '';
-}
-
-/**
- * A `YYYY-MM-DD` calendar date as a value for a `@db.Date` column.
- *
- * **Midday UTC, not midnight**, and this is load-bearing: the driver renders a
- * `date` parameter through the session's timezone, and midnight UTC in a
- * session an hour ahead is the previous day at 23:00 — which stores the wrong
- * date. Midday leaves twelve hours of slack either way, so no timezone this
- * application can meet moves the calendar date.
- */
-function toDateColumn(localDate: string): Date {
-  return new Date(`${localDate}T12:00:00.000Z`);
 }
 
 /**

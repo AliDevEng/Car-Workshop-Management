@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  addStockholmDays,
   calculateWorkOrderTotals,
   ore,
   parseDecimal,
   quoteDetailSchema,
   quoteListResponseSchema,
   quoteResponseSchema,
+  stockholmDate,
   type QuoteResponse,
 } from 'shared';
 import { expireOverdueQuotes } from '../src/modules/quotes/service.js';
@@ -202,10 +204,13 @@ describe('B7.3.2 — creating a quote snapshots the work order', () => {
     const { workOrderId } = await seedQuotableWorkOrder();
     const { quote } = await createQuote(workOrderId);
 
-    // The default operational setting is 30 days (config/settings.ts).
-    const today = new Date();
-    const expected = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-    expect(quote.validUntil).toBe(expected.toISOString().slice(0, 10));
+    // The default operational setting is 30 days (config/settings.ts),
+    // counted from the workshop's own Stockholm calendar date — exactly what
+    // `defaultValidUntil` in `quotes/service.ts` does. Naive UTC-millisecond
+    // arithmetic here would disagree with it for part of every day (§3.6),
+    // which is the trap this test would otherwise fall into itself.
+    const expected = addStockholmDays(stockholmDate(new Date()), 30);
+    expect(quote.validUntil).toBe(expected);
   });
 
   it('accepts an explicit validUntil', async () => {

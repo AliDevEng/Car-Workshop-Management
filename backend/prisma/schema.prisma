@@ -63,6 +63,7 @@ model User {
   completedWorkOrders    WorkOrder[]       @relation("WorkOrderCompletedBy")
   idempotencyKeys        IdempotencyKey[]
   generatedDocuments     Document[]
+  performedProtocols     ServiceProtocol[]
 
   @@index([isActive])
 }
@@ -572,6 +573,7 @@ model WorkOrder {
   odometerReadings OdometerReading[]
   stockMovements   StockMovement[]
   quotes           Quote[]
+  serviceProtocols ServiceProtocol[]
 
   /// §8.2 names this one: the dashboard and the list filter on status.
   @@index([status])
@@ -720,7 +722,8 @@ model Document {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  quote Quote?
+  quote           Quote?
+  serviceProtocol ServiceProtocol?
 
   @@index([type, generatedAt])
   @@index([generatedByUserId])
@@ -818,4 +821,139 @@ model QuoteLine {
 
   @@index([quoteId, sortOrder])
   @@index([articleId])
+}
+
+// ---------------------------------------------------------------------------
+// B8 — checklist templates and service protocols (PROJECT_SPEC.md §4.2, §6.7).
+//
+// The same two rules as B7's pair, restated for this one:
+//
+//   * **A template is copied, never referenced.** `ChecklistTemplate.itemsJson`
+//     supplies only the questions; a protocol's own `checklistJson` carries the
+//     answers, and editing a template tomorrow must not silently rewrite a
+//     protocol signed today (§6.7, B8.1.3).
+//   * **A finalised protocol is immutable.** Finalising writes the `Document`,
+//     assigns the §4.4 number, and freezes the record. A correction afterwards
+//     is a new `ServiceProtocol` row pointing at the one it replaces — see the
+//     note on `revision` below for why that departs from §4.2's literal field
+//     list.
+// ---------------------------------------------------------------------------
+
+/// PROJECT_SPEC.md §4.2, shared with `ServiceRule`/`ServiceRecommendation`
+/// (B9). Declared here because B8 needs it first; B9 does not redeclare it.
+enum ServiceType {
+  SERVICE_A
+  SERVICE_B
+  MAJOR_SERVICE
+  TIMING_BELT
+  BRAKE_FLUID
+  AC_SERVICE
+  OTHER
+}
+
+/// A checklist template per service type (§4.2, §6.7; B8.1), editable by
+/// `ADMIN`. Copied into each protocol rather than referenced, so an old
+/// protocol keeps the checklist that existed when it was signed.
+model ChecklistTemplate {
+  id String @id @default(uuid(7))
+
+  serviceType ServiceType
+  name        String
+  /// `ChecklistTemplateItem[]` from `shared` — `{ key, label }` pairs, before
+  /// any answer exists.
+  itemsJson   Json
+  isActive    Boolean @default(true)
+  /// A revision counter, bumped on every edit. Informational only, **not** an
+  /// optimistic lock: unlike `WorkOrder.version` (§6.5), nothing here is a
+  /// concurrent multi-editor surface, so a `where`-clause compare-and-swap
+  /// would only add false conflicts a two-person admin screen does not need.
+  version     Int     @default(1)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  protocols ServiceProtocol[]
+
+  @@index([serviceType, isActive])
+}
+
+/// The service protocol (§4.2, §6.7; B8.2) — the deliverable the workshop
+/// hands over with the keys.
+///
+/// **`workOrderId` is unique only in combination with `revision`, not on its
+/// own.** §4.2 lists it as a bare unique field, but §6.7 also requires that
+/// "corrections produce a new, clearly numbered document" — the two cannot
+/// both hold, because a correction is a second `ServiceProtocol` row for the
+/// same order. B7.5 resolved the identical tension for `Quote` with a
+/// `revision` counter and a `supersedesQuoteId` chain; B8.5.3 asks for exactly
+/// this reconciliation, so the same shape is used here rather than a new one
+/// invented for a problem already solved once in this schema.
+model ServiceProtocol {
+  id String @id @default(uuid(7))
+
+  /// `Restrict`, mirroring `Quote`: §4.3 permits deleting a `DRAFT` work
+  /// order, and a protocol is evidence of work actually performed — the order
+  /// must be emptied of protocols deliberately, never as a side effect of
+  /// removing a draft (which, being a `DRAFT`, could not have one anyway).
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+
+  /// `SP-2026-0001`, from the §4.4 sequence, **null until finalised**: §4.4
+  /// assigns a number on finalisation, and for a protocol that is
+  /// unambiguously `POST /api/service-protocols/:id/finalise` (B8.4.1) —
+  /// mirroring `Quote.number`, which is null while a quote is a `DRAFT`.
+  number String? @unique
+
+  /// Which version of this work order's protocol this is, counting from 1
+  /// (B8.5.3, mirroring B7.5.2's `Quote.revision`).
+  revision Int @default(1)
+
+  /// The finalised protocol this one corrects (B8.4.2, B8.5.2). Unique: a
+  /// protocol is corrected at most once, which keeps §6.7's history a chain
+  /// rather than a tree — exactly `Quote.supersedesQuoteId`'s reasoning.
+  supersedesProtocolId String?          @unique
+  supersedes           ServiceProtocol? @relation("ServiceProtocolCorrection", fields: [supersedesProtocolId], references: [id], onDelete: Restrict)
+  supersededBy         ServiceProtocol? @relation("ServiceProtocolCorrection")
+
+  performedAt DateTime @db.Timestamptz(3)
+  /// Stored in km, displayed in mil (§3.5).
+  odometerKm  Int
+
+  performedByUserId String
+  performedBy       User   @relation(fields: [performedByUserId], references: [id], onDelete: Restrict)
+
+  /// The template this protocol's checklist was copied from. Traceability
+  /// only, mirroring `WorkOrderLine.articleId`: never joined for display, and
+  /// nullable with `Restrict` because a template is deactivated, never
+  /// deleted (§4.3) — so the restriction never actually fires.
+  checklistTemplateId String?
+  checklistTemplate   ChecklistTemplate? @relation(fields: [checklistTemplateId], references: [id], onDelete: Restrict)
+
+  /// The copied checklist with its answers (`ChecklistAnswer[]` from
+  /// `shared`) — never re-read from the template (§6.7, B8.1.3).
+  checklistJson Json
+
+  /// The next recommended service, in both km and date (§6.7). Manually
+  /// reviewed in Phase 5; B9.6 connects pre-filling from an accepted
+  /// `ServiceRecommendation`.
+  nextServiceDueKm   Int?
+  nextServiceDueDate DateTime? @db.Date
+
+  /// §6.7's "free-text notes" — not in §4.2's literal field list, which
+  /// otherwise has nowhere for them to live. Mirrors `WorkOrder.internalNote`.
+  notes String?
+
+  /// Written on finalisation, together with the number (B8.4.1).
+  documentId String?   @unique
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  /// Once set, the protocol is immutable (§6.7).
+  finalisedAt DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([workOrderId, revision])
+  @@index([workOrderId])
+  @@index([checklistTemplateId])
 }

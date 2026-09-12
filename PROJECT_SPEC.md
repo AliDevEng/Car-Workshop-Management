@@ -442,9 +442,24 @@ rewrites history.
 `DECLINED` | `EXPIRED`), `validUntil`, `netOre`, `vatOre`, `grossOre`,
 `roundingOre`, `documentId?`, `sentAt?`, `respondedAt?`.
 
-**ServiceProtocol** — `workOrderId` (unique), `number`, `performedAt`,
-`odometerKm`, `performedByUserId`, `checklistJson`, `nextServiceDueKm?`,
-`nextServiceDueDate?`, `documentId`, `finalisedAt?`.
+**ServiceProtocol** — `workOrderId`, `number?`, `revision`,
+`supersedesProtocolId?`, `performedAt`, `odometerKm`, `performedByUserId`,
+`checklistTemplateId?`, `checklistJson`, `nextServiceDueKm?`,
+`nextServiceDueDate?`, `notes?`, `documentId?`, `finalisedAt?`.
+
+**Corrected by B8 (2026-09-12).** `workOrderId` is no longer bare-unique, and
+`number`/`documentId` gained a `?`: §4.4 assigns a number when a document is
+finalised, and B8.2/B8.4 split *creating* a protocol from *finalising* it —
+the same two-step shape B7.3/B7.4 already gave `Quote`, which needs both
+fields nullable in between. `revision` and `supersedesProtocolId` are new,
+for the same reason `Quote` has them: §6.7 requires "corrections produce a
+new, clearly numbered document", which needs more than one `ServiceProtocol`
+row per work order to be possible at all — the one-protocol-per-order reading
+of the original `workOrderId` unique index could not coexist with that
+sentence. `checklistTemplateId` is traceability only, mirroring
+`WorkOrderLine.articleId` — the checklist itself is still copied, never
+referenced (§6.7). `notes` holds this section's "free-text notes", which the
+original field list had nowhere for.
 
 **Document** — `type` (`QUOTE` | `SERVICE_PROTOCOL`), `number`, `filePath`,
 `fileHashSha256`, `sizeBytes`, `payloadJson`, `generatedAt`, `generatedByUserId`.

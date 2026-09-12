@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import {
+  checklistAnswerSchema,
   documentNumberSchema,
   documentTotalsSchema,
   isoDateSchema,
   isoDateTimeSchema,
   lineTotalsSchema,
+  odometerKmSchema,
   quantityStringSchema,
   unitSchema,
   vatRateBpsSchema,
@@ -124,4 +126,60 @@ export type QuotePayload = z.infer<typeof quotePayloadSchema>;
  */
 export function parseQuotePayload(value: unknown): QuotePayload {
   return quotePayloadSchema.parse(value);
+}
+
+// --- Service protocol (B8.3, B8.4.4) -----------------------------------------
+
+export const SERVICE_PROTOCOL_PAYLOAD_VERSION = 1;
+
+/**
+ * A performed line, as printed on the protocol (§6.7: "every line performed,
+ * parts fitted with article numbers"). Deliberately carries no price: the
+ * protocol is a completion record handed over with the keys, not an invoice —
+ * §6.6 already covers what the job cost.
+ */
+const payloadServiceProtocolLineSchema = z.object({
+  sortOrder: z.number().int().min(0),
+  type: workOrderLineTypeSchema,
+  description: z.string(),
+  quantity: quantityStringSchema,
+  unit: unitSchema,
+  /** The article's SKU, or `null` for labour and free-text lines. */
+  articleSku: z.string().nullable(),
+});
+export type ServiceProtocolPayloadLine = z.infer<
+  typeof payloadServiceProtocolLineSchema
+>;
+
+export const serviceProtocolPayloadSchema = z.object({
+  payloadVersion: z.literal(SERVICE_PROTOCOL_PAYLOAD_VERSION),
+  documentType: z.literal('SERVICE_PROTOCOL'),
+  /** Also the PDF's pinned creation and modification date (B0.10.1). */
+  generatedAt: isoDateTimeSchema,
+  number: documentNumberSchema,
+  workshop: workshopDetailsSchema,
+  customer: payloadCustomerSchema,
+  vehicle: payloadVehicleSchema,
+  workOrder: z.object({
+    number: documentNumberSchema.nullable(),
+    description: z.string(),
+  }),
+  performedAt: isoDateTimeSchema,
+  odometerKm: odometerKmSchema,
+  mechanicName: z.string(),
+  lines: z.array(payloadServiceProtocolLineSchema),
+  checklist: z.array(checklistAnswerSchema),
+  notes: z.string().nullable(),
+  nextServiceDueKm: odometerKmSchema.nullable(),
+  nextServiceDueDate: isoDateSchema.nullable(),
+});
+export type ServiceProtocolPayload = z.infer<
+  typeof serviceProtocolPayloadSchema
+>;
+
+/** Reads a stored payload back, exactly as `parseQuotePayload` does. */
+export function parseServiceProtocolPayload(
+  value: unknown,
+): ServiceProtocolPayload {
+  return serviceProtocolPayloadSchema.parse(value);
 }

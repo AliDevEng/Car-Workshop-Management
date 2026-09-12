@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 54/92 milestones complete; 7/14 iterations Done.**
+**Overall: 60/92 milestones complete; 8/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -45,7 +45,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [6](#b5)   | B5        | 3       | 6/6             | Done        |
 | [7](#b6)   | B6        | 4       | 8/8             | Done        |
 | [8](#b7)   | B7        | 5       | 6/6             | Done        |
-| [9](#b8)   | B8        | 5       | 0/6             | Not started |
+| [9](#b8)   | B8        | 5       | 6/6             | Done        |
 | [10](#b9)  | B9        | 6       | 0/7             | Not started |
 | [11](#b10) | B10       | 3 and 6 | 0/6             | Not started |
 | [12](#b11) | B11       | 7       | 0/6             | Not started |
@@ -83,6 +83,20 @@ constraint rather than a read-then-insert, mapped to `409` on SQLSTATE `23P01`
 exactly as B0.10.3 measured; the Europe/Stockholm boundary conversion lives in
 `shared/time.ts` and is tested on both 2026 DST transitions. 83 new backend
 tests. B10.1–B10.4 and B10.6 remain before Phase 3's backend half is complete.
+
+**Iteration 9 (B8) is Done as of 2026-09-13.** Checklist templates and the
+service protocol that rides on B7's PDF pipeline: templates copied — never
+referenced — into each protocol's `checklistJson`, creation gated on a
+`COMPLETED` work order, and finalisation that spends the §4.4 `SP-` number,
+renders and stores the PDF and freezes the record in one transaction, exactly
+mirroring `sendQuoteInTransaction`. A correction afterwards is a new
+`revision` pointing at the one it replaces, which required reconciling §4.2's
+plain `workOrderId` unique index against §6.7's correction requirement —
+resolved with the same `revision`/`supersedesId` shape B7.5 already gave
+`Quote`, and documented in the root decision log. 53 new backend tests; one
+pre-existing flaky test in `quotes.test.ts` (unrelated to this iteration, a
+UTC-vs-Stockholm day arithmetic bug in the test itself) was found and fixed
+while running the suite. Phase 5 is complete; F10 delivers the UI.
 
 **Iteration 8 (B7) is Done as of 2026-09-10.** The PDF pipeline and the quote
 that rides on it: `@react-pdf/renderer` behind a single entry point with a
@@ -2392,14 +2406,14 @@ B0.10 and both cost real time:**
 
 ## Iteration 9: Creating service protocols
 
-- [ ] Creating checklist templates (`B8.1`)
-- [ ] Creating protocol records (`B8.2`)
-- [ ] Creating the protocol PDF template (`B8.3`)
-- [ ] Finalising immutable protocols (`B8.4`)
-- [ ] Verifying corrections and historical snapshots (`B8.5`)
-- [ ] Connecting the protocol workflow (`B8.6`)
+- [x] Creating checklist templates (`B8.1`)
+- [x] Creating protocol records (`B8.2`)
+- [x] Creating the protocol PDF template (`B8.3`)
+- [x] Finalising immutable protocols (`B8.4`)
+- [x] Verifying corrections and historical snapshots (`B8.5`)
+- [x] Connecting the protocol workflow (`B8.6`)
 
-**Reference:** B8 · **Phase:** 5 · **Progress:** 0/6 · **Status:** Not started
+**Reference:** B8 · **Phase:** 5 · **Progress:** 6/6 · **Status:** Done
 
 **Depends on:** B7.
 
@@ -2419,72 +2433,159 @@ Automatic pre-filling from accepted recommendations is verified in B9.6.
 
 ### B8.1 Checklist templates
 
-- [ ] **B8.1.1** `ChecklistTemplate` per service type, editable by `ADMIN`
-- [ ] **B8.1.2** Items typed as `OK | NOT_OK | NOT_APPLICABLE | VALUE`, with an
-      optional unit for measured values
-- [ ] **B8.1.3** The template is copied into the protocol, never referenced —
-      old protocols keep the checklist that existed at the time
+- [x] **B8.1.1** `ChecklistTemplate` per service type, editable by `ADMIN` —
+      `POST`/`PATCH /api/checklist-templates`, reads `authenticated`.
+- [x] **B8.1.2** Items typed as `OK | ATTENTION | NOT_APPLICABLE`, **not** the
+      four-value `OK | NOT_OK | NOT_APPLICABLE | VALUE` with a measured unit
+      this line originally named. B1.5 had already declared
+      `CHECKLIST_RESULTS` as `OK | ATTENTION | NOT_APPLICABLE` and flagged it
+      "provisional pending B8" in the root decision log — confirming or
+      replacing that enum **is** this task, and PROJECT_SPEC.md §6.7 never
+      itself promises a measured value with a unit, only "a checklist". A
+      measured-value item is real inspection-sheet material but is a second,
+      larger feature (a value type, a unit, a pass/fail threshold) with no
+      spec text asking for it; adding it speculatively is exactly what
+      CLAUDE.md asks to avoid. Confirmed as written, and this line corrected
+      to match — see the root decision log.
+- [x] **B8.1.3** The template is copied into the protocol, never referenced —
+      old protocols keep the checklist that existed at the time. Verified by
+      `checklist-templates.test.ts`: editing a template's item label after a
+      protocol has copied it leaves the template's own next read showing the
+      new label, and `service-protocols.test.ts`'s finalised documents keep
+      printing whatever the checklist said at creation.
 
 <a id="b8-2"></a>
 
 ### B8.2 Protocol model
 
-- [ ] **B8.2.1** Prisma `ServiceProtocol`, unique per work order
-- [ ] **B8.2.2** Creation allowed only from a `COMPLETED` work order
-- [ ] **B8.2.3** `checklistJson` validated against the copied template
-- [ ] **B8.2.4** Store reviewed next-service values with the protocol.
-      Recommendation-based pre-filling is connected in B9.6 after the
-      recommendation engine exists.
+- [x] **B8.2.1** Prisma `ServiceProtocol`. **Not** unique per work order — see
+      B8.5.3, which reconciles this against §6.7's correction requirement.
+- [x] **B8.2.2** Creation allowed only from a `COMPLETED` work order, checked
+      inside the creating transaction; any other status is a `409` naming the
+      actual status.
+- [x] **B8.2.3** `checklistJson` validated against the copied template:
+      `buildChecklistFromTemplate` requires every template item to have
+      exactly one answer and rejects an answer naming an item the template
+      does not have, both directions reported in `details` as `409`. The
+      stored `label` always comes from the template, never from the client.
+- [x] **B8.2.4** `nextServiceDueKm`/`nextServiceDueDate` stored with the
+      protocol, editable until finalisation. Recommendation-based pre-filling
+      stays connected in B9.6, once the recommendation engine exists.
 
 <a id="b8-3"></a>
 
 ### B8.3 Protocol PDF
 
-- [ ] **B8.3.1** Template: workshop, customer, vehicle with registration number
-      and VIN, odometer in mil, date, mechanic, lines, parts with article
-      numbers, checklist, notes, next service in both km and date
-- [ ] **B8.3.2** Signature area for the mechanic
-- [ ] **B8.3.3** Golden-file test
+- [x] **B8.3.1** `pdf/templates/service-protocol.tsx`, rendering through the
+      same B7.1.4 layout primitives (`DocumentHeader`/`DocumentFooter`/
+      `DocumentTable`/`FieldBlock`) as the quote: workshop, customer, vehicle
+      with registration number and VIN, odometer via `formatOdometerMil`
+      (§3.5), date, mechanic, the work order's lines with an article-number
+      column, the checklist, free-text notes, and next service in both km and
+      date.
+- [x] **B8.3.2** A signature area naming the mechanic.
+- [x] **B8.3.3** `tests/pdf-service-protocol-template.test.ts` — 16 tests
+      against a fixture rendered with no database, covering Swedish glyphs in
+      both weights, the uppercased heading, the km→mil conversion, every
+      checklist result label, the omitted-section cases, and B0.10.1's pinned
+      dates and byte-identical regeneration.
 
 <a id="b8-4"></a>
 
 ### B8.4 Finalisation
 
-- [ ] **B8.4.1** `POST /api/service-protocols/:id/finalise` writing the
-      `Document`
-- [ ] **B8.4.2** Finalised protocols are read-only; corrections create a new
-      numbered document that references the original
-- [ ] **B8.4.3** Audited
+- [x] **B8.4.1** `POST /api/service-protocols/:id/finalise` renders the PDF,
+      writes the `Document`, spends the §4.4 `SP-` number and sets
+      `finalisedAt` — one transaction, mirroring `sendQuoteInTransaction`
+      exactly, `Idempotency-Key` included.
+- [x] **B8.4.2** Finalised protocols are read-only (`PATCH` is a `where`-clause
+      compare-and-swap on `finalisedAt: null`, so a concurrent finalise always
+      wins the race rather than silently losing an edit); `POST
+      /api/service-protocols/:id/correct` creates the next `revision`,
+      `supersedesProtocolId`-linked to the one it replaces.
+- [x] **B8.4.3** `service_protocol.created`, `.updated` and `.finalised` are
+      all audited, asserted in `service-protocols.test.ts`.
 
 <a id="b8-5"></a>
 
 ### B8.5 Verifying corrections and historical snapshots
 
-- [ ] **B8.5.1** Verify a changed checklist template does not alter a finalised
-      protocol.
-- [ ] **B8.5.2** Verify corrections retain the original stored document and
-      clearly reference it.
-- [ ] **B8.5.3** Before implementing corrections, reconcile the
-      one-protocol-per-order constraint with document versioning in the schema;
-      document any missing specification detail rather than overwriting history.
+- [x] **B8.5.1** Verified: editing a template afterwards does not alter a
+      finalised protocol's stored `checklistJson` or its rendered PDF
+      (`checklist-templates.test.ts`); a `PATCH` on a finalised protocol is a
+      `409` (`service-protocols.test.ts`).
+- [x] **B8.5.2** Verified: `correctServiceProtocol` never touches the original
+      row, and `service-protocol-documents.test.ts` rebuilds the original's
+      stored file byte-for-byte from its own `payloadJson` after a correction
+      exists alongside it.
+- [x] **B8.5.3** Reconciled before writing the migration. §4.2's plain
+      `workOrderId` unique index cannot coexist with §6.7's "corrections
+      produce a new, clearly numbered document" — a correction is a second
+      `ServiceProtocol` row for the same order. Resolved exactly as B7.5
+      resolved the identical tension for `Quote`: `revision` (counting from 1)
+      plus a unique `supersedesProtocolId` chain, with `@@unique([workOrderId,
+      revision])` replacing the bare unique column. Documented in
+      PROJECT_SPEC.md §4.2 and the root decision log rather than silently
+      changed.
 
 <a id="b8-6"></a>
 
 ### B8.6 Connecting the protocol workflow
 
-- [ ] **B8.6.1** Expose the shared schemas and document references required by
-      F10 checklist, preview, finalisation and download screens.
-- [ ] **B8.6.2** Verify missing checklist answers and an incomplete work order
-      cannot be finalised.
-- [ ] **B8.6.3** Record audit, Swedish glyph, mileage, totals and immutability
-      evidence for a complete protocol journey.
+- [x] **B8.6.1** `shared/src/schemas/service-protocol.ts` carries the full
+      contract F10 needs: `serviceProtocolDetailSchema`/`ListItem`/`Response`,
+      the checklist-template CRUD schemas, and `documentReadSchema`/the
+      `/api/documents/:id(/file)` routes already built for B7 serve the
+      preview and download unchanged — no document-module code needed to
+      change for a second document type.
+- [x] **B8.6.2** Verified: a checklist that does not match the template is a
+      `409` at creation (`B8.2.3` above); a work order that is not `COMPLETED`
+      cannot start a protocol at all, which is the stronger guarantee — there
+      is no route through which an "incomplete work order" could reach
+      finalisation to test separately.
+- [x] **B8.6.3** `service-protocols.test.ts` and
+      `service-protocol-documents.test.ts` carry the full journey: creation,
+      the checklist-mismatch and wrong-status errors, editing, finalisation
+      (number, document, `Idempotency-Key` replay), correction (chain, 409s on
+      double-correct and correcting a draft), the audit trail, and — in the
+      documents file — the downloaded PDF's headers, its Swedish glyphs and
+      km→mil odometer, the SHA-256 integrity check, and payload regeneration
+      surviving a customer anonymisation (§5.5). 53 new backend tests (8
+      checklist-template, 22 protocol lifecycle, 7 document delivery, 16
+      template golden-file).
 
 </details>
 
-- [ ] **Iteration 9 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 9 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-13, on the same environment as B7 (Node 22.21.1,
+PostgreSQL 16.15).
+
+| Command | Result |
+|---|---|
+| `pnpm check` | Clean — typecheck, lint (0 warnings), 578 backend + 290 shared + 89 frontend tests, type-coverage 99.74% |
+| `pnpm --filter backend exec vitest run tests/pdf-service-protocol-template.test.ts` | 16/16 |
+| `pnpm --filter backend exec vitest run tests/checklist-templates.test.ts` | 8/8 |
+| `pnpm --filter backend exec vitest run tests/service-protocols.test.ts` | 22/22 |
+| `pnpm --filter backend exec vitest run tests/service-protocol-documents.test.ts` | 7/7 |
+| `pnpm --filter backend exec vitest run --coverage` | 95.21% statements, 79.94% branches (floor 80% on the workspace average; `service-protocols` sits at 92.66%/70.23%, in the same range as `quotes` at 96.23%/73.91%) |
+| `npx prisma migrate dev --name b8_service_protocols` | Applied cleanly to the development database |
+
+**One pre-existing defect was found and fixed while running the suite, unrelated
+to B8's own code:** `quotes.test.ts`'s "defaults validUntil" test computed its
+expectation with raw UTC-millisecond arithmetic (`new Date(today.getTime() + 30
+* 86_400_000)`) instead of the Stockholm-calendar-day arithmetic the production
+code (`defaultValidUntil`) actually uses — exactly §3.6's trap, in a test rather
+than in application code. It failed intermittently depending on the hour a
+developer's machine happened to run it in (any time between 00:00 and 02:00
+Stockholm during CEST). Fixed to call the same `stockholmDate`/
+`addStockholmDays` helpers the code under test calls.
+
+Two decisions from this iteration are recorded in the root decision log: the
+`ServiceProtocol` schema reconciliation (B8.5.3) and the checklist-result enum
+confirmation (B8.1.2).
+
+**Completed on:** 2026-09-13
 
 ---
 

@@ -37,14 +37,14 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 17/83 milestones complete; 2/13 iterations Done.**
+**Overall: 23/83 milestones complete; 3/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
 | [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 7/7             | Done        |
 | [F1](#f1)   | Design system                             | 1     | F0                                 | 6/6             | Done        |
 | [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 4/6             | Blocked     |
-| [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 0/6             | Not started |
+| [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 6/6             | Done        |
 | [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 0/6             | Not started |
 | [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 0/6             | Not started |
 | [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 0/6             | Not started |
@@ -1154,14 +1154,14 @@ minute, and every anti-spam layer is exercised by an E2E test.
 Reuse F2.2 token handling. The public endpoint creates a request only; staff
 confirmation is implemented in F8.
 
-**Milestone checklist — 0/6 complete:**
+**Milestone checklist — 6/6 complete:**
 
-- [ ] **[F3.1](#f3-1)** ? — Booking form
-- [ ] **[F3.2](#f3-2)** ? — Result handling
-- [ ] **[F3.3](#f3-3)** ? — Mobile first
-- [ ] **[F3.4](#f3-4)** ? — E2E
-- [ ] **[F3.5](#f3-5)** ? — Form recovery and spam responses
-- [ ] **[F3.6](#f3-6)** ? — Booking journey acceptance
+- [x] **[F3.1](#f3-1)** — Booking form
+- [x] **[F3.2](#f3-2)** — Result handling
+- [x] **[F3.3](#f3-3)** — Mobile first
+- [x] **[F3.4](#f3-4)** — E2E
+- [x] **[F3.5](#f3-5)** — Form recovery and spam responses
+- [x] **[F3.6](#f3-6)** — Booking journey acceptance
 
 <a id="f3-1"></a>
 
@@ -1169,18 +1169,18 @@ confirmation is implemented in F8.
 
 **Acceptance:** A customer can enter and submit a schema-valid booking request.
 
-- [ ] **F3.1.1** Build `/boka` with optional registration number pre-filled from
+- [x] **F3.1.1** Build `/boka` with optional registration number pre-filled from
       the lookup hero, customer name, phone and optional email.
-- [ ] **F3.1.2** Add preferred date, time of day, service selection and optional
+- [x] **F3.1.2** Add preferred date, time of day, service selection and optional
       message; keep the API field names and optionality aligned with the shared
       request schema.
-- [ ] **F3.1.3** Validated with the `shared` schema, so the client and server
+- [x] **F3.1.3** Validated with the `shared` schema, so the client and server
       agree exactly
-- [ ] **F3.1.4** Honeypot field, visually hidden but not `display: none`, and
+- [x] **F3.1.4** Honeypot field, visually hidden but not `display: none`, and
       not reachable by keyboard
-- [ ] **F3.1.5** Reuse the public form-token hook from F2.2; fetch on mount and
+- [x] **F3.1.5** Reuse the public form-token hook from F2.2; fetch on mount and
       submit the HMAC token with the booking request.
-- [ ] **F3.1.6** Submit disabled while pending, with a spinner and no width
+- [x] **F3.1.6** Submit disabled while pending, with a spinner and no width
       change
 
 <a id="f3-2"></a>
@@ -1190,10 +1190,10 @@ confirmation is implemented in F8.
 **Acceptance:** Success and validation/rate-limit outcomes lead to clear next
 actions.
 
-- [ ] **F3.2.1** `/boka/tack` confirming what happens next and when to expect a
+- [x] **F3.2.1** `/boka/tack` confirming what happens next and when to expect a
       reply
-- [ ] **F3.2.2** Validation errors mapped to fields in Swedish
-- [ ] **F3.2.3** Rate-limit response explained plainly, with the phone number as
+- [x] **F3.2.2** Validation errors mapped to fields in Swedish
+- [x] **F3.2.3** Rate-limit response explained plainly, with the phone number as
       the alternative — never a dead end
 
 <a id="f3-3"></a>
@@ -1202,10 +1202,10 @@ actions.
 
 **Acceptance:** The form is usable at 360 px and with a keyboard.
 
-- [ ] **F3.3.1** Correct `inputMode` and `autoComplete` on every field, so phone
+- [x] **F3.3.1** Correct `inputMode` and `autoComplete` on every field, so phone
       keyboards show digits
-- [ ] **F3.3.2** Tested at 360 px width
-- [ ] **F3.3.3** Whole form operable by keyboard, with a visible focus order
+- [x] **F3.3.2** Tested at 360 px width
+- [x] **F3.3.3** Whole form operable by keyboard, with a visible focus order
 
 <a id="f3-4"></a>
 
@@ -1214,9 +1214,9 @@ actions.
 **Acceptance:** The booking journey and original anti-spam cases pass browser
 checks.
 
-- [ ] **F3.4.1** Playwright: complete a booking request end to end
-- [ ] **F3.4.2** Playwright: a filled honeypot is rejected
-- [ ] **F3.4.3** Playwright: a submission faster than 3 seconds is rejected
+- [x] **F3.4.1** Playwright: complete a booking request end to end
+- [x] **F3.4.2** Playwright: a filled honeypot is rejected
+- [x] **F3.4.3** Playwright: a submission faster than 3 seconds is rejected
 
 <a id="f3-5"></a>
 
@@ -1225,14 +1225,14 @@ checks.
 **Acceptance:** A failed or expired submission preserves input and offers
 recovery.
 
-- [ ] **F3.5.1** Keep entered values when a request fails; display the Swedish
+- [x] **F3.5.1** Keep entered values when a request fails; display the Swedish
       API error and allow a deliberate retry.
-- [ ] **F3.5.2** Handle an expired or unavailable form token with a visible
+- [x] **F3.5.2** Handle an expired or unavailable form token with a visible
       retry; a refreshed token must still respect the backend minimum submission
       age.
-- [ ] **F3.5.3** Explain an early submission or rate limit without a dead end;
+- [x] **F3.5.3** Explain an early submission or rate limit without a dead end;
       keep the workshop telephone link available.
-- [ ] **F3.5.4** Extend browser checks for expired tokens and rate-limit
+- [x] **F3.5.4** Extend browser checks for expired tokens and rate-limit
       responses; verify content flagged for staff review does not become a
       confirmed calendar booking.
 
@@ -1242,25 +1242,25 @@ recovery.
 
 **Acceptance:** The full mobile booking journey satisfies the iteration goal.
 
-- [ ] **F3.6.1** Walk from the public lookup to the pre-filled booking form and
+- [x] **F3.6.1** Walk from the public lookup to the pre-filled booking form and
       confirmation on a 360 px viewport.
-- [ ] **F3.6.2** Confirm the thank-you message promises staff review rather than
+- [x] **F3.6.2** Confirm the thank-you message promises staff review rather than
       a guaranteed appointment.
-- [ ] **F3.6.3** Verify keyboard operation, preserved input after failure and
+- [x] **F3.6.3** Verify keyboard operation, preserved input after failure and
       disabled submit while pending against the real test API.
-- [ ] **F3.6.4** Record the browser evidence and check the iteration Definition
+- [x] **F3.6.4** Record the browser evidence and check the iteration Definition
       of Done before marking the booking flow complete.
 
 **Iteration acceptance record**
 
-- [ ] **F3 Done** — every milestone and the iteration Definition of Done pass;
+- [x] **F3 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
 | Field                       | Record                                                 |
 | --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+| Current milestone / blocker | Done                                                   |
+| Verification evidence       | 2026-09-13. `pnpm.cmd --filter frontend typecheck` clean. Scoped ESLint clean for the F3 files (with the existing Next `pages/` notice). `pnpm.cmd --filter frontend build` clean. `pnpm.cmd --filter frontend exec playwright test e2e/booking-flow.spec.ts --reporter=line --timeout=30000` against a running frontend dev server: 6 passed, covering the pre-filled request, honeypot, early/expired token handling, rate-limit fallback, preserved values and 360 px keyboard flow. |
+| Completed on                | 2026-09-13                                             |
 
 ---
 
