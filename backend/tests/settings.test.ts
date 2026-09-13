@@ -1,16 +1,21 @@
 import supertest from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { publicWorkshopInfoSchema, settingsResponseSchema } from 'shared';
+import {
+  CSRF_TOKEN_HEADER,
+  publicWorkshopInfoSchema,
+  settingsResponseSchema,
+} from 'shared';
 import { createTestApp, type TestApp } from './helpers/app.js';
 import { jsonBody } from './helpers/http.js';
-import { loginAs, type Agent } from './helpers/auth.js';
+import { anonymousAgent, loginAs, type Agent } from './helpers/auth.js';
 import { SETTING_KEYS } from '../src/config/settings.js';
 
 /**
- * B3.5 — workshop settings, read only (PROJECT_SPEC.md §4.2).
+ * B3.5/B9.7.1 — workshop settings (PROJECT_SPEC.md §4.2).
  *
  * `GET /api/public/workshop` exposes only the deliberately public fields;
- * `GET /api/settings` returns the full view behind a login. Writes are B9.7.
+ * `GET /api/settings` returns the full view behind a login.
+ * `PATCH /api/settings` is `ADMIN`-only and writes one group at a time.
  */
 
 describe('settings reads', () => {
@@ -132,5 +137,106 @@ describe('settings reads', () => {
       .get('/api/settings')
       .set('cookie', agent.cookies.join('; '))
       .expect(500);
+  });
+});
+
+describe('B9.7.1 — writing settings', () => {
+  let harness: TestApp;
+  let admin: Agent;
+
+  beforeAll(async () => {
+    harness = await createTestApp();
+    admin = await loginAs(harness, { role: 'ADMIN' });
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  it('writes one group and leaves the others untouched', async () => {
+    const before = settingsResponseSchema.parse(
+      jsonBody(
+        await supertest(harness.app.server)
+          .get('/api/settings')
+          .set('cookie', admin.cookies.join('; '))
+          .expect(200),
+      ),
+    );
+
+    const response = await supertest(harness.app.server)
+      .patch('/api/settings')
+      .set('cookie', admin.cookies.join('; '))
+      .set(CSRF_TOKEN_HEADER, admin.csrfToken)
+      .send({
+        operational: {
+          defaultHourlyRateOre: 71_000,
+          quoteValidityDays: 45,
+          vehicleLookupDailyLimitStaff: 200,
+          vehicleLookupDailyLimitPublic: 100,
+        },
+      })
+      .expect(200);
+
+    const after = settingsResponseSchema.parse(jsonBody(response));
+    expect(after.operational.defaultHourlyRateOre).toBe(71_000);
+    expect(after.operational.quoteValidityDays).toBe(45);
+    // The workshop group was not part of this request.
+    expect(after.workshop).toEqual(before.workshop);
+  });
+
+  it('rejects an invalid value rather than writing it', async () => {
+    await supertest(harness.app.server)
+      .patch('/api/settings')
+      .set('cookie', admin.cookies.join('; '))
+      .set(CSRF_TOKEN_HEADER, admin.csrfToken)
+      .send({
+        workshop: {
+          name: '',
+          orgNumber: '556123-4567',
+          address: 'Verkstadsgatan 1',
+          postalCode: '111 22',
+          city: 'Stockholm',
+          phone: '08-000 00 00',
+          email: 'info@verkstaden.se',
+        },
+      })
+      .expect(400);
+  });
+
+  it('refuses a mechanic', async () => {
+    const mechanic = await loginAs(harness, { role: 'MECHANIC' });
+    await supertest(harness.app.server)
+      .patch('/api/settings')
+      .set('cookie', mechanic.cookies.join('; '))
+      .set(CSRF_TOKEN_HEADER, mechanic.csrfToken)
+      .send({
+        operational: {
+          defaultHourlyRateOre: 1,
+          quoteValidityDays: 1,
+          vehicleLookupDailyLimitStaff: 1,
+          vehicleLookupDailyLimitPublic: 1,
+        },
+      })
+      .expect(403);
+  });
+
+  it('refuses an unauthenticated caller', async () => {
+    // `anonymousAgent` completes the CSRF handshake with no session, so the
+    // request is refused by the *auth* guard rather than by CSRF rejecting a
+    // request that carries no token at all (§5.2's separate, earlier check).
+    const anonymous = await anonymousAgent(harness);
+    await supertest(harness.app.server)
+      .patch('/api/settings')
+      .set('cookie', anonymous.cookies.join('; '))
+      .set(CSRF_TOKEN_HEADER, anonymous.csrfToken)
+      .send({
+        operational: {
+          defaultHourlyRateOre: 1,
+          quoteValidityDays: 1,
+          vehicleLookupDailyLimitStaff: 1,
+          vehicleLookupDailyLimitPublic: 1,
+        },
+      })
+      .expect(401);
   });
 });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { cursorQuerySchema } from './common.js';
+import { cursorQuerySchema, paginatedResponseSchema } from './common.js';
 import {
   idSchema,
   isoDateSchema,
@@ -121,19 +121,26 @@ export type ServiceRule = z.infer<typeof serviceRuleSchema>;
  * Checked here rather than in a service because it is a property of the rule
  * itself, and both the admin form and the API should reject it identically.
  */
-export const createServiceRuleInputSchema = z
-  .object({
-    make: nameSchema,
-    model: nameSchema.optional(),
-    engineCode: shortTextSchema.optional(),
-    modelYearFrom: z.number().int().min(1900).max(2100).optional(),
-    modelYearTo: z.number().int().min(1900).max(2100).optional(),
-    serviceType: serviceTypeSchema,
-    intervalKm: z.number().int().min(1).optional(),
-    intervalMonths: z.number().int().min(1).optional(),
-    note: noteSchema.optional(),
-    sourceNote: shortTextSchema,
-  })
+/**
+ * The plain object, before the cross-field refinements below. Kept separate
+ * and exported so a partial variant (the CSV import row echo) can be built
+ * from it — Zod refuses `.partial()` on a schema that already carries a
+ * `.refine()`.
+ */
+export const serviceRuleInputFieldsSchema = z.object({
+  make: nameSchema,
+  model: nameSchema.optional(),
+  engineCode: shortTextSchema.optional(),
+  modelYearFrom: z.number().int().min(1900).max(2100).optional(),
+  modelYearTo: z.number().int().min(1900).max(2100).optional(),
+  serviceType: serviceTypeSchema,
+  intervalKm: z.number().int().min(1).optional(),
+  intervalMonths: z.number().int().min(1).optional(),
+  note: noteSchema.optional(),
+  sourceNote: shortTextSchema,
+});
+
+export const createServiceRuleInputSchema = serviceRuleInputFieldsSchema
   .refine(
     (rule) =>
       rule.intervalKm !== undefined || rule.intervalMonths !== undefined,
@@ -156,11 +163,139 @@ export type CreateServiceRuleInput = z.infer<
   typeof createServiceRuleInputSchema
 >;
 
+/**
+ * Every field is editable, `serviceType` included — unlike
+ * `ChecklistTemplate`, nothing here is referenced-and-traced from another
+ * record; `ServiceRecommendation.ruleSnapshotJson` exists precisely so a rule
+ * can be freely edited without rewriting advice already given (§7.3). Narrowing
+ * fields are `.nullable()` as well as `.optional()` so a client can both leave
+ * a field alone (omit it) and deliberately clear it (send `null`) — the same
+ * distinction `UpdateServiceProtocolInput` draws for `nextServiceDueDate`.
+ *
+ * The cross-field rules `createServiceRuleInputSchema` enforces — at least one
+ * interval, a sensible year range — apply here against the row *after* the
+ * merge, in the service layer: a partial update schema cannot see the fields
+ * it was not given.
+ */
+export const updateServiceRuleInputSchema = z.object({
+  make: nameSchema.optional(),
+  model: nameSchema.nullable().optional(),
+  engineCode: shortTextSchema.nullable().optional(),
+  modelYearFrom: z.number().int().min(1900).max(2100).nullable().optional(),
+  modelYearTo: z.number().int().min(1900).max(2100).nullable().optional(),
+  serviceType: serviceTypeSchema.optional(),
+  intervalKm: z.number().int().min(1).nullable().optional(),
+  intervalMonths: z.number().int().min(1).nullable().optional(),
+  note: noteSchema.nullable().optional(),
+  sourceNote: shortTextSchema.optional(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateServiceRuleInput = z.infer<
+  typeof updateServiceRuleInputSchema
+>;
+
 export const serviceRuleListQuerySchema = cursorQuerySchema.extend({
   make: nameSchema.optional(),
   serviceType: serviceTypeSchema.optional(),
 });
 export type ServiceRuleListQuery = z.infer<typeof serviceRuleListQuerySchema>;
+
+export const serviceRuleResponseSchema = z.object({ rule: serviceRuleSchema });
+export type ServiceRuleResponse = z.infer<typeof serviceRuleResponseSchema>;
+
+export const serviceRuleListResponseSchema =
+  paginatedResponseSchema(serviceRuleSchema);
+export type ServiceRuleListResponse = z.infer<
+  typeof serviceRuleListResponseSchema
+>;
+
+export const serviceRuleIdParamsSchema = z.object({ id: idSchema });
+export type ServiceRuleIdParams = z.infer<typeof serviceRuleIdParamsSchema>;
+
+/**
+ * `POST /api/service-rules/preview` (F11.3.4, B9.7.3) — "which vehicles in the
+ * register would this rule match", so a typo in the model name is visible
+ * immediately rather than discovered the first time advice fails to appear.
+ * Deliberately just the matching fields: a preview is about *targeting*, not
+ * about the interval or the service type.
+ */
+export const serviceRulePreviewInputSchema = z.object({
+  make: nameSchema,
+  model: nameSchema.optional(),
+  engineCode: shortTextSchema.optional(),
+  modelYearFrom: z.number().int().min(1900).max(2100).optional(),
+  modelYearTo: z.number().int().min(1900).max(2100).optional(),
+});
+export type ServiceRulePreviewInput = z.infer<
+  typeof serviceRulePreviewInputSchema
+>;
+
+/** Bounded so a catch-all rule ("Volvo", nothing else) cannot return the whole register. */
+export const SERVICE_RULE_PREVIEW_SAMPLE_LIMIT = 20;
+
+export const serviceRulePreviewVehicleSchema = z.object({
+  id: idSchema,
+  registrationNumberDisplay: z.string(),
+  make: nameSchema,
+  model: nameSchema,
+  modelYear: z.number().int().nullable(),
+});
+export type ServiceRulePreviewVehicle = z.infer<
+  typeof serviceRulePreviewVehicleSchema
+>;
+
+export const serviceRulePreviewResponseSchema = z.object({
+  matchCount: z.number().int().min(0),
+  sample: z.array(serviceRulePreviewVehicleSchema),
+});
+export type ServiceRulePreviewResponse = z.infer<
+  typeof serviceRulePreviewResponseSchema
+>;
+
+// --- CSV bulk import (F11.3.5, B9.7.3) ---------------------------------------
+
+/**
+ * The CSV travels as text in the request body, not a multipart upload: the
+ * admin panel already has the file in the browser to show the dry-run preview
+ * and nothing in `PROJECT_SPEC.md` §2.2 names a multipart dependency, so
+ * re-posting the text the browser already parsed avoids adding one.
+ */
+export const importServiceRulesInputSchema = z.object({
+  csv: z.string().min(1),
+  /** `true` validates every row and writes nothing (F11.3.5's dry run). */
+  dryRun: z.boolean(),
+});
+export type ImportServiceRulesInput = z.infer<
+  typeof importServiceRulesInputSchema
+>;
+
+export const SERVICE_RULE_IMPORT_ROW_STATUSES = ['VALID', 'INVALID'] as const;
+export type ServiceRuleImportRowStatus =
+  (typeof SERVICE_RULE_IMPORT_ROW_STATUSES)[number];
+
+export const serviceRuleImportRowSchema = z.object({
+  /** 1-based, counting the header, so it matches the row a human sees in Excel. */
+  line: z.number().int().min(2),
+  status: z.enum(SERVICE_RULE_IMPORT_ROW_STATUSES),
+  errors: z.array(z.string()),
+  /**
+   * The rule as parsed from the row, echoed back so the UI can show it beside
+   * any errors — a partial, because an invalid row cannot be guaranteed to
+   * parse into a complete one.
+   */
+  rule: serviceRuleInputFieldsSchema.partial().optional(),
+});
+export type ServiceRuleImportRow = z.infer<typeof serviceRuleImportRowSchema>;
+
+export const serviceRuleImportResponseSchema = z.object({
+  dryRun: z.boolean(),
+  rows: z.array(serviceRuleImportRowSchema),
+  /** `0` for a dry run: nothing is written until `dryRun: false` (B9.7.4). */
+  createdCount: z.number().int().min(0),
+});
+export type ServiceRuleImportResponse = z.infer<
+  typeof serviceRuleImportResponseSchema
+>;
 
 /**
  * A recommendation is a **suggestion**. It never becomes a work order line on
@@ -179,6 +314,14 @@ export const serviceRecommendationSchema = z.object({
    */
   ruleSnapshotJson: z.unknown(),
   serviceType: serviceTypeSchema,
+  /**
+   * Read out of `ruleSnapshotJson` by the repository, not a separate stored
+   * column — `PROJECT_SPEC.md` §4.2's field list for this entity has no room
+   * for one. B9.5.3 requires it in the response anyway: a liability control
+   * shown next to the advice is not useful behind an `unknown` blob the UI
+   * would have to parse itself.
+   */
+  sourceNote: shortTextSchema,
   /** Whichever of km and date comes first wins (§7.3). */
   dueKm: odometerKmSchema.nullable(),
   dueDate: isoDateSchema.nullable(),
@@ -195,4 +338,32 @@ export const decideRecommendationInputSchema = z.object({
 });
 export type DecideRecommendationInput = z.infer<
   typeof decideRecommendationInputSchema
+>;
+
+export const serviceRecommendationResponseSchema = z.object({
+  recommendation: serviceRecommendationSchema,
+});
+export type ServiceRecommendationResponse = z.infer<
+  typeof serviceRecommendationResponseSchema
+>;
+
+export const serviceRecommendationListResponseSchema = paginatedResponseSchema(
+  serviceRecommendationSchema,
+);
+export type ServiceRecommendationListResponse = z.infer<
+  typeof serviceRecommendationListResponseSchema
+>;
+
+export const serviceRecommendationListQuerySchema = cursorQuerySchema.extend({
+  vehicleId: idSchema.optional(),
+  status: recommendationStatusSchema.optional(),
+  severity: recommendationSeveritySchema.optional(),
+});
+export type ServiceRecommendationListQuery = z.infer<
+  typeof serviceRecommendationListQuerySchema
+>;
+
+export const serviceRecommendationIdParamsSchema = z.object({ id: idSchema });
+export type ServiceRecommendationIdParams = z.infer<
+  typeof serviceRecommendationIdParamsSchema
 >;

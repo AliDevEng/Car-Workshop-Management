@@ -13,6 +13,7 @@ import { fieldError } from '../../lib/field-error.js';
 import { toDecimalString } from '../../lib/dto-decimal.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { recordMovement } from '../articles/stock.service.js';
+import { recomputeRecommendationsForVehicleInTransaction } from '../service-recommendations/service.js';
 import { recordWorkOrderOdometer } from './odometer.js';
 import {
   LINE_ORDER_BY,
@@ -258,6 +259,15 @@ export async function changeStatusInTransaction(
           source: 'WORK_ORDER_OUT',
           userId: actorId,
         })),
+      );
+    } else {
+      // `recordWorkOrderOdometer` already recomputes when it writes a
+      // reading (it composes `recordOdometerReadingInTransaction`); this is
+      // only reached when the out-odometer was unchanged, and B9.4.2 still
+      // names completion itself as a recompute trigger.
+      await recomputeRecommendationsForVehicleInTransaction(
+        tx,
+        before.vehicleId,
       );
     }
   }

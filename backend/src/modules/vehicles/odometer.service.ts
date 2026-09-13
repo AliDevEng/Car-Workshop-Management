@@ -8,6 +8,7 @@ import {
 } from 'shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../lib/prisma.js';
+import { recomputeRecommendationsForVehicleInTransaction } from '../service-recommendations/service.js';
 import {
   highestRecordedKm,
   insertReading,
@@ -92,6 +93,11 @@ export async function recordOdometerReadingInTransaction(
     where: { id: input.vehicleId },
     data: { lastKnownOdometerKm: newest ?? input.km },
   });
+
+  // B9.4.2/B9.6.1: every odometer change — manual, or a work order's in/out
+  // reading via B6 — is a recompute trigger, because the km side of a due
+  // calculation only ever moves here.
+  await recomputeRecommendationsForVehicleInTransaction(tx, input.vehicleId);
 
   const warnings: string[] = [];
   if (previousHighest !== null && input.km < previousHighest) {

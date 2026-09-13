@@ -24,7 +24,9 @@ import { registerDocumentRoutes } from './modules/documents/routes.js';
 import { registerHealthRoutes } from './modules/health/routes.js';
 import { registerQuoteRoutes } from './modules/quotes/routes.js';
 import { registerSearchRoutes } from './modules/search/routes.js';
+import { registerServiceRecommendationRoutes } from './modules/service-recommendations/routes.js';
 import { registerServiceProtocolRoutes } from './modules/service-protocols/routes.js';
+import { registerServiceRuleRoutes } from './modules/service-rules/routes.js';
 import { registerSettingsRoutes } from './modules/settings/routes.js';
 import { registerUserRoutes } from './modules/users/routes.js';
 import { registerVehicleRoutes } from './modules/vehicles/routes.js';
@@ -103,6 +105,8 @@ export async function buildApp(
   registerQuoteRoutes(app);
   registerChecklistTemplateRoutes(app);
   registerServiceProtocolRoutes(app);
+  registerServiceRuleRoutes(app);
+  registerServiceRecommendationRoutes(app);
   registerDocumentRoutes(app);
   registerDashboardRoutes(app);
   registerSearchRoutes(app);

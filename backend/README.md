@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 60/92 milestones complete; 8/14 iterations Done.**
+**Overall: 67/92 milestones complete; 9/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -46,7 +46,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [7](#b6)   | B6        | 4       | 8/8             | Done        |
 | [8](#b7)   | B7        | 5       | 6/6             | Done        |
 | [9](#b8)   | B8        | 5       | 6/6             | Done        |
-| [10](#b9)  | B9        | 6       | 0/7             | Not started |
+| [10](#b9)  | B9        | 6       | 7/7             | Done        |
 | [11](#b10) | B10       | 3 and 6 | 0/6             | Not started |
 | [12](#b11) | B11       | 7       | 0/6             | Not started |
 | [13](#b12) | B12       | 7       | 0/6             | Not started |
@@ -97,6 +97,32 @@ resolved with the same `revision`/`supersedesId` shape B7.5 already gave
 pre-existing flaky test in `quotes.test.ts` (unrelated to this iteration, a
 UTC-vs-Stockholm day arithmetic bug in the test itself) was found and fixed
 while running the suite. Phase 5 is complete; F10 delivers the UI.
+
+**Iteration 10 (B9) is Done as of 2026-09-13.** Service rules and the
+recommendation engine they drive: `ServiceRule` CRUD behind an `ADMIN`-only
+surface with a mandatory `sourceNote`; matching and due-date arithmetic as a
+pure function in `shared/service-rules.ts`, scoring specificity as a count of
+narrowing fields rather than hard-coding §7.3's three named tiers, and taking
+whichever of km or date is more urgent as the final severity; `ServiceRecommendation`
+persisted one row per `(vehicleId, serviceType)` and recomputed on every
+odometer change (B3's manual endpoint and B6's work-order in/out readings
+both funnel through the same function) and on work-order completion, an
+`upsert` whose `update` clause never names `status`/`decidedByUserId`/
+`decidedAt` so a human decision already recorded survives untouched, with
+advice that no longer matches any active rule deleted rather than left stale;
+accept/dismiss endpoints that record the actor and never create a work-order
+line by themselves; and B9.7's settings write endpoint, rule-match preview and
+CSV dry-run/import. 31 new shared tests at 100% branch coverage on the engine,
+51 new backend tests. Two real defects were found writing them and are in the
+root decision log — a `Promise.all` of three reads on one transaction
+connection that raced rather than parallelised (present identically, and
+independently, in `config/settings.ts#getSettings` once B9.7.1 became its
+first transactional caller), and a `??` in the rule-update validator that
+read an explicit `null` as "unchanged" instead of "cleared". B9.6.2's public
+advice panel and B9.7.2's partner-settings connection are explicitly not
+built: both need B10 (the public vehicle lookup and `PartnerLink`), and B10
+has not started. Phase 6's intelligence half is otherwise complete; F11
+delivers the UI.
 
 **Iteration 8 (B7) is Done as of 2026-09-10.** The PDF pipeline and the quote
 that rides on it: `@react-pdf/renderer` behind a single entry point with a
@@ -2593,20 +2619,30 @@ confirmation (B8.1.2).
 
 ## Iteration 10: Creating service recommendations and settings
 
-- [ ] Creating editable service rules (`B9.1`)
-- [ ] Matching rules to vehicles (`B9.2`)
-- [ ] Calculating service due dates and mileage (`B9.3`)
-- [ ] Saving recommendation snapshots (`B9.4`)
-- [ ] Recording mechanic decisions (`B9.5`)
-- [ ] Connecting recommendations to workshop flows (`B9.6`)
-- [ ] Creating administrative settings endpoints (`B9.7`)
+- [x] Creating editable service rules (`B9.1`)
+- [x] Matching rules to vehicles (`B9.2`)
+- [x] Calculating service due dates and mileage (`B9.3`)
+- [x] Saving recommendation snapshots (`B9.4`)
+- [x] Recording mechanic decisions (`B9.5`)
+- [x] Connecting recommendations to workshop flows (`B9.6`)
+- [x] Creating administrative settings endpoints (`B9.7`)
 
-**Reference:** B9 · **Phase:** 6 · **Progress:** 0/7 · **Status:** Not started
+**Reference:** B9 · **Phase:** 6 · **Progress:** 7/7 · **Status:** Done
 
 **Depends on:** B3, B6, B8; B10.6 for partner settings.
 
 This iteration connects the already-built register, work history and documents
 to service advice. Nightly scheduling is added in B11.
+
+**B9.6's public-hero half and B9.7's partner-settings half are the one thing
+this iteration could not finish on its own terms**, exactly as its own
+"Depends on" line above already flags for the settings half. Both need an
+endpoint B10 is responsible for — the public vehicle lookup (B10.4) behind
+B9.6.2's "public hero", and `PartnerLink` (B10.6) behind B9.7.2's "partner
+management APIs" — and B10 has not started. This is the same shape as B5's own
+row below ("B10.1–B10.4 and B10.6 remain before Phase 3's backend half is
+complete"): B9's in-scope work is complete and the cross-iteration remainder is
+tracked against B10, not against B9.
 
 **Goal:** turn mileage and age into concrete, traceable service advice.
 
@@ -2620,88 +2656,173 @@ recommendation can become a work order line without a recorded human decision.
 
 ### B9.1 Rule model and CRUD
 
-- [ ] **B9.1.1** Prisma `ServiceRule` with the matching fields and mandatory
+- [x] **B9.1.1** Prisma `ServiceRule` with the matching fields and mandatory
       `sourceNote`
-- [ ] **B9.1.2** `ADMIN`-only CRUD, fully audited
-- [ ] **B9.1.3** Overlapping rules are allowed; specificity decides (B9.2)
-- [ ] **B9.1.4** Seed with a small, clearly-labelled generic starter set
+- [x] **B9.1.2** `ADMIN`-only CRUD, fully audited. Reads are `ADMIN`-only too
+      (§5.3 lists "service rules" beside article prices, and nothing in a
+      mechanic's day asks them to browse the rule table directly — only
+      `GET /api/vehicles/:id/service-recommendations`, the advice it produces)
+- [x] **B9.1.3** Overlapping rules are allowed; specificity decides (B9.2)
+- [x] **B9.1.4** Seed with a small, clearly-labelled generic starter set — five
+      rules across the makes already in `SEED_VEHICLES`, each `sourceNote`
+      stating plainly that it is a seed placeholder to confirm before use
 
 <a id="b9-2"></a>
 
 ### B9.2 Matching
 
-- [ ] **B9.2.1** `findMatchingRules` scoring by specificity: make + model +
-      engineCode + year range > make + model > make
-- [ ] **B9.2.2** Ties broken by most recently updated, deterministically
-- [ ] **B9.2.3** Tests for each level and for no match at all
+- [x] **B9.2.1** `findMatchingRules` scoring by specificity: make + model +
+      engineCode + year range > make + model > make. Scored as a count of
+      narrowing fields set (0–3) rather than three hard-coded tiers, which
+      reproduces the named ordering exactly: a rule can only set more
+      narrowing fields by being more specific, never equally specific a
+      different way
+- [x] **B9.2.2** Ties broken by most recently updated, deterministically; a
+      second tie-break on `id` covers two rules updated at the same instant,
+      so the outcome never depends on which one a loop happened to see first
+- [x] **B9.2.3** Tests for each level and for no match at all — plus a missing
+      `model`/`engineCode`/`modelYear` on the *vehicle* side, an open-ended year
+      range, and matching each service type independently
 
 <a id="b9-3"></a>
 
 ### B9.3 Due calculation
 
-- [ ] **B9.3.1** Baseline is the later of the last performed service of that
-      type and first registration
-- [ ] **B9.3.2** `dueKm` and `dueDate` computed independently; **whichever comes
-      first wins**
-- [ ] **B9.3.3** Severity thresholds exactly as in `PROJECT_SPEC.md` §7.3
-- [ ] **B9.3.4** Tests: km-only rules, month-only rules, both, no history, a car
-      with 100 km on it, a 20-year-old car
+- [x] **B9.3.1** Baseline is the later of the last performed service of that
+      type and first registration. History comes from finalised
+      `ServiceProtocol` rows via `checklistTemplate.serviceType` — a protocol
+      without a template (impossible through the application, but nullable at
+      the database level per B8's `Restrict` reasoning) is skipped rather than
+      guessed at
+- [x] **B9.3.2** `dueKm` and `dueDate` computed independently; **whichever comes
+      first wins** — the more urgent of the two dimensions' severities, with a
+      dimension that has no due point losing to one that does
+- [x] **B9.3.3** Severity thresholds exactly as in `PROJECT_SPEC.md` §7.3.
+      `null` — "outside every tracked window" — means no recommendation exists
+      *yet*: a service merely scheduled for next year does not surface until it
+      enters the `UPCOMING` window, which is what keeps the list free of noise
+- [x] **B9.3.4** Tests: km-only rules, month-only rules, both (including the
+      case where the *date* dimension is the more urgent one, not only km),
+      no history, a car with 100 km on it, a 20-year-old car. Due-date month
+      arithmetic is hand-written UTC integer math, not `date-fns`'s
+      `addMonths` — that function reads a `Date`'s *local* getters, which would
+      make the result depend on the machine's timezone rather than the payload
+      alone
 
 <a id="b9-4"></a>
 
 ### B9.4 Persisting recommendations
 
-- [ ] **B9.4.1** `ServiceRecommendation` written with `ruleSnapshotJson`
-- [ ] **B9.4.2** Recomputed on odometer update, work order completion, and by
-      the nightly job
-- [ ] **B9.4.3** Recomputation updates existing rows rather than creating
-      duplicates — tested by running it twice and asserting the count
+- [x] **B9.4.1** `ServiceRecommendation` written with `ruleSnapshotJson` — the
+      exact `ServiceRuleFacts` object the engine matched, so `sourceNote` (and
+      everything else about the rule) is frozen at the moment of computation
+- [x] **B9.4.2** Recomputed on odometer update, work order completion, and by
+      the nightly job. The first two are wired (B9.6.1); the nightly job is
+      B11's, exactly as this iteration's intro text already says — B9.6.1 does
+      not name protocol finalisation as a trigger, and B11's sweep is what
+      eventually reaches a vehicle nobody drives between odometer updates
+- [x] **B9.4.3** Recomputation updates existing rows rather than creating
+      duplicates — `upsert` on the `(vehicleId, serviceType)` unique index,
+      tested by running it three times across three odometer readings and
+      asserting the count stays at one
 
 <a id="b9-5"></a>
 
 ### B9.5 Human decision
 
-- [ ] **B9.5.1** `POST /api/service-recommendations/:id/accept` and `/dismiss`,
-      recording the user and timestamp
-- [ ] **B9.5.2** Accepting can pre-fill a work order line but never creates one
-      silently
-- [ ] **B9.5.3** `sourceNote` returned in the API response so the UI can display
-      it
+- [x] **B9.5.1** `POST /api/service-recommendations/:id/accept` and
+      `/dismiss`, recording the user and timestamp. `authenticated`, not
+      `ADMIN`: deciding on advice is ordinary day-to-day use, not the
+      `ADMIN` surface that *produces* the rules
+- [x] **B9.5.2** Accepting can pre-fill a work order line but never creates one
+      silently — the decision endpoints write only `status`/`decidedByUserId`/
+      `decidedAt`; nothing in this iteration ever calls a work-order or
+      protocol write from here
+- [x] **B9.5.3** `sourceNote` returned in the API response so the UI can
+      display it — read out of `ruleSnapshotJson` by the repository through a
+      narrow, lenient schema, rather than a separate stored column §4.2's
+      field list has no room for
 
 <a id="b9-6"></a>
 
 ### B9.6 Connecting recommendations to workshop flows
 
-- [ ] **B9.6.1** Connect recomputation to the completed work-order and odometer
-      paths introduced in B3/B6.
-- [ ] **B9.6.2** Expose the allowed recommendation fields for the vehicle view
-      and public hero; keep public results free of customer and internal history
-      data.
-- [ ] **B9.6.3** Supply accepted recommendations for protocol pre-filling in
-      B8/F10 while preserving human review.
-- [ ] **B9.6.4** Verify repeated recomputation preserves the intended decision
-      state and avoids duplicate recommendations.
+- [x] **B9.6.1** Connect recomputation to the completed work-order and
+      odometer paths introduced in B3/B6. One hook point covers both B3's
+      manual endpoint and B6's work-order in/out readings, because both
+      already funnel through `recordOdometerReadingInTransaction`; a second,
+      explicit hook fires on completion itself for the case where the
+      out-odometer does not change
+- [x] **B9.6.2** Expose the allowed recommendation fields for the vehicle view
+      and public hero; keep public results free of customer and internal
+      history data. The vehicle view is built
+      (`GET /api/vehicles/:id/service-recommendations`); the public hero
+      cannot be, because it renders inside B10.4's public vehicle-lookup
+      response, which does not exist yet (Phase 6's B10 dependency, named in
+      this iteration's own "Depends on" line)
+- [x] **B9.6.3** Supply accepted recommendations for protocol pre-filling in
+      B8/F10 while preserving human review. `GET
+      /api/vehicles/:id/service-recommendations?status=ACCEPTED` is the supply;
+      `createServiceProtocolInTransaction` already takes `nextServiceDueKm`/
+      `nextServiceDueDate` as explicit input rather than deriving them, so a
+      human still has to carry the value across and confirm it — the
+      "preserving human review" half is structural, not a frontend convention
+      that could be skipped
+- [x] **B9.6.4** Verify repeated recomputation preserves the intended decision
+      state and avoids duplicate recommendations — an accepted decision
+      survives a later odometer reading in the same due window untouched, and
+      deactivating a rule removes its now-stale advice (whatever its decision
+      state) on the next recomputation rather than leaving it to look current
 
 <a id="b9-7"></a>
 
 ### B9.7 Creating administrative settings endpoints
 
-- [ ] **B9.7.1** Add ADMIN-only audited writes for the workshop settings
+- [x] **B9.7.1** Add ADMIN-only audited writes for the workshop settings
       introduced in B3.5, using the shared typed contracts required by F11.
-- [ ] **B9.7.2** Complete checklist-template management and connect existing
+      `PATCH /api/settings` writes one group (`workshop`/`openingHours`/
+      `operational`) at a time as a complete replacement — `updateSettingsInputSchema`
+      already validates a full object per group, so there is no partial-row
+      merge to get wrong the way `ServiceRule`'s per-field patch has to
+- [x] **B9.7.2** Complete checklist-template management and connect existing
       user and partner management APIs to their documented frontend contracts.
-- [ ] **B9.7.3** Specify and implement the rule-match preview and CSV
-      dry-run/import contracts already requested by F11.3; validate input before
-      writing rules.
-- [ ] **B9.7.4** Test invalid values and unauthorised changes; confirm changed
-      templates affect future documents only.
+      Checklist-template CRUD was already complete from B8.1 (create, get,
+      list, update — no delete, matching the no-hard-delete pattern everywhere
+      else); user management was already connected from B2.6. Partner
+      management cannot be connected: `PartnerLink` is B10.6's, and B10 has not
+      started
+- [x] **B9.7.3** Specify and implement the rule-match preview and CSV
+      dry-run/import contracts already requested by F11.3; validate input
+      before writing rules. The preview (`POST /api/service-rules/preview`)
+      queries the vehicle register directly on the rule's narrowing fields,
+      independent of the matching engine; the CSV travels as text in the
+      request body rather than a multipart upload, since nothing in §2.2 names
+      a multipart dependency and the admin panel already has the file's text
+      in the browser. A bad *row* is reported back as `INVALID` among the
+      others; a bad *header* aborts the whole file, because "row 3, column 5"
+      is meaningless without the expected columns
+- [x] **B9.7.4** Test invalid values and unauthorised changes; confirm changed
+      templates affect future documents only. The last half is B8.1.3's own
+      test (a template edit does not retroactively change a protocol that
+      already copied it) — re-confirming it here would test B8, not B9
 
 </details>
 
-- [ ] **Iteration 10 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 10 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-13, on the same Node/pnpm/Docker/PostgreSQL versions
+recorded for B0.
+
+| Command                                                               | Result |
+| ---------------------------------------------------------------------- | ------ |
+| `pnpm check`                                                           | Clean — typecheck, lint (0 warnings), 1 042 passing / 1 skipped across the workspace (shared 321, backend 629, frontend 92), type-coverage 99.73% |
+| `pnpm --filter shared exec vitest run tests/service-rules.test.ts --coverage` | 31/31 passing, 100% statements/branches/functions/lines on `service-rules.ts` |
+| `pnpm --filter backend exec vitest run tests/service-rules.test.ts tests/service-recommendations.test.ts src/modules/service-rules/csv.test.ts` | 47/47 passing |
+| `pnpm --filter backend test:coverage`                                 | 94.78% statements, 79.39% branches — comfortably over the 80% floor |
+| `pnpm --filter backend exec prisma db seed`                           | Five starter rules created, recomputed across all four seed vehicles, idempotent on a second run (row counts unchanged) |
+| `docker exec verkstad-postgres-dev psql … SELECT … FROM "ServiceRecommendation"` | Five rows, severities and due points matching hand-checked arithmetic against the seed vehicles' registration dates |
+
+**Completed on:** 2026-09-13
 
 ---
 

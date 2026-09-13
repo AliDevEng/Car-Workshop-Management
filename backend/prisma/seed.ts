@@ -15,6 +15,7 @@ import {
 } from '../src/config/settings.js';
 import { hashPassword } from '../src/lib/password.js';
 import { createPrismaClient } from '../src/lib/prisma.js';
+import { recomputeRecommendationsForVehicle } from '../src/modules/service-recommendations/service.js';
 
 /**
  * Development seed data. Wired through `prisma.config.ts#migrations.seed`
@@ -255,6 +256,55 @@ const SEED_ODOMETER_READINGS = [
   },
 ] as const;
 
+/**
+ * A small, clearly-labelled generic starter set (B9.1.4) — one or two rules
+ * per make already in `SEED_VEHICLES`, so a fresh install shows the
+ * recommendation engine actually producing advice rather than an empty table.
+ * Every `sourceNote` says plainly that it is a placeholder: §7.3 makes
+ * `sourceNote` a liability control, and a seeded guess dressed up as a real
+ * manufacturer figure would defeat the reason the field is mandatory.
+ */
+const GENERIC_SOURCE_NOTE =
+  'Generell riktlinje (seed) — bekräfta mot tillverkarens servicehäfte innan den används skarpt.';
+
+const SEED_SERVICE_RULES = [
+  {
+    id: '01900000-0000-7000-8000-0000000e0001',
+    make: 'Volvo',
+    serviceType: 'SERVICE_A',
+    intervalKm: 15_000,
+    intervalMonths: 12,
+  },
+  {
+    id: '01900000-0000-7000-8000-0000000e0002',
+    make: 'Volvo',
+    serviceType: 'TIMING_BELT',
+    intervalKm: 150_000,
+    intervalMonths: 120,
+  },
+  {
+    id: '01900000-0000-7000-8000-0000000e0003',
+    make: 'Toyota',
+    serviceType: 'SERVICE_A',
+    intervalKm: 15_000,
+    intervalMonths: 12,
+  },
+  {
+    id: '01900000-0000-7000-8000-0000000e0004',
+    make: 'Volkswagen',
+    serviceType: 'SERVICE_A',
+    intervalKm: 30_000,
+    intervalMonths: 24,
+  },
+  {
+    id: '01900000-0000-7000-8000-0000000e0005',
+    make: 'BMW',
+    serviceType: 'BRAKE_FLUID',
+    intervalKm: null,
+    intervalMonths: 24,
+  },
+] as const;
+
 function toDateColumn(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
 }
@@ -416,14 +466,43 @@ try {
     }
   }
 
+  for (const rule of SEED_SERVICE_RULES) {
+    const shared = {
+      make: rule.make,
+      serviceType: rule.serviceType,
+      intervalKm: rule.intervalKm,
+      intervalMonths: rule.intervalMonths,
+      sourceNote: GENERIC_SOURCE_NOTE,
+      createdByUserId: seedAdmin.id,
+    };
+    await prisma.serviceRule.upsert({
+      where: { id: rule.id },
+      update: shared,
+      create: { id: rule.id, ...shared },
+    });
+  }
+
+  // B9.4.2: recomputing now is exactly what an odometer update or a work
+  // order completion would trigger in normal use — running it here means a
+  // fresh install shows real advice instead of an empty table.
+  for (const vehicle of SEED_VEHICLES) {
+    const row = await prisma.vehicle.findUniqueOrThrow({
+      where: { registrationNumber: normaliseRegNr(vehicle.regNr) },
+      select: { id: true },
+    });
+    await recomputeRecommendationsForVehicle(prisma, row.id);
+  }
+
   logger.info(
     {
       users: SEED_USERS.map((user) => `${user.email} / ${user.password}`),
       customers: SEED_CUSTOMERS.length,
       vehicles: SEED_VEHICLES.length,
       articles: SEED_ARTICLES.length,
+      serviceRules: SEED_SERVICE_RULES.length,
     },
-    'Seed complete — staff, settings, customers, vehicles and articles ready (B2–B4).',
+    'Seed complete — staff, settings, customers, vehicles, articles and ' +
+      'service rules ready (B2–B4, B9).',
   );
 } finally {
   await prisma.$disconnect();
