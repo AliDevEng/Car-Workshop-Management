@@ -5,4 +5,6 @@
  */
 export const queryKeys = {
   health: () => ['health'] as const,
+  currentUser: () => ['auth', 'me'] as const,
+  search: (query: string) => ['search', query] as const,
 };

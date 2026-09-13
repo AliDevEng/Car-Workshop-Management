@@ -21,6 +21,10 @@ function readCookie(name: string): string | undefined {
 }
 
 async function parseJson(response: Response): Promise<unknown> {
+  if (response.status === 204) {
+    return null;
+  }
+
   try {
     return await response.json();
   } catch {
@@ -111,6 +115,9 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
   if (!response.ok) {
     const parsedError = apiErrorSchema.safeParse(body);
     if (parsedError.success) {
+      if (!isServer && response.status === 401) {
+        window.dispatchEvent(new CustomEvent('verkstad:unauthorized'));
+      }
       throw new ApiError(parsedError.data.error);
     }
     throw ApiError.invalidResponse(

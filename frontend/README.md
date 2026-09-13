@@ -37,7 +37,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 23/83 milestones complete; 3/13 iterations Done.**
+**Overall: 29/83 milestones complete; 4/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
@@ -45,7 +45,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 | [F1](#f1)   | Design system                             | 1     | F0                                 | 6/6             | Done        |
 | [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 4/6             | Blocked     |
 | [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 6/6             | Done        |
-| [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 0/6             | Not started |
+| [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 6/6             | Done        |
 | [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 0/6             | Not started |
 | [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 0/6             | Not started |
 | [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 0/6             | Not started |
@@ -938,13 +938,12 @@ pairing.
       button and a text link need opposite things from it. All twelve pairs now
       measure AA or better, asserted by a browser test that fails if a token
       change drops one below.
-- [ ] **F1.6.3** Keep `/admin/styleguide` admin-only; verify an unauthenticated
+- [x] **F1.6.3** Keep `/admin/styleguide` admin-only; verify an unauthenticated
       visitor cannot view it when F4 route protection is connected.
-      **Deliberately open for now, and blocked on F4.2 as this task already
-      states.** The page renders only static component samples — no customer
-      data, no API calls, no workshop information — and carries
-      `noindex, nofollow`. F4.6.4 owns verifying the lock once route protection
-      exists.
+      **Closed by F4.** `/admin/styleguide` now lives under the authenticated
+      admin shell, and `e2e/admin-auth.spec.ts` verifies an unauthenticated
+      visit redirects to `/admin/logga-in?returnTo=%2Fadmin%2Fstyleguide`
+      before returning to the page after login.
 
 **Iteration acceptance record**
 
@@ -959,7 +958,7 @@ defects were found at all.
 
 | Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                 |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Current milestone / blocker | None blocking. F1.6.3 stays unticked by design: route protection is F4.2's, and the styleguide holds no data until then. F4 (admin shell and authentication) is next; it depends on F1 and B2, both now Done.                                                                                                                                                                                          |
+| Current milestone / blocker | None. F1.6.3 is now closed by F4 route protection; F6 (customers and vehicles) is the next Phase 1 frontend iteration.                                                                                                                                                                                                                                                                                 |
 | Verification evidence       | 2026-09-08. `pnpm check` clean — typecheck, ESLint at `--max-warnings 0`, 467 tests (167 backend, 211 shared, 89 frontend), `type-coverage` 99.67 % against a 99.5 % floor. `pnpm format:check` clean. `pnpm build` clean. `pnpm exec playwright test` — 26 passed, of which 19 are new F1 checks. Contrast: 12 measured pairs, all AA or AAA. Loading button measured at 148.91 px before and during. |
 | Completed on                | 2026-09-08                                                                                                                                                                                                                                                                                                                                                                                             |
 
@@ -1278,14 +1277,14 @@ to login and returns to the intended page after signing in.
 B3 is required for customer/vehicle search. Article results are activated in
 F7.1; the booking badge gains live request data with F8.1.
 
-**Milestone checklist — 0/6 complete:**
+**Milestone checklist — 6/6 complete:**
 
-- [ ] **[F4.1](#f4-1)** ? — Login
-- [ ] **[F4.2](#f4-2)** ? — Route protection
-- [ ] **[F4.3](#f4-3)** ? — Admin shell
-- [ ] **[F4.4](#f4-4)** ? — Global search
-- [ ] **[F4.5](#f4-5)** ? — Shared admin patterns
-- [ ] **[F4.6](#f4-6)** ? — Session lifecycle acceptance
+- [x] **[F4.1](#f4-1)** ? — Login
+- [x] **[F4.2](#f4-2)** ? — Route protection
+- [x] **[F4.3](#f4-3)** ? — Admin shell
+- [x] **[F4.4](#f4-4)** ? — Global search
+- [x] **[F4.5](#f4-5)** ? — Shared admin patterns
+- [x] **[F4.6](#f4-6)** ? — Session lifecycle acceptance
 
 <a id="f4-1"></a>
 
@@ -1293,11 +1292,11 @@ F7.1; the booking badge gains live request data with F8.1.
 
 **Acceptance:** Staff can sign in and return to a valid requested admin page.
 
-- [ ] **F4.1.1** `/admin/logga-in` — a deliberately plain page
-- [ ] **F4.1.2** Errors in Swedish that do not reveal whether the email exists
-- [ ] **F4.1.3** Redirect to the originally requested URL after login
-- [ ] **F4.1.4** `autoComplete` set so password managers work
-- [ ] **F4.1.5** Accept only a local admin return path after login; reject
+- [x] **F4.1.1** `/admin/logga-in` — a deliberately plain page
+- [x] **F4.1.2** Errors in Swedish that do not reveal whether the email exists
+- [x] **F4.1.3** Redirect to the originally requested URL after login
+- [x] **F4.1.4** `autoComplete` set so password managers work
+- [x] **F4.1.5** Accept only a local admin return path after login; reject
       external URLs and the login route itself.
 
 <a id="f4-2"></a>
@@ -1307,13 +1306,13 @@ F7.1; the booking badge gains live request data with F8.1.
 **Acceptance:** Unauthenticated access redirects and protected data stays
 server-checked.
 
-- [ ] **F4.2.1** Create `src/proxy.ts` with an exported `proxy` function for the
+- [x] **F4.2.1** Create `src/proxy.ts` with an exported `proxy` function for the
       Next.js 16 optimistic cookie check on `/admin/*`; exempt `/admin/logga-in`
       to avoid a redirect loop.
-- [ ] **F4.2.2** Verify sessions server-side before rendering protected data;
+- [x] **F4.2.2** Verify sessions server-side before rendering protected data;
       the proxy cookie check only accelerates redirects. Fastify remains
       responsible for authentication and authorisation on every API request.
-- [ ] **F4.2.3** A 401 from any API call clears local state and redirects to
+- [x] **F4.2.3** A 401 from any API call clears local state and redirects to
       login
 
 <a id="f4-3"></a>
@@ -1322,15 +1321,15 @@ server-checked.
 
 **Acceptance:** Admin navigation, user actions and query state share one shell.
 
-- [ ] **F4.3.1** `(admin)` route group with the dark steel surface
-- [ ] **F4.3.2** Left navigation: Översikt, Bokningar, Arbetsordrar, Kunder,
+- [x] **F4.3.1** `(admin)` route group with the dark steel surface
+- [x] **F4.3.2** Left navigation: Översikt, Bokningar, Arbetsordrar, Kunder,
       Fordon, Lager, Inställningar
-- [ ] **F4.3.3** Prepare the Bokningar badge component; connect the real
+- [x] **F4.3.3** Prepare the Bokningar badge component; connect the real
       unhandled-request count in F8.1 after B5. Do not show a fabricated count
       before that endpoint exists.
-- [ ] **F4.3.4** Collapsing to icons under 1100 px; a sheet on tablet portrait
-- [ ] **F4.3.5** Current user and sign-out in the top bar
-- [ ] **F4.3.6** Mount the F0.5 QueryProvider and clear cached customer data on
+- [x] **F4.3.4** Collapsing to icons under 1100 px; a sheet on tablet portrait
+- [x] **F4.3.5** Current user and sign-out in the top bar
+- [x] **F4.3.6** Mount the F0.5 QueryProvider and clear cached customer data on
       logout or session expiry.
 
 <a id="f4-4"></a>
@@ -1339,11 +1338,11 @@ server-checked.
 
 **Acceptance:** Supported search results are reachable by keyboard.
 
-- [ ] **F4.4.1** Command palette opened with `/` or `Cmd/Ctrl+K`
-- [ ] **F4.4.2** Debounced 250 ms against `/api/search`
-- [ ] **F4.4.3** Results grouped by type, keyboard navigable, Enter opens
-- [ ] **F4.4.4** Recent items when the field is empty
-- [ ] **F4.4.5** Until B4 exists, render supported customer/vehicle search
+- [x] **F4.4.1** Command palette opened with `/` or `Cmd/Ctrl+K`
+- [x] **F4.4.2** Debounced 250 ms against `/api/search`
+- [x] **F4.4.3** Results grouped by type, keyboard navigable, Enter opens
+- [x] **F4.4.4** Recent items when the field is empty
+- [x] **F4.4.5** Until B4 exists, render supported customer/vehicle search
       results without inventing article data; activate article results during
       F7.
 
@@ -1353,10 +1352,10 @@ server-checked.
 
 **Acceptance:** List, detail and conflict handling patterns can be reused.
 
-- [ ] **F4.5.1** `PageHeader` with title, breadcrumb and actions
-- [ ] **F4.5.2** `DetailLayout` implementing the two-column pattern
-- [ ] **F4.5.3** Standard list-page composition: filters, table, pagination
-- [ ] **F4.5.4** A conflict handler that turns a `409` into a clear Swedish
+- [x] **F4.5.1** `PageHeader` with title, breadcrumb and actions
+- [x] **F4.5.2** `DetailLayout` implementing the two-column pattern
+- [x] **F4.5.3** Standard list-page composition: filters, table, pagination
+- [x] **F4.5.4** A conflict handler that turns a `409` into a clear Swedish
       prompt to reload, used by every mutation
 
 <a id="f4-6"></a>
@@ -1365,25 +1364,25 @@ server-checked.
 
 **Acceptance:** Login, expiry, forbidden actions and logout behave as expected.
 
-- [ ] **F4.6.1** Verify login, return to the requested page and logout using the
+- [x] **F4.6.1** Verify login, return to the requested page and logout using the
       real test API.
-- [ ] **F4.6.2** Verify an expired session produces a login redirect and a
+- [x] **F4.6.2** Verify an expired session produces a login redirect and a
       forbidden action remains a clear 403 error.
-- [ ] **F4.6.3** Confirm cookie credentials and CSRF work through the
+- [x] **F4.6.3** Confirm cookie credentials and CSRF work through the
       development proxy; repeat the production-origin check with B12.
-- [ ] **F4.6.4** Verify the styleguide and admin data cannot be reached by an
+- [x] **F4.6.4** Verify the styleguide and admin data cannot be reached by an
       unauthenticated user; record the result.
 
 **Iteration acceptance record**
 
-- [ ] **F4 Done** — every milestone and the iteration Definition of Done pass;
+- [x] **F4 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
-| Field                       | Record                                                 |
-| --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+| Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Current milestone / blocker | None. F4 is complete; F6 (customers and vehicles) is the next Phase 1 frontend iteration. Production-origin authentication is still intentionally repeated with B12/F12.7, as already assigned in the phase hand-offs.                                                                                                                                                                                                                                                                                                                                                                    |
+| Verification evidence       | 2026-09-13. `pnpm.cmd --filter frontend typecheck` clean. `pnpm.cmd lint` clean, with the existing Next `pages/` notice only. `pnpm.cmd --filter frontend test` clean: 8 files, 92 tests. `pnpm.cmd --filter frontend build` clean. With the backend dev server on `127.0.0.1:3001`, `pnpm.cmd --filter frontend exec playwright test e2e/admin-auth.spec.ts --reporter=line --timeout=30000` passed 5/5: login return, external return-path rejection, logout/session redirect, keyboard global search and MECHANIC 403 envelope. `e2e/design-system.spec.ts` passed 19/19 behind login. |
+| Completed on                | 2026-09-13                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ---
 

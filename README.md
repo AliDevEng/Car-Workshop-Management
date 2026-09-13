@@ -174,13 +174,16 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**23/83 frontend milestones are complete as of 2026-09-13:** all seven of F0's,
-all six of F1's, four of F2's six milestones and all six of F3's milestones.
-F0, F1 and F3 are Done. F2's public layout, service pages, SEO and recorded
-performance budget are complete; the live lookup awaits B10.1–B10.4 and the
-about page awaits real owner photographs. F3 replaces the `/boka` placeholder
-with a schema-validated public request form, token recovery, spam-response
-fallbacks and a staff-review thank-you page.
+**29/83 frontend milestones are complete as of 2026-09-13:** all seven of F0's,
+all six of F1's, four of F2's six milestones, all six of F3's milestones and
+all six of F4's milestones. F0, F1, F3 and F4 are Done. F2's public layout,
+service pages, SEO and recorded performance budget are complete; the live lookup
+awaits B10.1–B10.4 and the about page awaits real owner photographs. F3 replaces
+the `/boka` placeholder with a schema-validated public request form, token
+recovery, spam-response fallbacks and a staff-review thank-you page. F4 adds the
+authenticated admin shell, local return-path login, server-verified protection,
+logout/session-expiry handling, keyboard global search and reusable admin page
+patterns.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -223,7 +226,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 |---|---|---|---|
 | F0 | Next.js foundation | 0 | ✅ (7/7 — typed API client against a live backend, Tailwind 4 tokens, scoped admin surface, subset self-hosted fonts, TanStack Query, formatters; `pnpm check`/`pnpm build` clean, 7 Playwright tests green) |
 | F1 | Design system | 1 | ✅ (6/6 — Radix-based shadcn primitives restyled onto the §9.2 tokens, surface-aware status/link inks, four conversion inputs, DataTable, feedback and a measured `/admin/styleguide`; 26 Playwright checks green) |
-| F4 | Admin shell and authentication | 1 | ⬜ |
+| F4 | Admin shell and authentication | 1 | ✅ (6/6 — login with local return-path validation, Next 16 proxy redirect plus server-side `/auth/me` verification, the responsive admin shell, logout/session-expiry cache clearing, keyboard global search for customers and vehicles, reusable admin page patterns and Playwright coverage for unauthenticated access, logout, search and a MECHANIC 403 envelope) |
 | F6 | Customers and vehicles | 1 | ⬜ |
 | F7 | Inventory | 2 | ⬜ |
 | F2 | Public site | 3 | ⛔ (4/6 — frontend work and the Lighthouse budget pass; live vehicle lookup and real owner photos remain external blockers) |

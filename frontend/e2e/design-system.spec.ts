@@ -11,10 +11,22 @@ import { expect, test, type Page } from '@playwright/test';
  * offered on a column the API cannot page by.
  */
 
-const STYLEGUIDE = '/admin/styleguide';
+const ADMIN_EMAIL = 'admin@verkstaden.se';
+const ADMIN_PASSWORD = 'utveckling-admin-2026';
+
+test.describe.configure({ mode: 'serial' });
+
+async function login(page: Page): Promise<void> {
+  await page.goto('/admin/logga-in?returnTo=/admin/styleguide');
+  await page.getByLabel('E-post').fill(ADMIN_EMAIL);
+  await page.getByLabel('Lösenord').fill(ADMIN_PASSWORD);
+  await page.getByRole('button', { name: 'Logga in' }).click();
+  await expect(page).toHaveURL(/\/admin\/styleguide$/);
+  await expect(page.getByRole('heading', { name: 'Stilguide' })).toBeVisible();
+}
 
 test.beforeEach(async ({ page }) => {
-  await page.goto(STYLEGUIDE);
+  await login(page);
   await page.evaluate(() => document.fonts.ready);
 });
 
@@ -87,6 +99,7 @@ test.describe('buttons', () => {
   test('every variant shows a focus ring', async ({ page }) => {
     // F1.2.4. Checked against the admin ground, which is where a
     // `--ring` chosen for the public surface would disappear.
+    await page.keyboard.press('Tab');
     for (const name of ['Spara', 'Avbryt', 'Filtrera', 'Mer', 'Ta bort']) {
       const button = page.getByRole('button', { name, exact: true }).first();
       await button.focus();

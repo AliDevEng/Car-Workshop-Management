@@ -59,11 +59,13 @@ model User {
   stockMovements         StockMovement[]
   assignedBookings       Booking[]
   handledBookingRequests BookingRequest[]
-  assignedWorkOrders     WorkOrder[]       @relation("WorkOrderAssignedTo")
-  completedWorkOrders    WorkOrder[]       @relation("WorkOrderCompletedBy")
+  assignedWorkOrders     WorkOrder[]             @relation("WorkOrderAssignedTo")
+  completedWorkOrders    WorkOrder[]             @relation("WorkOrderCompletedBy")
   idempotencyKeys        IdempotencyKey[]
   generatedDocuments     Document[]
   performedProtocols     ServiceProtocol[]
+  createdServiceRules    ServiceRule[]
+  decidedRecommendations ServiceRecommendation[]
 
   @@index([isActive])
 }
@@ -203,6 +205,7 @@ model Vehicle {
   odometerReadings OdometerReading[]
   bookings         Booking[]
   workOrders       WorkOrder[]
+  recommendations  ServiceRecommendation[]
 
   @@index([customerId])
   /// The dashboard scans this daily for inspections due within 60 days (§8.2).
@@ -862,12 +865,12 @@ model ChecklistTemplate {
   /// `ChecklistTemplateItem[]` from `shared` — `{ key, label }` pairs, before
   /// any answer exists.
   itemsJson   Json
-  isActive    Boolean @default(true)
+  isActive    Boolean     @default(true)
   /// A revision counter, bumped on every edit. Informational only, **not** an
   /// optimistic lock: unlike `WorkOrder.version` (§6.5), nothing here is a
   /// concurrent multi-editor surface, so a `where`-clause compare-and-swap
   /// would only add false conflicts a two-person admin screen does not need.
-  version     Int     @default(1)
+  version     Int         @default(1)
 
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
@@ -956,4 +959,128 @@ model ServiceProtocol {
   @@unique([workOrderId, revision])
   @@index([workOrderId])
   @@index([checklistTemplateId])
+}
+
+// ---------------------------------------------------------------------------
+// B9 — service rules and recommendations (PROJECT_SPEC.md §4.2, §7.3).
+//
+// `ServiceRule` is entered by an admin and never produces a work-order line on
+// its own. Matching and due-date arithmetic are pure functions in
+// `shared/service-rules.ts`; this model only holds the inputs to them.
+// `ServiceType` is declared above, with `ChecklistTemplate` (B8), because B8
+// needed it first — B9 reuses it rather than redeclaring it.
+// ---------------------------------------------------------------------------
+
+/// A manufacturer (or workshop-experience) service interval (§4.2, §7.3).
+/// Overlapping rules are allowed by design: `shared/service-rules.ts` picks the
+/// most specific match rather than the database enforcing uniqueness
+/// (B9.1.3).
+model ServiceRule {
+  id String @id @default(uuid(7))
+
+  make          String
+  /// Narrowing fields. Every one of them is optional, and a rule with only
+  /// `make` set is a legitimate catch-all — specificity is how several
+  /// candidates for the same vehicle are ranked, not a requirement that one be
+  /// named alone (B9.2.1).
+  model         String?
+  engineCode    String?
+  modelYearFrom Int?
+  modelYearTo   Int?
+
+  serviceType    ServiceType
+  /// At least one of the two is required — checked in
+  /// `createServiceRuleInputSchema`, because a rule with neither can never
+  /// come due and would sit in the table looking correct.
+  intervalKm     Int?
+  intervalMonths Int?
+  note           String?
+
+  /// Mandatory free text — "Volvo servicehäfte 2019", "verkstadens
+  /// erfarenhet". A liability control, not paperwork (§7.3): shown next to
+  /// every recommendation this rule produces.
+  sourceNote String
+
+  createdByUserId String
+  createdBy       User   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  /// Deactivated, never deleted — consistent with every other catalogue in
+  /// this system (§4.3's pattern, extended here by the same reasoning).
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  recommendations ServiceRecommendation[]
+
+  /// The admin list filters by make and service type (B9.1, F11.3.1); the
+  /// matching engine itself reads the whole active set into memory per
+  /// vehicle rather than querying per candidate; see
+  /// `modules/service-rules/repository.ts`.
+  @@index([make, serviceType, isActive])
+}
+
+enum RecommendationSeverity {
+  OVERDUE
+  DUE_SOON
+  UPCOMING
+}
+
+enum RecommendationStatus {
+  SUGGESTED
+  ACCEPTED
+  DISMISSED
+}
+
+/// A computed, persisted piece of service advice for one vehicle (§4.2, §7.3).
+/// **Never** becomes a work-order line by itself — a mechanic accepts or
+/// dismisses it, and that decision is recorded here with its own user id and
+/// timestamp (B9.5).
+///
+/// One row per `(vehicleId, serviceType)`: recomputation (B9.4.2) updates the
+/// existing row rather than inserting a duplicate, so a rule edited tomorrow —
+/// or a better match appearing as the register fills in — replaces today's
+/// advice instead of piling another row beside it. A human decision on the
+/// previous advice survives a recompute that leaves the severity unchanged;
+/// see B9.4.3 and `modules/service-recommendations/service.ts`.
+model ServiceRecommendation {
+  id String @id @default(uuid(7))
+
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  /// The rule that produced this advice, at the time it was (re)computed.
+  /// `Restrict`: a rule is deactivated, never deleted (§4.3's pattern), so
+  /// this never actually fires.
+  serviceRuleId String
+  serviceRule   ServiceRule @relation(fields: [serviceRuleId], references: [id], onDelete: Restrict)
+
+  /// Freezes the rule exactly as it was when this advice was (re)computed.
+  /// Editing a rule tomorrow must not rewrite yesterday's recommendation
+  /// (§7.3). `Json`, like `Document.payloadJson`: a snapshot of a shape that
+  /// is allowed to change.
+  ruleSnapshotJson Json
+
+  /// Denormalised from the rule for the unique index and for filtering
+  /// without a join — a rule never changes its `serviceType` after creation
+  /// (mirroring `ChecklistTemplate`), so this cannot drift from it.
+  serviceType ServiceType
+
+  /// Whichever of the two comes first wins the severity (§7.3); both are
+  /// stored because the UI shows both.
+  dueKm   Int?
+  dueDate DateTime? @db.Date
+
+  severity RecommendationSeverity
+  status   RecommendationStatus   @default(SUGGESTED)
+
+  decidedByUserId String?
+  decidedBy       User?     @relation(fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  decidedAt       DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([vehicleId, serviceType])
+  @@index([severity, status])
 }
