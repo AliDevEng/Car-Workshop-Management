@@ -208,6 +208,54 @@ describe('vehicles', () => {
     expect(page.data[0]?.registrationNumber).toBe('FIL111');
   });
 
+  it('filters the list for inspection due within 60 days (F6.3.2)', async () => {
+    const today = new Date();
+    const soon = new Date(today);
+    soon.setUTCDate(soon.getUTCDate() + 10);
+    const overdue = new Date(today);
+    overdue.setUTCDate(overdue.getUTCDate() - 10);
+    const farAway = new Date(today);
+    farAway.setUTCDate(farAway.getUTCDate() + 400);
+    const toDateOnly = (date: Date): string =>
+      date.toISOString().slice(0, 10);
+
+    await createVehicle(harness, agent, {
+      registrationNumber: 'DUE111',
+      make: 'Volvo',
+      model: 'XC60',
+      nextInspectionDueDate: toDateOnly(soon),
+    });
+    await createVehicle(harness, agent, {
+      registrationNumber: 'DUE222',
+      make: 'Volvo',
+      model: 'XC90',
+      nextInspectionDueDate: toDateOnly(overdue),
+    });
+    await createVehicle(harness, agent, {
+      registrationNumber: 'DUE333',
+      make: 'Volvo',
+      model: 'S60',
+      nextInspectionDueDate: toDateOnly(farAway),
+    });
+    await createVehicle(harness, agent, {
+      registrationNumber: 'DUE444',
+      make: 'Volvo',
+      model: 'V60',
+    });
+
+    const response = await supertest(harness.app.server)
+      .get('/api/vehicles?inspectionDueSoon=true&limit=100')
+      .set('cookie', agent.cookies.join('; '))
+      .expect(200);
+    const page = vehicleListSchema.parse(jsonBody(response));
+    const plates = page.data.map((vehicle) => vehicle.registrationNumber);
+    expect(plates).toEqual(
+      expect.arrayContaining(['DUE111', 'DUE222']),
+    );
+    expect(plates).not.toContain('DUE333');
+    expect(plates).not.toContain('DUE444');
+  });
+
   it('records vehicle mutations in the audit log', async () => {
     const vehicle = await createVehicle(harness, agent, {
       registrationNumber: 'AUD111',

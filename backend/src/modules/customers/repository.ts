@@ -1,4 +1,9 @@
-import { normalisePhone, type Customer } from 'shared';
+import {
+  normalisePhone,
+  type Customer,
+  type CustomerListItem,
+  type CustomerType,
+} from 'shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../lib/prisma.js';
 import { toIsoDateTime, toIsoDateTimeOrNull } from '../../lib/dto-dates.js';
@@ -90,25 +95,31 @@ export type ListCustomersOptions = {
   readonly cursor?: string | undefined;
   readonly q?: string | undefined;
   readonly isActive?: boolean | undefined;
+  readonly type?: CustomerType | undefined;
 };
 
 /**
  * Cursor pagination on `id DESC` — a UUIDv7, so already both unique and
  * monotonic by creation time, which is why §8.1's composite cursor is not
  * needed here (same reasoning as `listUsers`).
+ *
+ * `vehicleCount` (F6.1.2) is a `_count` alongside the same query rather than
+ * a second round trip per row — Postgres answers it from the same
+ * `Vehicle.customerId` index `listVehicles` scans.
  */
 export async function listCustomers(
   db: Database,
   options: ListCustomersOptions,
-): Promise<{ data: Customer[]; nextCursor: string | null }> {
+): Promise<{ data: CustomerListItem[]; nextCursor: string | null }> {
   const where: Prisma.CustomerWhereInput = {
     ...(options.isActive === undefined ? {} : { isActive: options.isActive }),
+    ...(options.type === undefined ? {} : { type: options.type }),
     ...(options.q === undefined ? {} : customerSearchWhere(options.q)),
   };
 
   const rows = await db.customer.findMany({
     where,
-    select: customerFields,
+    select: { ...customerFields, _count: { select: { vehicles: true } } },
     orderBy: { id: 'desc' },
     take: options.limit + 1,
     ...(options.cursor === undefined
@@ -120,7 +131,13 @@ export async function listCustomers(
   const nextCursor =
     rows.length > options.limit ? (page.at(-1)?.id ?? null) : null;
 
-  return { data: page.map(toCustomerDto), nextCursor };
+  return {
+    data: page.map((row) => ({
+      ...toCustomerDto(row),
+      vehicleCount: row._count.vehicles,
+    })),
+    nextCursor,
+  };
 }
 
 export function findCustomerRecord(

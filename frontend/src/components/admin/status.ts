@@ -8,6 +8,7 @@ import {
   type QuoteStatus,
   type WorkOrderStatus,
 } from 'shared';
+import { inspectionUrgency } from '@/lib/admin/inspection';
 
 /**
  * The fixed status system (F1.4.3, frontend/README.md "Status colours").
@@ -141,5 +142,38 @@ export function quoteStatus(status: QuoteStatus): StatusDescriptor {
   return {
     label: QUOTE_STATUS_LABELS[status],
     meaning: QUOTE_STATUS_MEANING[status],
+  };
+}
+
+/**
+ * A vehicle's inspection due date, coloured by the same fixed map (F6.4.3).
+ *
+ * §9.2's palette table names `hivis` for "overdue inspections" explicitly —
+ * not `oxide`, which the rest of this file reserves for `error` (cancelled,
+ * negative stock). An overdue inspection is still just a warning here, the
+ * same `attention` meaning as "due soon", because the workshop's response to
+ * both is the same phone call.
+ */
+export function inspectionStatus(
+  nextInspectionDueDate: string | null,
+): StatusDescriptor {
+  if (nextInspectionDueDate === null) {
+    return { label: 'Ingen uppgift', meaning: 'neutral' };
+  }
+
+  const { daysRemaining, overdue, dueSoon } = inspectionUrgency(
+    nextInspectionDueDate,
+  );
+
+  if (overdue) {
+    return {
+      label: `Försenad ${String(Math.abs(daysRemaining))} dagar`,
+      meaning: 'attention',
+    };
+  }
+
+  return {
+    label: `${String(daysRemaining)} dagar kvar`,
+    meaning: dueSoon ? 'attention' : 'neutral',
   };
 }

@@ -1,4 +1,8 @@
-import { normaliseRegNr } from 'shared';
+import {
+  INSPECTION_DUE_WINDOW_DAYS,
+  normaliseRegNr,
+  stockholmDate,
+} from 'shared';
 import type { Vehicle, VehicleDetail, VehicleSummary } from 'shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../lib/prisma.js';
@@ -136,11 +140,35 @@ export function vehicleSearchWhere(term: string): Prisma.VehicleWhereInput {
   return { OR: or };
 }
 
+/**
+ * "Inspection due within 60 days", reaching backwards as well as forwards —
+ * the same window the dashboard's attention card uses (§6.8, B6.8.2), kept as
+ * one definition rather than two so the count and the list never disagree
+ * about what "due soon" means. `nextInspectionDueDate` is a `date` column, so
+ * both bounds are UTC midnights — a calendar date, not an instant.
+ */
+export function inspectionDueSoonWhere(today: string): Prisma.VehicleWhereInput {
+  const midnight = (offsetDays: number): Date => {
+    const date = new Date(`${today}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + offsetDays);
+    return date;
+  };
+
+  return {
+    nextInspectionDueDate: {
+      not: null,
+      gte: midnight(-INSPECTION_DUE_WINDOW_DAYS),
+      lte: midnight(INSPECTION_DUE_WINDOW_DAYS),
+    },
+  };
+}
+
 export type ListVehiclesOptions = {
   readonly limit: number;
   readonly cursor?: string | undefined;
   readonly q?: string | undefined;
   readonly customerId?: string | undefined;
+  readonly inspectionDueSoon?: boolean | undefined;
 };
 
 export async function listVehicles(
@@ -152,6 +180,9 @@ export async function listVehicles(
       ? {}
       : { customerId: options.customerId }),
     ...(options.q === undefined ? {} : vehicleSearchWhere(options.q)),
+    ...(options.inspectionDueSoon === true
+      ? inspectionDueSoonWhere(stockholmDate(new Date()))
+      : {}),
   };
 
   const rows = await db.vehicle.findMany({

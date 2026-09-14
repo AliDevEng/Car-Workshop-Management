@@ -37,7 +37,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 35/83 milestones complete; 5/13 iterations Done.**
+**Overall: 41/83 milestones complete; 6/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
@@ -47,7 +47,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 | [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 6/6             | Done        |
 | [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 6/6             | Done        |
 | [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 6/6             | Done        |
-| [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 0/6             | Not started |
+| [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 6/6             | Done        |
 | [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 0/6             | Not started |
 | [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6         | 0/7             | Not started |
 | [F9](#f9)   | Work orders                               | 4     | F4, B4, B5, B6                     | 0/7             | Not started |
@@ -1510,14 +1510,14 @@ This iteration delivers the Phase 1 register. Later integrations are explicitly
 assigned to F8.7, F9.7, F11.6 and F12.7 so future backend work does not block
 core register delivery.
 
-**Milestone checklist — 0/6 complete:**
+**Milestone checklist — 6/6 complete:**
 
-- [ ] **[F6.1](#f6-1)** ? — Customer list
-- [ ] **[F6.2](#f6-2)** ? — Customer detail
-- [ ] **[F6.3](#f6-3)** ? — Vehicle list
-- [ ] **[F6.4](#f6-4)** ? — Vehicle detail — the centrepiece
-- [ ] **[F6.5](#f6-5)** ? — Vehicle creation and editing
-- [ ] **[F6.6](#f6-6)** ? — Core register acceptance
+- [x] **[F6.1](#f6-1)** ✅ — Customer list
+- [x] **[F6.2](#f6-2)** ✅ — Customer detail
+- [x] **[F6.3](#f6-3)** ✅ — Vehicle list
+- [x] **[F6.4](#f6-4)** ✅ — Vehicle detail — the centrepiece
+- [x] **[F6.5](#f6-5)** ✅ — Vehicle creation and editing
+- [x] **[F6.6](#f6-6)** ✅ — Core register acceptance
 
 <a id="f6-1"></a>
 
@@ -1525,9 +1525,22 @@ core register delivery.
 
 **Acceptance:** Staff can find, filter and start creating customer records.
 
-- [ ] **F6.1.1** Search, filter by type, cursor pagination
-- [ ] **F6.1.2** Columns: name, phone, vehicle count, last visit
-- [ ] **F6.1.3** _"Ny kund"_ opening a dialog
+- [x] **F6.1.1** Search, filter by type, cursor pagination — `GET /api/customers`
+      gained a `type` query param (backend, additive) alongside the existing
+      `q`/cursor pagination; the list debounces the search box and resets
+      paging on either filter change.
+- [x] **F6.1.2** Columns: name, phone, vehicle count. **Not "last visit"** —
+      asked and decided during this iteration: no `Booking`/`WorkOrder` table
+      has an unambiguous single definition of "a visit" yet (last booking?
+      last completed work order?), and computing either as a per-row
+      aggregate on every list page is real query cost for a column nobody
+      had specified. `vehicleCount` is a `_count` on the same query Postgres
+      already does for `customerId` (cheap); the customer list response
+      grew a `customerListItemSchema` for it, leaving `customerSchema` itself
+      untouched everywhere else it is used. Revisit "last visit" once F9.7
+      gives work orders a booking/completion view that can answer it cheaply.
+- [x] **F6.1.3** _"Ny kund"_ opening a dialog — name, phone and type required;
+      org number, email, address and notes optional and blank-safe.
 
 <a id="f6-2"></a>
 
@@ -1535,14 +1548,22 @@ core register delivery.
 
 **Acceptance:** Core customer details and available relationships are editable.
 
-- [ ] **F6.2.1** Contact information, editable inline with optimistic updates
-- [ ] **F6.2.2** Vehicles owned, each linking onwards
-- [ ] **F6.2.3** Reserve the customer work-order history area in Phase 1;
-      connect real history in F9.7 after B6.
-- [ ] **F6.2.4** Notes field, saved on blur with a visible saved indicator
-- [ ] **F6.2.5** Reserve ADMIN export/anonymise controls with an explicit
-      unavailable state until B11; activate and verify them in F12.7. Do not
-      present placeholders as working privacy actions.
+- [x] **F6.2.1** Contact information, editable inline with optimistic updates —
+      each field saves independently on blur (`InlineField`), showing
+      "Sparar …" then "Sparat"; nothing is sent when a field is blurred
+      unchanged.
+- [x] **F6.2.2** Vehicles owned, each linking onwards to `/admin/fordon/:id`,
+      plus a "Lägg till fordon" action that opens the vehicle dialog
+      pre-scoped to this customer.
+- [x] **F6.2.3** Reserved: an explicit, dashed-border "Arbetsorderhistorik"
+      section names F9.7 as its owner rather than being silently absent.
+- [x] **F6.2.4** Notes field, saved on blur with a visible saved indicator
+      (the same `InlineField`, in its `multiline` form).
+- [x] **F6.2.5** Reserved: a "Sekretess (GDPR)" section states plainly that
+      export/anonymise activate for administrators in F12.7 — B11 already
+      built the endpoints, but this iteration's own plan defers wiring them
+      up, and the section is inert rather than a disabled button that could
+      read as broken.
 
 <a id="f6-3"></a>
 
@@ -1551,11 +1572,16 @@ core register delivery.
 **Acceptance:** Staff can locate vehicles with the required filters and
 formatting.
 
-- [ ] **F6.3.1** Search by registration number, make and model, tolerant of
-      spacing
-- [ ] **F6.3.2** Filter for inspection due soon
-- [ ] **F6.3.3** Registration numbers in `tabular-nums` and the spaced display
-      format
+- [x] **F6.3.1** Search by registration number, make and model, tolerant of
+      spacing — reuses B3.4's existing `vehicleSearchWhere` normalisation.
+- [x] **F6.3.2** Filter for inspection due soon — `GET /api/vehicles` gained an
+      `inspectionDueSoon` query param (backend, additive), sharing
+      `INSPECTION_DUE_WINDOW_DAYS` with the dashboard so the two cannot
+      disagree about "soon"; `/admin/fordon?besiktning=60-dagar` (the F5
+      dashboard card's own link) now drives this real, paginated filter
+      instead of the dashboard's capped 20-row preview.
+- [x] **F6.3.3** Registration numbers in `tabular-nums` and the spaced display
+      format, with the same colour-coded inspection badge as the detail page.
 
 <a id="f6-4"></a>
 
@@ -1564,19 +1590,25 @@ formatting.
 **Acceptance:** Core vehicle facts and available history render; later
 integrations have owners.
 
-- [ ] **F6.4.1** Header: registration number, make, model, model year, owner
-- [ ] **F6.4.2** Show stored technical data. Connect the explicit lookup button,
-      cache age and source in F8.7 after B10.1–B10.4; no automatic paid calls.
-- [ ] **F6.4.3** Inspection block: last inspection, next due, days remaining,
-      colour-coded by the fixed status map
-- [ ] **F6.4.4** Reserve the service-recommendation section with an honest
-      unavailable state; implement severity, reason, sourceNote and
-      accept/dismiss integration in F11.6 after B9.
-- [ ] **F6.4.5** Reserve the partner-link area; activate API-driven links in
-      F8.7 after B10.6.
-- [ ] **F6.4.6** Reserve the vehicle work-order history area; connect real
-      records in F9.7 after B6.
-- [ ] **F6.4.7** Odometer history as a small sparkline
+- [x] **F6.4.1** Header: registration number, make, model, model year and
+      owner (or "Ingen kopplad") all in the page header; a full owner card
+      and reassignment control live in the sidebar.
+- [x] **F6.4.2** Shows every stored technical-data field, each independently
+      editable inline; a reserved "Biluppgifter från extern källa" section
+      names F8.7/B10.1–B10.4 as the owner of the lookup button, cache age and
+      source. No automatic call is made.
+- [x] **F6.4.3** Inspection block: last inspection and next-due dates
+      (editable), days remaining and a status badge from a new
+      `inspectionStatus()` map in `components/admin/status.ts` — `attention`
+      (hivis) for due-soon **and** overdue, `neutral` otherwise, matching
+      §9.2's palette table naming `hivis` for "overdue inspections" rather
+      than the destructive `oxide`.
+- [x] **F6.4.4** Reserved "Servicerekommendationer" section names F11.6/B9.
+- [x] **F6.4.5** Reserved "Partnerlänkar" section names F8.7/B10.6.
+- [x] **F6.4.6** Reserved "Arbetsorderhistorik" section names F9.7.
+- [x] **F6.4.7** Odometer history as a small sparkline (`OdometerSparkline`,
+      backed by a pure, unit-tested `buildSparklinePoints`), the current
+      reading, and the five most recent readings.
 
 <a id="f6-5"></a>
 
@@ -1585,12 +1617,21 @@ integrations have owners.
 **Acceptance:** A vehicle can be created and reassigned without losing its
 identity.
 
-- [ ] **F6.5.1** Create with only a registration number; everything else
-      optional
-- [ ] **F6.5.2** Reserve the explicit fetch-data action on creation; enable it
-      in F8.7 when lookup exists. Never perform it automatically.
-- [ ] **F6.5.3** Reassign owner, with a clear warning that history stays with
-      the vehicle
+- [x] **F6.5.1** **Corrected from this milestone's original wording.** It read
+      "create with only a registration number; everything else optional" —
+      but `PROJECT_SPEC.md` §4.2 lists `make` and `model` with no `?`, and
+      B3 already shipped both as `NOT NULL` columns with no default. A
+      README describing an easier form than the schema allows is the
+      contradiction CLAUDE.md resolves in the spec's favour, corrected here
+      rather than carried forward: creation needs a registration number, a
+      make and a model; everything else (variant, model year, VIN, engine
+      code, fuel, dates) is added afterwards on the vehicle page.
+- [x] **F6.5.2** Reserved: a disabled "Hämta biluppgifter (från F8.7)" button
+      sits beside the registration-number field in the creation dialog,
+      never wired to a call.
+- [x] **F6.5.3** Reassign owner (`ReassignOwnerDialog`, debounced customer
+      search) states plainly that odometer history and everything else
+      hanging off the vehicle stays put; verified in F6.6.2 below.
 
 <a id="f6-6"></a>
 
@@ -1599,27 +1640,35 @@ identity.
 **Acceptance:** The Phase 1 register is usable and deferred integrations remain
 tracked.
 
-- [ ] **F6.6.1** Create a customer and a vehicle, find the vehicle by
-      registration number, and open the available detail/history view in one
-      search and one click.
-- [ ] **F6.6.2** Reassign a vehicle to another customer and verify its existing
-      vehicle and odometer records remain attached.
-- [ ] **F6.6.3** Check phone formatting, non-standard registration numbers,
-      blank optional fields and server validation errors.
-- [ ] **F6.6.4** Record Phase 1 evidence for the core register; confirm later
-      integrations are owned by F8.7, F9.7, F11.6 and F12.7 rather than silently
-      counted as delivered.
+- [x] **F6.6.1** Covered by `e2e/customers-vehicles.spec.ts`: creates a
+      customer and a vehicle, then finds the vehicle from `/admin` by
+      registration number through the global search in one search and one
+      click.
+- [x] **F6.6.2** Covered by the same file: reassigns a vehicle to a second
+      customer and asserts its odometer reading (recorded under the first
+      owner) is still shown afterwards.
+- [x] **F6.6.3** Covered by the same file: the entered phone form is kept
+      verbatim, a non-standard (non-6-character) plate is accepted and
+      flagged rather than rejected, optional fields save blank, and a
+      duplicate registration number surfaces the backend's own
+      `Uppgifterna krockar med något som redan finns.` message rather than a
+      generic failure.
+- [x] **F6.6.4** This record. Explicitly not delivered here, and not counted
+      as such: F6.1.2's "last visit" column (see above; no plan owns it yet),
+      live vehicle lookup and partner links (F8.7), work-order history on
+      both detail pages (F9.7), service recommendations (F11.6), and GDPR
+      export/anonymise activation (F12.7).
 
 **Iteration acceptance record**
 
-- [ ] **F6 Done** — every milestone and the iteration Definition of Done pass;
+- [x] **F6 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
 | Field                       | Record                                                 |
 | --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+| Current milestone / blocker | Done                                                   |
+| Verification evidence       | 2026-09-14: `pnpm typecheck`, `pnpm lint` and `pnpm test` clean across `shared` (328 tests), `backend` (707 tests, 1 skipped) and `frontend` (129 tests, 33 new); `pnpm --filter backend build` and `pnpm --filter frontend build` both clean. `pnpm exec playwright test` full suite 57/58 (the one failure, `typography.spec.ts`'s "admin surface is scoped" test visiting `/admin` with no login step, reproduces identically on a clean pre-F6 checkout — pre-existing, unrelated to this iteration). New `e2e/customers-vehicles.spec.ts` (3 tests) covers F6.6.1–F6.6.3 against the real backend and Postgres, not mocked. `pnpm type-coverage` sits at 99.48%, marginally *above* its pre-F6 baseline (99.48%, unrounded 71818/72191 → 72016/72389) but still under the repository's 99.5% gate — every flagged line is in an untouched `(public)` file predating this iteration (the same pre-existing gap the 2026-09-09 decision log entry already named for F2). |
+| Completed on                | 2026-09-14                                             |
 
 ---
 

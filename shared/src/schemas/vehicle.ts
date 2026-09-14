@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { cursorQuerySchema } from './common.js';
 import { customerSchema, customerSummarySchema } from './customer.js';
 import {
+  booleanQuerySchema,
   idSchema,
   isoDateSchema,
   isoDateTimeSchema,
@@ -136,6 +137,13 @@ export type CustomerDetail = z.infer<typeof customerDetailSchema>;
 export const vehicleListQuerySchema = cursorQuerySchema.extend({
   q: searchQuerySchema.optional(),
   customerId: idSchema.optional(),
+  /**
+   * The same ±60-day window the dashboard's attention card uses (§6.8),
+   * exposed as a real filter here so `/admin/fordon?besiktning=60-dagar`
+   * can page through the full list rather than the dashboard's capped
+   * preview (F6.3.2).
+   */
+  inspectionDueSoon: booleanQuerySchema.optional(),
 });
 export type VehicleListQuery = z.infer<typeof vehicleListQuerySchema>;
 

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   apiErrorSchema,
   customerDetailSchema,
+  customerListItemSchema,
   customerSchema,
   paginatedResponseSchema,
 } from 'shared';
@@ -16,7 +17,7 @@ import { loginAs, withAgent, type Agent } from './helpers/auth.js';
  * `authenticated`, audited (personal data), never hard-deleted.
  */
 
-const customerListSchema = paginatedResponseSchema(customerSchema);
+const customerListSchema = paginatedResponseSchema(customerListItemSchema);
 
 const validCustomer = {
   type: 'PRIVATE',
@@ -187,6 +188,57 @@ describe('customers', () => {
       supertest(harness.app.server).delete(`/api/customers/${id}`),
       agent,
     ).expect(404);
+  });
+
+  it('reports how many vehicles a customer owns in the list (F6.1.2)', async () => {
+    const { id } = await createCustomer(harness, agent, {
+      ...validCustomer,
+      name: 'Med Två Fordon',
+    });
+    await withAgent(
+      supertest(harness.app.server).post('/api/vehicles'),
+      agent,
+    )
+      .send({ registrationNumber: 'CNT111', customerId: id, make: 'Kia', model: 'Ceed' })
+      .expect(201);
+    await withAgent(
+      supertest(harness.app.server).post('/api/vehicles'),
+      agent,
+    )
+      .send({ registrationNumber: 'CNT222', customerId: id, make: 'Kia', model: 'Sportage' })
+      .expect(201);
+
+    const response = await supertest(harness.app.server)
+      .get(`/api/customers?q=${encodeURIComponent('Med Två Fordon')}`)
+      .set('cookie', agent.cookies.join('; '))
+      .expect(200);
+    const page = customerListSchema.parse(jsonBody(response));
+    expect(page.data.find((customer) => customer.id === id)?.vehicleCount).toBe(
+      2,
+    );
+  });
+
+  it('filters the list by customer type', async () => {
+    await createCustomer(harness, agent, {
+      type: 'PRIVATE',
+      name: 'Typfilter Privat',
+      phone: '070-111 22 33',
+    });
+    await createCustomer(harness, agent, {
+      type: 'COMPANY',
+      name: 'Typfilter Företag AB',
+      phone: '08-11 22 33',
+      orgNumber: '556000-9999',
+    });
+
+    const response = await supertest(harness.app.server)
+      .get(`/api/customers?q=Typfilter&type=COMPANY`)
+      .set('cookie', agent.cookies.join('; '))
+      .expect(200);
+    const page = customerListSchema.parse(jsonBody(response));
+    expect(page.data.map((customer) => customer.name)).toEqual([
+      'Typfilter Företag AB',
+    ]);
   });
 });
 

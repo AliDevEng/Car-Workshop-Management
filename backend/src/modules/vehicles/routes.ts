@@ -60,6 +60,7 @@ export function registerVehicleRoutes(app: FastifyInstance): void {
         cursor: request.query.cursor,
         q: request.query.q,
         customerId: request.query.customerId,
+        inspectionDueSoon: request.query.inspectionDueSoon,
       }),
   );
 

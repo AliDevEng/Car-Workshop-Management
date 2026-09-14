@@ -7,6 +7,7 @@ import {
   customerDetailSchema,
   customerExportSchema,
   customerIdParamsSchema,
+  customerListItemSchema,
   customerListQuerySchema,
   customerSchema,
   paginatedResponseSchema,
@@ -34,7 +35,9 @@ import {
 const authenticated = { auth: 'authenticated' } as const;
 const adminOnly = { auth: { role: 'ADMIN' } } as const;
 
-const customerListResponseSchema = paginatedResponseSchema(customerSchema);
+const customerListResponseSchema = paginatedResponseSchema(
+  customerListItemSchema,
+);
 
 export function registerCustomerRoutes(app: FastifyInstance): void {
   const routes = app.withTypeProvider<ZodTypeProvider>();
@@ -54,6 +57,7 @@ export function registerCustomerRoutes(app: FastifyInstance): void {
         cursor: request.query.cursor,
         q: request.query.q,
         isActive: request.query.isActive,
+        type: request.query.type,
       }),
   );
 

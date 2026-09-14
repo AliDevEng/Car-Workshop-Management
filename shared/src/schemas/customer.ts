@@ -88,8 +88,21 @@ export const customerListQuerySchema = cursorQuerySchema.extend({
   /** Matches name, either phone column, and email (§8.2, B3.1.2). */
   q: searchQuerySchema.optional(),
   isActive: booleanQuerySchema.optional(),
+  type: customerTypeSchema.optional(),
 });
 export type CustomerListQuery = z.infer<typeof customerListQuerySchema>;
+
+/**
+ * `GET /api/customers` — the customer plus how many vehicles they own
+ * (F6.1.2). A separate schema from {@link customerSchema} rather than a field
+ * added there: `vehicleCount` is an aggregate computed for this one listing,
+ * not a column, and `customerSchema` is reused by the detail response, the
+ * GDPR export and every embedded summary that has no reason to carry it.
+ */
+export const customerListItemSchema = customerSchema.extend({
+  vehicleCount: z.number().int().min(0),
+});
+export type CustomerListItem = z.infer<typeof customerListItemSchema>;
 
 export const customerIdParamsSchema = z.object({ id: idSchema });
 export type CustomerIdParams = z.infer<typeof customerIdParamsSchema>;

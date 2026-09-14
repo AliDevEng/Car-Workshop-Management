@@ -188,10 +188,10 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**35/83 frontend milestones are complete as of 2026-09-14:** all seven of F0's,
-all six of F1's, four of F2's six milestones, all six of F3's milestones and
-all six of F4's milestones, and all six of F5's milestones. F0, F1, F3, F4 and
-F5 are Done. F2's public layout,
+**41/83 frontend milestones are complete as of 2026-09-14:** all seven of F0's,
+all six of F1's, four of F2's six milestones, all six of F3's milestones,
+all six of F4's milestones, all six of F5's milestones, and all six of F6's
+milestones. F0, F1, F3, F4, F5 and F6 are Done. F2's public layout,
 service pages, SEO and recorded performance budget are complete; the live lookup
 now has its backend half (B10.1–B10.4) but still awaits its own frontend
 integration, and the about page awaits real owner photographs. F3 replaces
@@ -202,7 +202,18 @@ logout/session-expiry handling, keyboard global search and reusable admin page
 patterns. F5 replaces the admin placeholder with the typed dashboard, date-keyed
 query/invalidation helpers, useful filtered target pages, per-card loading/error
 states and browser coverage for seeded links, retry states and the one-second
-dashboard budget.
+dashboard budget. **F6 replaces both the `/admin/kunder` and `/admin/fordon`
+placeholders** with the Phase 1 register: a customer list and dialog, a
+customer page with inline-saved contact fields and notes, a vehicle list with
+a real (not dashboard-capped) inspection-due-soon filter, and the vehicle
+page — technical data, inspection status, an odometer sparkline and history,
+and owner reassignment — with every later integration (lookup, service
+advice, partner links, work-order history, GDPR activation) named to its
+owning iteration rather than silently skipped. Two small, additive backend
+query surfaces (customer `type` filter and `vehicleCount`; vehicle
+`inspectionDueSoon`) were added alongside it, both covered by new backend
+tests. F6.5.1's own wording ("only a registration number required") is
+corrected to match §4.2 and B3's `NOT NULL` `make`/`model` columns.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -210,7 +221,7 @@ dashboard budget.
 | Phase | Status | Started | Completed |
 |---|---|---|---|
 | 0 — Foundation | 🟨 In progress | 2026-09-07 | |
-| 1 — Core data | 🟨 In progress | 2026-09-08 | |
+| 1 — Core data | ✅ Done | 2026-09-08 | 2026-09-14 |
 | 2 — Inventory | 🟨 In progress | 2026-09-09 | |
 | 3 — Booking | 🟨 In progress | 2026-09-09 | |
 | 4 — Work | 🟨 In progress | 2026-09-09 | |
@@ -246,7 +257,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | F0 | Next.js foundation | 0 | ✅ (7/7 — typed API client against a live backend, Tailwind 4 tokens, scoped admin surface, subset self-hosted fonts, TanStack Query, formatters; `pnpm check`/`pnpm build` clean, 7 Playwright tests green) |
 | F1 | Design system | 1 | ✅ (6/6 — Radix-based shadcn primitives restyled onto the §9.2 tokens, surface-aware status/link inks, four conversion inputs, DataTable, feedback and a measured `/admin/styleguide`; 26 Playwright checks green) |
 | F4 | Admin shell and authentication | 1 | ✅ (6/6 — login with local return-path validation, Next 16 proxy redirect plus server-side `/auth/me` verification, the responsive admin shell, logout/session-expiry cache clearing, keyboard global search for customers and vehicles, reusable admin page patterns and Playwright coverage for unauthenticated access, logout, search and a MECHANIC 403 envelope) |
-| F6 | Customers and vehicles | 1 | ⬜ |
+| F6 | Customers and vehicles | 1 | ✅ (6/6 — a customer list, dialog and detail page with inline-saved contact fields and notes; a vehicle list with a real, paginated inspection-due-soon filter replacing the dashboard's capped preview; the vehicle detail centrepiece with editable technical data, a colour-coded inspection status, an odometer sparkline and history, and owner reassignment; every later integration — lookup, service advice, partner links, work-order history, GDPR activation — named to its owning iteration rather than silently skipped. Two small additive backend query surfaces (customer `type`/`vehicleCount`, vehicle `inspectionDueSoon`), both tested; F6.5.1's wording corrected to match §4.2's required `make`/`model`. 3 new backend tests, 33 new frontend tests, a new `customers-vehicles.spec.ts` Playwright file (3 tests) against the live backend) |
 | F7 | Inventory | 2 | ⬜ |
 | F2 | Public site | 3 | ⛔ (4/6 — frontend work and the Lighthouse budget pass; live vehicle lookup and real owner photos remain external blockers) |
 | F3 | Public booking flow | 3 | ✅ (6/6 — `/boka` is a real public booking-request form with pre-filled registration numbers, preferred date/time, service choices, honeypot and HMAC form token; `/boka/tack` promises staff review rather than a guaranteed slot; 6 Playwright checks cover success, honeypot, early/expired tokens, rate limits, preserved input and the 360 px keyboard flow) |
@@ -377,6 +388,8 @@ past row.
 | 2026-09-14 | **B11 — an anonymised `phone` is a placeholder (`000-000 00 00`), not the empty string** | `Customer.phone` and `BookingRequest.phone` are not nullable (§4.2 makes phone the required contact channel), and `phoneSchema` demands at least six digit/`+()-.`/space characters — `''` satisfies neither. Writing anonymisation with `phone: ''` first surfaced as a `500 FST_ERR_RESPONSE_SERIALIZATION` on the very endpoint meant to erase the number, not on some later read: the response schema rejected the erasure itself. Found by `tests/gdpr.test.ts`, fixed by exporting `ANONYMISED_PHONE` from `gdpr.service.ts` and using it in both places the empty string had been written |
 | 2026-09-14 | **B11 — the scheduled-job transaction gets `maxWait: 10s, timeout: 300s`, not Prisma's 5-second interactive default** | `recommendation-refresh` and `retention` each loop over every vehicle or customer inside the one transaction `runScheduledJob` opens (so the whole nightly sweep commits or rolls back as a unit, the same reasoning B6's completion transaction already applies to several stock deductions). The 5-second default is sized for a request a user is waiting on; B13.1's seeded fleet is 8 000 vehicles, and nobody is waiting on a 04:00 cron job. Found by inspection while reviewing the job design, not by a failing test — the test suite's few seeded rows never approached the default timeout |
 | 2026-09-14 | **B11.3.1 — the advisory lock is `pg_try_advisory_xact_lock` (transaction-scoped), not `pg_advisory_lock`/`pg_advisory_unlock` (session-scoped)** | §8.4 requires "a pinned database connection where lock semantics require it" (B11.5.1's wording). A session lock must be released on the exact connection that took it, and a pooled Prisma client gives no such guarantee across two separate `$queryRaw` calls. Prisma's interactive `$transaction` already reserves one connection for its whole duration, so taking the lock inside it pins the connection for free and releases the lock automatically on commit, rollback, or a crash — with no manual unlock to forget, unlike the session-scoped pair |
+| 2026-09-14 | **F6.5.1 corrected: vehicle creation requires `make` and `model`, not just a registration number** | The milestone's own wording said "create with only a registration number; everything else optional", but `PROJECT_SPEC.md` §4.2 lists `make`/`model` with no `?`, and `Vehicle.make`/`Vehicle.model` have been `NOT NULL` with no default since B3 shipped (Phase 1, already Done). A frontend plan describing a form the schema cannot accept is the README-vs-spec conflict CLAUDE.md resolves in the spec's favour; corrected in the same commit as the F6 creation dialog that depends on it, rather than building a form that would fail every submission |
+| 2026-09-14 | **F6.1.2's "last visit" column is not built** | No table has a single, uncontested definition of "a visit" yet — the last booking (any status) and the last completed work order are both defensible and disagree in the ordinary case of a no-show followed by a rebooking. Deciding it now would be inventing a requirement CLAUDE.md asks not to guess at; revisit once F9.7 gives the work-order/booking history a natural place to answer it without a per-row aggregate on every customer-list page |
 
 ---
 
