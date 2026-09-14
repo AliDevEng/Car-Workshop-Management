@@ -22,6 +22,9 @@ const odometerFields = {
   updatedAt: true,
 } as const;
 
+/** Exported so the GDPR export (B11.2.1) can select the same shape. */
+export const ODOMETER_READING_SELECT = odometerFields;
+
 export type OdometerReadingRecord = Prisma.OdometerReadingGetPayload<{
   select: typeof odometerFields;
 }>;

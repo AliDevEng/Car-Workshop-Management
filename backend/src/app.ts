@@ -15,6 +15,7 @@ import requestIdPlugin, {
 } from './plugins/request-id.js';
 import { registerSecurity } from './plugins/security.js';
 import { registerArticleRoutes } from './modules/articles/routes.js';
+import { registerAuditLogRoutes } from './modules/audit/routes.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerBookingRoutes } from './modules/bookings/routes.js';
 import { registerChecklistTemplateRoutes } from './modules/checklist-templates/routes.js';
@@ -115,6 +116,7 @@ export async function buildApp(
   registerSettingsRoutes(app);
   registerVehicleDataRoutes(app);
   registerPartnerLinkRoutes(app);
+  registerAuditLogRoutes(app);
 
   // Derived now, off the request path, rather than on the first login with an
   // unknown email. Computing it lazily would make that one request ~40 ms

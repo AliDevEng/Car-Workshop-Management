@@ -49,6 +49,9 @@ const bookingWithRelationsFields = {
   assignedUser: { select: { id: true, name: true, role: true } },
 } as const;
 
+/** Exported so the GDPR export (B11.2.1) can select the same shape. */
+export const BOOKING_WITH_RELATIONS_SELECT = bookingWithRelationsFields;
+
 export type BookingRecord = Prisma.BookingGetPayload<{
   select: typeof bookingFields;
 }>;

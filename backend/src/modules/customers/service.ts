@@ -25,8 +25,15 @@ import {
  * so the documents a customer appears on always keep a real name (§4.3, §5.5).
  */
 
-/** What the audit log records about a customer. */
-function auditSnapshot(record: CustomerRecord): Record<string, unknown> {
+/** Shared with `gdpr.service.ts` (B11.2), so both name the same missing row. */
+export const CUSTOMER_NOT_FOUND = 'Kunden kunde inte hittas.';
+
+/**
+ * What the audit log records about a customer. Exported for `gdpr.service.ts`
+ * (B11.2.2), which records the same shape for an anonymisation as every other
+ * customer mutation does.
+ */
+export function auditSnapshot(record: CustomerRecord): Record<string, unknown> {
   return {
     type: record.type,
     name: record.name,
@@ -55,7 +62,7 @@ export async function getCustomerDetail(
 ): Promise<CustomerDetail> {
   const record = await findCustomerWithVehicles(db, id);
   if (record === null) {
-    throw new NotFoundError('Kunden kunde inte hittas.');
+    throw new NotFoundError(CUSTOMER_NOT_FOUND);
   }
 
   return {
@@ -135,7 +142,7 @@ export async function updateCustomer(
       select: CUSTOMER_SELECT,
     });
     if (before === null) {
-      throw new NotFoundError('Kunden kunde inte hittas.');
+      throw new NotFoundError(CUSTOMER_NOT_FOUND);
     }
 
     const after = await tx.customer.update({
@@ -192,7 +199,7 @@ async function setCustomerActive(
       select: CUSTOMER_SELECT,
     });
     if (before === null) {
-      throw new NotFoundError('Kunden kunde inte hittas.');
+      throw new NotFoundError(CUSTOMER_NOT_FOUND);
     }
 
     if (before.isActive === isActive) {
@@ -241,7 +248,7 @@ export function reactivateCustomer(
 export async function getCustomer(db: Database, id: string): Promise<Customer> {
   const record = await findCustomerRecord(db, id);
   if (record === null) {
-    throw new NotFoundError('Kunden kunde inte hittas.');
+    throw new NotFoundError(CUSTOMER_NOT_FOUND);
   }
   return toCustomerDto(record);
 }

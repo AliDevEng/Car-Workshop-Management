@@ -163,21 +163,24 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **72/92 backend milestones are complete as of 2026-09-14**: nine
+is complete. **78/92 backend milestones are complete as of 2026-09-14**: nine
 of B0's ten, all six of B1's, all seven of B2's, all six of B3's, all six of
 B4's, all six of B5's, all eight of B6's, all six of B7's, all six of B8's,
-all seven of B9's, and five of B10's six. B1, B2, B3, B4, B5, B6, B7, B8 and
-B9 are Done. B9's own Definition of Done (100% branch coverage on the pure
-engine; no recommendation ever becomes a work-order line without a recorded
-decision) is met in full; two of its sub-items stayed explicitly deferred
-rather than guessed at — the public hero's advice panel and the
-partner-settings connection both needed B10.4/B10.6 — and the nightly-sweep
-trigger is B11's, as the iteration's own plan text already says. **B10's Phase
-3 subset (B10.1–B10.4, B10.6) is now built**, so B10.4's public lookup and
-B10.6's `PartnerLink` both exist; B9.6.2's advice panel stays unbuilt regardless,
-because wiring `ServiceRecommendation` into the public response is not named
-in either iteration's own checklist. B10.5, the paid provider, remains for
-Phase 6.
+all seven of B9's, five of B10's six, and all six of B11's. B1, B2, B3, B4,
+B5, B6, B7, B8, B9 and B11 are Done. B9's own Definition of Done (100% branch
+coverage on the pure engine; no recommendation ever becomes a work-order line
+without a recorded decision) is met in full; two of its sub-items stayed
+explicitly deferred rather than guessed at — the public hero's advice panel
+and the partner-settings connection both needed B10.4/B10.6 — and the
+nightly-sweep trigger was B11's, which now exists as
+`jobs/recommendation-refresh.ts`. **B10's Phase 3 subset (B10.1–B10.4, B10.6)
+is now built**, so B10.4's public lookup and B10.6's `PartnerLink` both exist;
+B9.6.2's advice panel stays unbuilt regardless, because wiring
+`ServiceRecommendation` into the public response is not named in either
+iteration's own checklist. B10.5, the paid provider, remains for Phase 6.
+**B11 is Done independently of B10.5** — nothing in its own checklist depends
+on the paid provider, only on B6 (work orders, for the export) and B9 (the
+recommendation engine, for the nightly refresh), both already complete.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion
@@ -213,7 +216,7 @@ dashboard budget.
 | 4 — Work | 🟨 In progress | 2026-09-09 | |
 | 5 — Documents | 🟨 In progress | 2026-09-10 | |
 | 6 — Intelligence | 🟨 In progress | 2026-09-13 | |
-| 7 — Hardening | ⬜ Not started | | |
+| 7 — Hardening | 🟨 In progress | 2026-09-14 | |
 | 8 — Polish | ⬜ Not started | | |
 
 Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
@@ -234,7 +237,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | B8 | Service protocols | 5 | ✅ (6/6 — checklist templates copied into each protocol rather than referenced, creation gated on a `COMPLETED` work order, finalisation as one transaction that spends the §4.4 `SP-` number and renders and stores the PDF exactly as B7's quote send does, and corrections as a `revision`/`supersedesProtocolId` chain — the same shape B7.5 gave `Quote`, needed to reconcile §4.2's plain unique `workOrderId` against §6.7's correction requirement; 53 new backend tests) |
 | B9 | Service rules and recommendations | 6 | ✅ (7/7 — `ServiceRule` CRUD behind an `ADMIN`-only surface with a `sourceNote` liability control; the matching-and-due-date engine in `shared/service-rules.ts`, pure and at 100% branch coverage; `ServiceRecommendation` persisted one row per `(vehicleId, serviceType)`, recomputed on every odometer change and on work-order completion, preserving any human decision already recorded and deleting advice that no longer holds; accept/dismiss endpoints that never create a line by themselves; and the settings write endpoint, the rule-match preview and the CSV dry-run/import B9.7.3 asked for. 31 new shared tests, 51 new backend tests. Two findings from writing the tests are below) |
 | B10.5 | Real vehicle-data provider | 6 | ⬜ |
-| B11 | Audit, GDPR and scheduled jobs | 7 | ⬜ |
+| B11 | Audit, GDPR and scheduled jobs | 7 | ✅ (6/6 — `GET /api/audit-log` reads what B2.7 onward already writes, filterable by entity, actor and date; customer export and anonymise behind `ADMIN`, proven not to break a historical quote's PDF regeneration; four scheduled jobs — stock reconciliation, the nightly recommendation refresh, the §5.5 retention sweep and the hourly session/idempotency-key cleanup — each a plain function guarded by a `pg_try_advisory_xact_lock` inside the same transaction it runs in, wired to `node-cron` only from `server.ts`; the 1 MB body cap and a `passwordHash` sweep got their first direct tests. Two findings below. 33 new backend tests, 704 in the backend suite) |
 | B12 | Deployment, backup and restore | 7 | ⬜ |
 | B13 | Performance and load verification | 8 | ⬜ |
 
@@ -370,6 +373,10 @@ past row.
 | 2026-09-14 | **B10 — a public lookup for a never-before-seen plate used `Vehicle.upsert`, not a read-then-create, after a review found the check-then-act race** | Two visitors asking about the same brand-new plate at the same instant could both pass `persistLookupResult`'s "does a `Vehicle` already exist" read and the second would crash on the unique index. The same class of bug B5.4's exclusion constraint, B6's numbering sequence and B4's stock row lock already exist in this codebase to prevent; `upsert` closes it the same way, as one atomic `INSERT ... ON CONFLICT` rather than an application-level lock. `backend/tests/vehicle-data.test.ts` fires two simultaneous requests for one new plate and asserts exactly one row exists |
 | 2026-09-14 | **`partnerLinkUrlTemplateSchema` rejects raw whitespace instead of calling `new URL()`** | B10.6.3 asks that a template "must parse as a URL", and `startsWith('https://')` plus "contains a known placeholder" both pass a template with a stray space in it, since neither inspects the rest of the string. A literal `new URL()` parse was tried first and broke `shared`'s declaration build: `rollup-plugin-dts` constructs an isolated program for the bundled `.d.ts` that does not see the ambient `URL` global under this package's `lib: ["ES2023"]` / `types: []`, and failed with `TS2304` even though a plain `tsc --noEmit` was silent about it — the same category of dts-bundler quirk the 2026-09-08 `ignoreDeprecations` row below already records for this package. A whitespace check needs no ambient type and catches exactly the case found |
 | 2026-09-14 | **`backend/scripts/copy-pdf-assets.mjs` renamed to `copy-static-assets.mjs` and extended to also copy `integrations/vehicle-data/fixtures`** | The mock provider's JSON fixtures are, like B7.1.2's fonts, not `.ts` files, so `tsc` never puts them in `dist` — the same problem the font-copy script already solved, and a second single-purpose script copying a second directory would have been an unforced duplicate rather than a genuine second concern |
+| 2026-09-14 | **B11 — needs a §4.2 correction: `BookingRequest` gains `anonymisedAt`** | The retention job (§5.5) anonymises stale `REJECTED`/`SPAM` rows nightly and must not re-anonymise, and re-audit, an already-blank one the next night. `Customer` already carries exactly this marker; a second `BookingRequest` row without one would force either a sentinel string (fragile — a real visitor could coincidentally be named the sentinel) or reading the audit log to find out, which is the "audit log used to render a screen" trap B6's `completedByUserId` row already exists to avoid |
+| 2026-09-14 | **B11 — an anonymised `phone` is a placeholder (`000-000 00 00`), not the empty string** | `Customer.phone` and `BookingRequest.phone` are not nullable (§4.2 makes phone the required contact channel), and `phoneSchema` demands at least six digit/`+()-.`/space characters — `''` satisfies neither. Writing anonymisation with `phone: ''` first surfaced as a `500 FST_ERR_RESPONSE_SERIALIZATION` on the very endpoint meant to erase the number, not on some later read: the response schema rejected the erasure itself. Found by `tests/gdpr.test.ts`, fixed by exporting `ANONYMISED_PHONE` from `gdpr.service.ts` and using it in both places the empty string had been written |
+| 2026-09-14 | **B11 — the scheduled-job transaction gets `maxWait: 10s, timeout: 300s`, not Prisma's 5-second interactive default** | `recommendation-refresh` and `retention` each loop over every vehicle or customer inside the one transaction `runScheduledJob` opens (so the whole nightly sweep commits or rolls back as a unit, the same reasoning B6's completion transaction already applies to several stock deductions). The 5-second default is sized for a request a user is waiting on; B13.1's seeded fleet is 8 000 vehicles, and nobody is waiting on a 04:00 cron job. Found by inspection while reviewing the job design, not by a failing test — the test suite's few seeded rows never approached the default timeout |
+| 2026-09-14 | **B11.3.1 — the advisory lock is `pg_try_advisory_xact_lock` (transaction-scoped), not `pg_advisory_lock`/`pg_advisory_unlock` (session-scoped)** | §8.4 requires "a pinned database connection where lock semantics require it" (B11.5.1's wording). A session lock must be released on the exact connection that took it, and a pooled Prisma client gives no such guarantee across two separate `$queryRaw` calls. Prisma's interactive `$transaction` already reserves one connection for its whole duration, so taking the lock inside it pins the connection for free and releases the lock automatically on commit, rollback, or a crash — with no manual unlock to forget, unlike the session-scoped pair |
 
 ---
 
@@ -480,7 +487,7 @@ is how a project accidentally ends up cross-origin and loses its session cookie.
 | Risk | Mitigation |
 |---|---|
 | Vehicle-data costs run away | Daily ceiling, 30-day cache, rate limits, mock by default |
-| Stock balance drifts from the ledger | Nightly reconciliation job that logs discrepancies |
+| Stock balance drifts from the ledger | **Closed by B11.** `jobs/stock-reconciliation.ts` re-derives every balance from the `StockMovement` sum nightly and logs a mismatch; it never corrects one, because that is a stocktake's decision to make, not a job's |
 | Two admins overwrite each other | Optimistic locking with `version` on work orders |
 | Double stock deduction on retry | `Idempotency-Key` plus a `stockDeducted` flag per line |
 | Public form is spammed | Honeypot, time trap, rate limits, heuristic flagging |

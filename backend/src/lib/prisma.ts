@@ -1,6 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import type { Env } from '../config/env.js';
-import { PrismaClient } from '../generated/prisma/client.js';
+import { PrismaClient, type Prisma } from '../generated/prisma/client.js';
 
 /**
  * Prisma 7 talks to PostgreSQL through a driver adapter; the connection string
@@ -10,6 +10,17 @@ import { PrismaClient } from '../generated/prisma/client.js';
  */
 
 export type Database = PrismaClient;
+
+/**
+ * A Prisma client **or** a transaction client — whichever a caller composes
+ * into. `lib/audit.ts`'s `AuditClient` and every scheduled job in `jobs/`
+ * share this: a service call written against it works standalone (a plain
+ * `Database`, which is what a unit test hands it) and inside a caller's own
+ * `$transaction` (a `Prisma.TransactionClient`, which lacks `$transaction`,
+ * `$connect` and `$disconnect` and so is never assignable to `Database`
+ * itself).
+ */
+export type AnyDbClient = Database | Prisma.TransactionClient;
 
 /**
  * Just the two methods this module calls. Depending on the capability rather

@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
+  anonymiseCustomerResponseSchema,
   apiErrorSchema,
   createCustomerInputSchema,
   customerDetailSchema,
+  customerExportSchema,
   customerIdParamsSchema,
   customerListQuerySchema,
   customerSchema,
@@ -12,6 +14,7 @@ import {
 } from 'shared';
 import { currentUser } from '../../plugins/auth.js';
 import { clientIpHash } from '../auth/service.js';
+import { anonymiseCustomer, exportCustomerData } from './gdpr.service.js';
 import { listCustomers } from './repository.js';
 import {
   createCustomer,
@@ -29,6 +32,7 @@ import {
  * the customer register.
  */
 const authenticated = { auth: 'authenticated' } as const;
+const adminOnly = { auth: { role: 'ADMIN' } } as const;
 
 const customerListResponseSchema = paginatedResponseSchema(customerSchema);
 
@@ -134,6 +138,48 @@ export function registerCustomerRoutes(app: FastifyInstance): void {
     },
     (request) =>
       reactivateCustomer(
+        app.prisma,
+        currentUser(request).id,
+        clientIpHash(app, request),
+        request.params.id,
+      ),
+  );
+
+  /**
+   * §5.5's export — "everything held about one customer, as JSON". `ADMIN`-only
+   * (B11.6.1): this is the single largest concentration of one person's
+   * personal data anywhere in the system, well beyond what the customer record
+   * itself carries.
+   */
+  routes.get(
+    '/api/customers/:id/export',
+    {
+      config: adminOnly,
+      schema: {
+        params: customerIdParamsSchema,
+        response: { 200: customerExportSchema, 404: apiErrorSchema },
+      },
+    },
+    (request) => exportCustomerData(app.prisma, request.params.id),
+  );
+
+  /**
+   * §5.5's erasure route. Anonymises rather than deletes — the workshop must
+   * retain accounting-relevant records for seven years, and every document the
+   * customer appears on must survive with its historical snapshot intact
+   * (§4.3). `ADMIN`-only and irreversible, unlike deactivate/reactivate.
+   */
+  routes.post(
+    '/api/customers/:id/anonymise',
+    {
+      config: adminOnly,
+      schema: {
+        params: customerIdParamsSchema,
+        response: { 200: anonymiseCustomerResponseSchema, 404: apiErrorSchema },
+      },
+    },
+    (request) =>
+      anonymiseCustomer(
         app.prisma,
         currentUser(request).id,
         clientIpHash(app, request),

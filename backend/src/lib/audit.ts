@@ -1,6 +1,6 @@
 import { Prisma } from '../generated/prisma/client.js';
 import { toJsonValue, type JsonValue } from './json.js';
-import type { Database } from './prisma.js';
+import type { AnyDbClient } from './prisma.js';
 
 /**
  * The audit foundation (PROJECT_SPEC.md §4.2, B2.7).
@@ -17,7 +17,7 @@ import type { Database } from './prisma.js';
  * written afterwards is a log that a crash can lose, leaving a change nobody
  * can account for.
  */
-export type AuditClient = Database | Prisma.TransactionClient;
+export type AuditClient = AnyDbClient;
 
 export type AuditEntry = {
   /** Who did it. Null for a scheduled job rather than a person (§8.4). */

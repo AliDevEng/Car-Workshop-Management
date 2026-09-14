@@ -11,6 +11,7 @@ import * as commonSchemas from '../src/schemas/common.js';
 import * as customerSchemas from '../src/schemas/customer.js';
 import * as dashboardSchemas from '../src/schemas/dashboard.js';
 import * as documentSchemas from '../src/schemas/document.js';
+import * as gdprSchemas from '../src/schemas/gdpr.js';
 import * as healthSchemas from '../src/schemas/health.js';
 import * as odometerSchemas from '../src/schemas/odometer.js';
 import * as partnerLinkSchemas from '../src/schemas/partner-link.js';
@@ -61,6 +62,7 @@ const domainModules: ReadonlyArray<readonly [string, Record<string, unknown>]> =
     ['audit', auditSchemas],
     ['search', searchSchemas],
     ['dashboard', dashboardSchemas],
+    ['gdpr', gdprSchemas],
   ];
 
 describe('the barrel re-exports every domain area (B1.5.1)', () => {

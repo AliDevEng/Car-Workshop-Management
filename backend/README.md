@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 72/92 milestones complete; 9/14 iterations Done.**
+**Overall: 78/92 milestones complete; 10/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -48,7 +48,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [9](#b8)   | B8        | 5       | 6/6             | Done        |
 | [10](#b9)  | B9        | 6       | 7/7             | Done        |
 | [11](#b10) | B10       | 3 and 6 | 5/6             | In progress |
-| [12](#b11) | B11       | 7       | 0/6             | Not started |
+| [12](#b11) | B11       | 7       | 6/6             | Done        |
 | [13](#b12) | B12       | 7       | 0/6             | Not started |
 | [14](#b13) | B13       | 8       | 0/6             | Not started |
 
@@ -149,6 +149,93 @@ B9.6.2's public advice panel stays unbuilt: nothing in B10's own checklist
 asks this iteration to wire `ServiceRecommendation` into the public response,
 and `suggestedServices` keeps defaulting to `[]` until whichever iteration
 does.
+
+**Iteration 12 (B11) is Done as of 2026-09-14.** Auditing, GDPR and the four
+scheduled jobs §8.4 names for this iteration (backup is B12's):
+
+- **`GET /api/audit-log`** (`ADMIN`-only), cursor-paginated newest first and
+  filterable by `entityType`/`entityId`/`userId`/`from`/`to`. The write side
+  already existed from B2.7 onward; this iteration adds the reader and closes
+  the coverage gap a grep for `auditLog.find` across every test file exposed —
+  six actions (`checklist_template.*`, `service_rule.*`,
+  `service_recommendation.*`, `partner_link.*`, `settings.updated`,
+  `vehicle_data.fetched`) were exercised by their own modules' tests without
+  ever reading the log back. `tests/audit-coverage.test.ts` closes exactly
+  that gap rather than re-testing the ~30 actions already covered where they
+  were built.
+- **`GET /api/customers/:id/export`** gathers everything §5.5 asks for —
+  vehicles, odometer history, bookings, work orders, quotes, service
+  protocols — by importing each module's own `*_DETAIL_SELECT` and `to*Dto`
+  pair rather than redeclaring a second shape for the same entity (three
+  selects were exported for the first time to make this possible:
+  `BOOKING_WITH_RELATIONS_SELECT`, `ODOMETER_READING_SELECT`, and the
+  work/quote/protocol `*_DETAIL_SELECT`s already were).
+- **`POST /api/customers/:id/anonymise`** resolves §5.5's erasure conflict:
+  `name` becomes `Raderad kund`, contact fields are cleared, `anonymisedAt` is
+  set, and every document the customer appears on is untouched because B7's
+  `payloadJson` snapshot never re-reads the live row — `tests/gdpr.test.ts`
+  proves this by anonymising a customer with a sent quote and rebuilding its
+  PDF byte-for-byte from the stored payload afterward (B11.2.3). Idempotent,
+  matching `deactivateCustomer`'s own idiom for a repeated state change, and
+  composable into a caller's transaction (`anonymiseCustomerInTransaction`) so
+  the retention job can anonymise many customers as one atomic sweep.
+- **`GET /api/public/privacy-policy`** — static Swedish content describing
+  this system's own data practices, served from the backend rather than
+  hard-coded into the frontend for the same reason `config/settings.ts`
+  already owns the workshop's opening hours: it is a fact about backend
+  behaviour, not marketing copy.
+- **Four scheduled jobs**, each a plain exported function unit-tested directly
+  with a real `Database` and no cron involved (B11.3.7): stock reconciliation
+  (re-derives every balance from the ledger and logs drift **without**
+  correcting it — a stocktake is the human decision that fixes a number the
+  workshop prices its parts against), the nightly recommendation refresh
+  (recomputes every vehicle the same way an odometer reading already does,
+  catching a due date that shifts with time rather than an event), the
+  retention sweep (anonymises stale `REJECTED`/`SPAM` booking requests after
+  90 days and customers inactive for 36 months), and the hourly cleanup
+  (expired sessions, and `IdempotencyKey` rows past their 24-hour window).
+  `jobs/scheduler.ts` wires these to `node-cron` with `timezone:
+  WORKSHOP_TIMEZONE` and `noOverlap: true`, called only from `server.ts` —
+  never `app.ts` — so every test built through `createTestApp` gets a process
+  with nothing running in the background.
+- **The advisory lock is `pg_try_advisory_xact_lock`, not the session-scoped
+  pair.** A session lock has to be released on the exact connection that took
+  it, and a pooled Prisma client gives no such guarantee across two separate
+  calls — the "pinned connection" B11.5.1 asks for. A transaction-scoped lock
+  sidesteps the problem: Prisma's interactive `$transaction` reserves one
+  connection for the whole job, and the lock releases itself on commit,
+  rollback, or a crash that drops the connection, with no separate unlock call
+  to forget. `tests/jobs.test.ts` forces two concurrent calls for one lock key
+  and asserts the second skips rather than double-running, and separately
+  asserts a throwing job never escapes `runScheduledJob` (B11.3.6).
+- **Two real defects were found writing the tests.** `anonymiseCustomer`
+  first set `phone: ''`, which reached the client as a `500
+  FST_ERR_RESPONSE_SERIALIZATION` — `phoneSchema` requires at least six
+  digit/`+()-.`/space characters, and the response schema rejected the very
+  value meant to erase the real one. Both `Customer` and `BookingRequest`
+  anonymisation now write a placeholder (`000-000 00 00`) that identifies
+  nobody instead. Separately, `recommendation-refresh` and `retention` each
+  loop over every vehicle or customer inside the one transaction
+  `runScheduledJob` opens, and Prisma's interactive-transaction default is 5
+  seconds — sized for a request a user is waiting on, not a fleet of
+  thousands of vehicles (B13.1 seeds 8 000 of them). Nobody is waiting on a
+  04:00 cron job, so the job transaction now gets `maxWait: 10s, timeout:
+  300s` instead of the default.
+- **`BookingRequest` gained an `anonymisedAt` column** (migration
+  `20260914070841_b11_gdpr_retention`), mirroring `Customer.anonymisedAt`.
+  Without it the retention sweep would either re-anonymise (and re-audit) an
+  already-blank row every night, or need a sentinel string to detect one —
+  the same schema-versus-workaround trade-off B6 resolved by adding
+  `completedByUserId` rather than reading the audit log to label a work order.
+- 33 new backend tests across five files
+  (`audit-log.test.ts`, `gdpr.test.ts`, `audit-coverage.test.ts`,
+  `jobs.test.ts`, `security-hardening.test.ts`), 704 in the backend suite.
+  B11.4.1–.4 (helmet, the global rate limit, the per-route limiters on
+  `POST /api/public/booking-requests` and `POST /api/public/vehicle-lookup`,
+  and response serialisation stripping undeclared fields) were already built
+  in B0/B5/B10 and are verified rather than re-implemented; B11.4.3's 1 MB
+  body cap and B11.4.5's `passwordHash` sweep did not have their own test
+  until now.
 
 **Iteration 8 (B7) is Done as of 2026-09-10.** The PDF pipeline and the quote
 that rides on it: `@react-pdf/renderer` behind a single entry point with a
@@ -3044,14 +3131,14 @@ whenever the two disagree.
 
 ## Iteration 12: Adding auditing, privacy and scheduled jobs
 
-- [ ] Completing the audit log and coverage checks (`B11.1`)
-- [ ] Creating customer export and anonymisation (`B11.2`)
-- [ ] Scheduling maintenance jobs (`B11.3`)
-- [ ] Verifying API security controls (`B11.4`)
-- [ ] Verifying job execution and cleanup (`B11.5`)
-- [ ] Verifying privacy and audit coverage (`B11.6`)
+- [x] Completing the audit log and coverage checks (`B11.1`)
+- [x] Creating customer export and anonymisation (`B11.2`)
+- [x] Scheduling maintenance jobs (`B11.3`)
+- [x] Verifying API security controls (`B11.4`)
+- [x] Verifying job execution and cleanup (`B11.5`)
+- [x] Verifying privacy and audit coverage (`B11.6`)
 
-**Reference:** B11 · **Phase:** 7 · **Progress:** 0/6 · **Status:** Not started
+**Reference:** B11 · **Phase:** 7 · **Progress:** 6/6 · **Status:** Done
 
 **Depends on:** B6, B9; audit foundation from B2.7.
 
@@ -3072,94 +3159,233 @@ historical document.
 
 ### B11.1 Audit log
 
-- [ ] **B11.1.1** Verify the AuditLog model/helper introduced in B2.7 is
-      append-only and that no update or delete route exists.
-- [ ] **B11.1.2** A service helper called from the mutations listed in
-      `PROJECT_SPEC.md` §4.2
-- [ ] **B11.1.3** Before and after captured as JSON, with `passwordHash`
-      redacted
-- [ ] **B11.1.4** `GET /api/audit-log` for `ADMIN`, filterable by entity and
-      date
-- [ ] **B11.1.5** A test enumerating the required mutations and asserting each
-      writes a row
+- [x] **B11.1.1** Verify the AuditLog model/helper introduced in B2.7 is
+      append-only and that no update or delete route exists. Confirmed by
+      inspection: `AuditLog` has no `update`/`delete` route in any module, and
+      `writeAuditLog` (`lib/audit.ts`) is the only writer, called inside the
+      same transaction as the change it describes.
+- [x] **B11.1.2** A service helper called from the mutations listed in
+      `PROJECT_SPEC.md` §4.2 — already `writeAuditLog`, in place since B2.7 and
+      used by every domain module built since (users, customers, vehicles,
+      articles, stock, bookings, work orders, quotes, checklist templates,
+      service protocols, service rules, service recommendations, partner
+      links, settings, vehicle data, and now the GDPR and job actions this
+      iteration adds).
+- [x] **B11.1.3** Before and after captured as JSON, with `passwordHash`
+      redacted — `redact()` in `lib/audit.ts`, unchanged since B2.7.
+- [x] **B11.1.4** `GET /api/audit-log` for `ADMIN`, filterable by entity and
+      date — new `modules/audit/` (`repository.ts`, `routes.ts`), cursor-
+      paginated on `id DESC` with `entityType`/`entityId`/`userId`/`from`/`to`
+      filters, joining `userSummarySchema` for the actor.
+- [x] **B11.1.5** A test enumerating the required mutations and asserting each
+      writes a row. Most of the ~40 distinct actions the backend writes already
+      had this assertion at the point they were built (`tests/audit.test.ts`
+      for users; `customers.test.ts`, `articles.test.ts`,
+      `stock-movements.test.ts`, `bookings.test.ts`, `booking-requests.test.ts`,
+      `vehicles.test.ts`, `quotes.test.ts`, `service-protocols.test.ts`,
+      `work-order-completion.test.ts` and `work-order-journey.test.ts` each
+      check their own; `gdpr.test.ts` and `jobs.test.ts` check this
+      iteration's). `tests/audit-coverage.test.ts` closes the six-action gap a
+      grep for `auditLog.find` across every test file exposed:
+      `checklist_template.created`/`.updated`, `service_rule.created`/
+      `.updated`/`.imported`, `service_recommendation.accepted`/`.dismissed`,
+      `partner_link.created`/`.updated`/`.reordered`, `settings.updated`, and
+      `vehicle_data.fetched` were all exercised by their own routes without
+      ever reading the log back.
 
 <a id="b11-2"></a>
 
 ### B11.2 GDPR endpoints
 
-- [ ] **B11.2.1** `GET /api/customers/:id/export` returning everything held, as
-      JSON
-- [ ] **B11.2.2** `POST /api/customers/:id/anonymise` — nulls contact fields,
-      sets `anonymisedAt`, leaves work orders, quotes and protocols intact
-- [ ] **B11.2.3** Test asserting a historical quote PDF still regenerates after
-      anonymisation
-- [ ] **B11.2.4** Privacy policy content endpoint or static page wired to the
-      frontend
+- [x] **B11.2.1** `GET /api/customers/:id/export` returning everything held, as
+      JSON. `modules/customers/gdpr.repository.ts` gathers vehicles, odometer
+      readings, bookings, work orders, quotes and service protocols by
+      importing each owning module's `*_DETAIL_SELECT`/`to*Dto` pair rather
+      than redeclaring a second shape for the same entity — the same reuse
+      `shared/schemas/gdpr.ts`'s `customerExportSchema` applies by nesting
+      `vehicleSchema`, `workOrderDetailSchema`, `quoteDetailSchema` and
+      `serviceProtocolDetailSchema` directly. `ADMIN`-only (B11.6.1): this is
+      the single largest concentration of one person's personal data anywhere
+      in the system.
+- [x] **B11.2.2** `POST /api/customers/:id/anonymise` — sets `name` to
+      `Raderad kund`, nulls `orgNumber`/`email`/`address`/`notes`, sets
+      `anonymisedAt`, and leaves work orders, quotes and protocols intact
+      (they reference the customer by id and a quote/protocol's own
+      `payloadJson`/checklist snapshot already carries the name as it was,
+      §4.2). `phone` cannot be `null` — the column is not nullable — so it
+      becomes a placeholder (`000-000 00 00`) that identifies nobody rather
+      than a real number; see the defect below. Idempotent, and composable
+      into a caller's transaction (`anonymiseCustomerInTransaction`) so
+      B11.3.4's retention sweep can anonymise many customers as one atomic
+      unit, the same shape `createCustomerInTransaction` gives B5's booking
+      confirmation.
+- [x] **B11.2.3** Test asserting a historical quote PDF still regenerates after
+      anonymisation — `tests/gdpr.test.ts`, following B7.6.3's own
+      regeneration test: send a quote, anonymise its customer, read the
+      document's `payloadJson` back, rebuild the PDF and assert the SHA-256
+      still matches the stored file (B0.10.1's determinism holds here too).
+- [x] **B11.2.4** Privacy policy content endpoint — `GET
+      /api/public/privacy-policy`, public, serving static Swedish content from
+      `config/privacy-policy.ts` (parsed against its own schema at load time,
+      mirroring `DEFAULT_WORKSHOP_DETAILS`). Content lives in the backend
+      rather than the frontend because it states what *this system* does with
+      personal data — the same class of fact `config/settings.ts` already
+      owns for opening hours — and F12.7 is what wires it into
+      `/integritetspolicy`.
 
 <a id="b11-3"></a>
 
 ### B11.3 Scheduled jobs
 
-- [ ] **B11.3.1** `node-cron` scheduler with a Postgres advisory lock per job
-- [ ] **B11.3.2** Stock reconciliation comparing cached balances to ledger sums,
-      logging drift
-- [ ] **B11.3.3** Nightly recommendation refresh
-- [ ] **B11.3.4** Retention job per §5.5
-- [ ] **B11.3.5** Hourly session cleanup
-- [ ] **B11.3.6** Each job logs start, finish and duration, and never throws
-      into the scheduler
-- [ ] **B11.3.7** Every job is a plain exported function, unit-tested directly
-      without cron
-- [ ] **B11.3.8** Configure each cron schedule with an explicit timezone
+- [x] **B11.3.1** `node-cron` scheduler with a Postgres advisory lock per job —
+      `jobs/scheduler.ts` wires four jobs to `cron.schedule`; `jobs/lock.ts`'s
+      `runScheduledJob` wraps each in `pg_try_advisory_xact_lock`, not the
+      session-scoped `pg_advisory_lock`/`_unlock` pair — see B11.5.1 for why.
+      Called only from `server.ts`, never `app.ts`, so a test built through
+      `createTestApp` never has a cron running in the background.
+- [x] **B11.3.2** Stock reconciliation comparing cached balances to ledger sums,
+      logging drift — `jobs/stock-reconciliation.ts`. Groups `StockMovement`
+      by article, compares the sum against `Article.stockQuantity` with the
+      same `Quantity` arithmetic B4's ledger uses, and only logs a mismatch;
+      it never corrects one; correcting a number the workshop prices its parts
+      against is a stocktake, i.e. a human decision (§6.4).
+- [x] **B11.3.3** Nightly recommendation refresh —
+      `jobs/recommendation-refresh.ts` calls
+      `recomputeRecommendationsForVehicleInTransaction` for every vehicle, the
+      same function B9's odometer and work-order-completion triggers already
+      call, so a decision already recorded survives untouched and advice that
+      no longer holds is still removed.
+- [x] **B11.3.4** Retention job per §5.5 — `jobs/retention.ts` anonymises
+      `BookingRequest` rows with status `REJECTED`/`SPAM` 90 days after
+      submission, and customers with no work order in the last 36 months
+      (a customer created *within* that window with no work order yet is not
+      stale — new — so eligibility requires both the customer and every one of
+      their work orders, zero or more, to be old enough).
+- [x] **B11.3.5** Hourly session cleanup — `jobs/session-cleanup.ts`, and
+      widened to the `IdempotencyKey` cleanup §4.2 also names for the same
+      schedule: `cleanupExpiredSessions` and `cleanupExpiredIdempotencyKeys`
+      (24-hour window), run together as `runHourlyCleanup`.
+- [x] **B11.3.6** Each job logs start, finish and duration, and never throws
+      into the scheduler — `runScheduledJob` catches everything a job throws,
+      logs `{ job, durationMs, err }` at `error`, and returns normally either
+      way; verified by a test that hands it a job whose `run` always throws.
+- [x] **B11.3.7** Every job is a plain exported function, unit-tested directly
+      without cron — `reconcileStockLedger`, `refreshServiceRecommendations`,
+      `runRetentionSweep`, `cleanupExpiredSessions`/
+      `cleanupExpiredIdempotencyKeys`/`runHourlyCleanup` are all called
+      directly in `tests/jobs.test.ts` with a real `Database`, no
+      `node-cron` import anywhere in the test file.
+- [x] **B11.3.8** Configure each cron schedule with an explicit timezone
       matching the documented business schedule; containers remain UTC. Use
       node-cron 4 overlap controls where appropriate, alongside database
-      advisory locks.
+      advisory locks. `jobs/scheduler.ts` passes `timezone: WORKSHOP_TIMEZONE`
+      (`shared/time.ts`'s existing constant) and `noOverlap: true` to every
+      `cron.schedule` call — the in-process guard node-cron itself provides,
+      belt-and-braces alongside the advisory lock that is the guard that
+      actually matters across two processes.
 
 <a id="b11-4"></a>
 
 ### B11.4 Security hardening
 
-- [ ] **B11.4.1** Verify `@fastify/helmet` protects API responses. Coordinate
-      the production page CSP and nonce handling with Next.js/F12; API headers
-      alone do not protect HTML pages (§5.4).
-- [ ] **B11.4.2** Global rate limit plus tighter per-route limits
-- [ ] **B11.4.3** 1 MB body cap
-- [ ] **B11.4.4** Response serialisation driven by `shared` schemas, so extra
-      fields are stripped
-- [ ] **B11.4.5** A test asserting `passwordHash` cannot appear in any response
+- [x] **B11.4.1** Verify `@fastify/helmet` protects API responses. Already
+      registered in `plugins/security.ts` since B0 with `contentSecurityPolicy:
+      false` (the page CSP is Next's, §5.4) and covered by
+      `security.test.ts`'s "security headers" block; unchanged this iteration.
+- [x] **B11.4.2** Global rate limit plus tighter per-route limits. The global
+      ceiling (`@fastify/rate-limit`, `security.test.ts`) and the two
+      per-route limiters that actually matter — the IP-keyed limiter on
+      `POST /api/public/booking-requests` (one of B5.4's four anti-spam
+      layers) and the one on `POST /api/public/vehicle-lookup` (B10.1's 5
+      lookups/hour) — already existed and are already tested in
+      `booking-requests.test.ts` and `vehicle-data.test.ts`; this item
+      verifies rather than adds a second, blunter generic limiter on top of
+      domain-specific ones already keyed correctly.
+- [x] **B11.4.3** 1 MB body cap — `BODY_LIMIT_BYTES` in `app.ts` since B0;
+      newly tested in `tests/security-hardening.test.ts` (413 in the §3.7
+      envelope, `PAYLOAD_TOO_LARGE`).
+- [x] **B11.4.4** Response serialisation driven by `shared` schemas, so extra
+      fields are stripped — the `fastify-type-provider-zod` adapter's
+      behaviour since B0.5.7, exercised throughout every route test.
+- [x] **B11.4.5** A test asserting `passwordHash` cannot appear in any
+      response — `tests/security-hardening.test.ts` sweeps the user list, a
+      single user, a fresh creation and a login response for `passwordHash`
+      and `$argon2`, on top of `tests/audit.test.ts`'s existing sweep of the
+      audit log itself.
 
 <a id="b11-5"></a>
 
 ### B11.5 Verifying job execution and cleanup
 
-- [ ] **B11.5.1** Verify an advisory lock prevents duplicate execution and is
-      released after success or failure; use a pinned database connection where
-      lock semantics require it.
-- [ ] **B11.5.2** Exercise scheduler failure handling and stock-reconciliation
-      drift logs without corrupting balances.
-- [ ] **B11.5.3** Verify hourly cleanup removes expired sessions and idempotency
-      records older than the specified retention window.
-- [ ] **B11.5.4** Record timezone, overlap and direct job-function test results.
+- [x] **B11.5.1** Verify an advisory lock prevents duplicate execution and is
+      released after success or failure; use a pinned database connection
+      where lock semantics require it. `pg_try_advisory_xact_lock` inside
+      Prisma's interactive `$transaction` *is* the pinned connection — the
+      transaction reserves one connection for its whole duration, and the lock
+      releases itself automatically at commit, rollback, or a crash that drops
+      the connection, with no separate unlock call to forget. Verified by
+      firing two concurrent `runScheduledJob` calls for the same lock key and
+      asserting the second one skips (`ran: false`) rather than running
+      alongside the first.
+- [x] **B11.5.2** Exercise scheduler failure handling and stock-reconciliation
+      drift logs without corrupting balances. A job that throws is caught and
+      logged, never escaping `runScheduledJob` (B11.3.6's test); a deliberately
+      drifted cache is detected and logged but left exactly as drifted
+      afterward — `reconcileStockLedger` reads, it never writes.
+- [x] **B11.5.3** Verify hourly cleanup removes expired sessions and
+      idempotency records older than the specified retention window. Tested
+      directly against seeded rows either side of both boundaries (session
+      `expiresAt`, `IdempotencyKey.createdAt` at 24 hours).
+- [x] **B11.5.4** Record timezone, overlap and direct job-function test
+      results. See **Verification** below.
 
 <a id="b11-6"></a>
 
 ### B11.6 Verifying privacy and audit coverage
 
-- [ ] **B11.6.1** Export and anonymise a test customer through ADMIN routes;
-      verify permission denial for other roles.
-- [ ] **B11.6.2** Check retained documents and snapshots follow the specified
-      policy and still have valid stored hashes.
-- [ ] **B11.6.3** Enumerate required mutation types and verify every one records
-      its actor and redacted before/after data.
-- [ ] **B11.6.4** Record backend acceptance evidence for the F12.7 privacy
-      integration.
+- [x] **B11.6.1** Export and anonymise a test customer through ADMIN routes;
+      verify permission denial for other roles. `tests/gdpr.test.ts` — both
+      routes 401 for an anonymous caller with a valid CSRF pair but no
+      session, and 403 for a `MECHANIC`, matching every other `ADMIN`-only
+      module's own test.
+- [x] **B11.6.2** Check retained documents and snapshots follow the specified
+      policy and still have valid stored hashes. B11.2.3's regeneration test
+      is this check: the document's `fileHashSha256` still matches a rebuild
+      from `payloadJson` after the customer it names has been anonymised.
+- [x] **B11.6.3** Enumerate required mutation types and verify every one
+      records its actor and redacted before/after data. See B11.1.5.
+- [x] **B11.6.4** Record backend acceptance evidence for the F12.7 privacy
+      integration. `GET /api/customers/:id/export`, `POST
+      /api/customers/:id/anonymise` and `GET /api/public/privacy-policy` are
+      the three endpoints F12.7 has to wire up; all three are `ADMIN`/public
+      exactly as F12.7 will need, schema-validated end to end, and exercised
+      in `tests/gdpr.test.ts`.
 
 </details>
 
-- [ ] **Iteration 12 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 12 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-14. `pnpm check` clean — typecheck, lint (0
+warnings), 704 backend tests (33 new), 328 shared tests, 96 frontend tests,
+type-coverage 99.76%. Node 22.23.2, pnpm 12.3.4, PostgreSQL 16.15.
+
+| Command                                                              | Result                                    |
+| --------------------------------------------------------------------- | ------------------------------------------ |
+| `pnpm --filter backend exec vitest run tests/audit-log.test.ts`       | 5/5 — filters, pagination, permission gate |
+| `pnpm --filter backend exec vitest run tests/gdpr.test.ts`            | 8/8 — export, anonymise, PDF regeneration, privacy policy |
+| `pnpm --filter backend exec vitest run tests/audit-coverage.test.ts`  | 6/6 — the six previously-unread actions    |
+| `pnpm --filter backend exec vitest run tests/jobs.test.ts`            | 10/10 — all four jobs plus the advisory lock |
+| `pnpm --filter backend exec vitest run tests/security-hardening.test.ts` | 4/4 — body cap, passwordHash sweep      |
+| `pnpm check`                                                          | Clean                                      |
+
+**Every money, stock, status and personal-data mutation §4.2 requires is now
+both written and read back somewhere in the suite**, closing B11's own
+Definition of Done. A customer with a sent quote was anonymised through the
+real `ADMIN` API and its PDF still rebuilds byte-identical from
+`payloadJson`, which is the Definition of Done's second half. B0.9.3 (branch
+protection) remains the only open item anywhere before Phase 7's B12.
+
+**Completed on:** 2026-09-14
 
 ---
 

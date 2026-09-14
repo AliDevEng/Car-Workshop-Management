@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
+  privacyPolicySchema,
   publicWorkshopInfoSchema,
   settingsResponseSchema,
   updateSettingsInputSchema,
 } from 'shared';
+import { PRIVACY_POLICY } from '../../config/privacy-policy.js';
 import {
   getPublicWorkshopInfo,
   getSettings,
@@ -34,6 +36,16 @@ export function registerSettingsRoutes(app: FastifyInstance): void {
       schema: { response: { 200: publicWorkshopInfoSchema } },
     },
     () => getPublicWorkshopInfo(app.prisma),
+  );
+
+  /** B11.2.4 — static content for `/integritetspolicy` (§6.1). */
+  routes.get(
+    '/api/public/privacy-policy',
+    {
+      config: { auth: 'public' },
+      schema: { response: { 200: privacyPolicySchema } },
+    },
+    () => PRIVACY_POLICY,
   );
 
   routes.get(

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { cursorQuerySchema } from './common.js';
+import { cursorQuerySchema, paginatedResponseSchema } from './common.js';
 import {
   idSchema,
   isoDateTimeSchema,
@@ -48,3 +48,8 @@ export const auditLogQuerySchema = cursorQuerySchema.extend({
   to: isoDateTimeSchema.optional(),
 });
 export type AuditLogQuery = z.infer<typeof auditLogQuerySchema>;
+
+/** `GET /api/audit-log` (`ADMIN`-only, B11.1.4) — newest first, cursor-paginated. */
+export const auditLogListResponseSchema =
+  paginatedResponseSchema(auditLogEntrySchema);
+export type AuditLogListResponse = z.infer<typeof auditLogListResponseSchema>;

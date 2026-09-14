@@ -431,6 +431,12 @@ model BookingRequest {
   /// Why it was rejected. Shown to staff, never sent to the visitor by v1.
   rejectionReason String?
 
+  /// Set by the retention job (§5.5, B11.3.4) when a `REJECTED`/`SPAM` row
+  /// turns 90 days old. Mirrors `Customer.anonymisedAt`: the marker is what
+  /// makes the sweep idempotent, rather than re-anonymising an already-blank
+  /// row every night.
+  anonymisedAt DateTime? @db.Timestamptz(3)
+
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
