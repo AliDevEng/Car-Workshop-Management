@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, formatRelative } from './date';
+import {
+  formatDate,
+  formatDateOnly,
+  formatDateTime,
+  formatRelative,
+  formatTime,
+} from './date';
 
 describe('formatDate / formatDateTime', () => {
   it('renders a UTC instant as the Europe/Stockholm wall-clock date', () => {
@@ -12,6 +18,7 @@ describe('formatDate / formatDateTime', () => {
     expect(formatDateTime('2026-06-14T23:30:00.000Z')).toBe(
       '15 juni 2026 01:30',
     );
+    expect(formatTime('2026-06-14T23:30:00.000Z')).toBe('01:30');
   });
 
   it('handles a winter (CET, UTC+1) instant', () => {
@@ -25,6 +32,10 @@ describe('formatDate / formatDateTime', () => {
     expect(formatDate(new Date('2026-01-10T08:00:00.000Z'))).toBe(
       '10 jan. 2026',
     );
+  });
+
+  it('formats API date-only values as workshop calendar dates', () => {
+    expect(formatDateOnly('2026-03-29')).toBe('29 mars 2026');
   });
 });
 

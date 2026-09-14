@@ -27,6 +27,16 @@ export function formatDateTime(value: Date | string): string {
   );
 }
 
+export function formatTime(value: Date | string): string {
+  return formatInTimeZone(toDate(value), WORKSHOP_TIMEZONE, 'HH:mm', {
+    locale: sv,
+  });
+}
+
+export function formatDateOnly(value: string): string {
+  return formatDate(`${value}T12:00:00.000Z`);
+}
+
 /** e.g. "för 2 dagar sedan". A duration, so timezone-independent. */
 export function formatRelative(value: Date | string): string {
   return formatDistanceToNow(toDate(value), { addSuffix: true, locale: sv });

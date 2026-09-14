@@ -180,16 +180,20 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**29/83 frontend milestones are complete as of 2026-09-13:** all seven of F0's,
+**35/83 frontend milestones are complete as of 2026-09-14:** all seven of F0's,
 all six of F1's, four of F2's six milestones, all six of F3's milestones and
-all six of F4's milestones. F0, F1, F3 and F4 are Done. F2's public layout,
+all six of F4's milestones, and all six of F5's milestones. F0, F1, F3, F4 and
+F5 are Done. F2's public layout,
 service pages, SEO and recorded performance budget are complete; the live lookup
 awaits B10.1–B10.4 and the about page awaits real owner photographs. F3 replaces
 the `/boka` placeholder with a schema-validated public request form, token
 recovery, spam-response fallbacks and a staff-review thank-you page. F4 adds the
 authenticated admin shell, local return-path login, server-verified protection,
 logout/session-expiry handling, keyboard global search and reusable admin page
-patterns.
+patterns. F5 replaces the admin placeholder with the typed dashboard, date-keyed
+query/invalidation helpers, useful filtered target pages, per-card loading/error
+states and browser coverage for seeded links, retry states and the one-second
+dashboard budget.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -238,7 +242,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | F2 | Public site | 3 | ⛔ (4/6 — frontend work and the Lighthouse budget pass; live vehicle lookup and real owner photos remain external blockers) |
 | F3 | Public booking flow | 3 | ✅ (6/6 — `/boka` is a real public booking-request form with pre-filled registration numbers, preferred date/time, service choices, honeypot and HMAC form token; `/boka/tack` promises staff review rather than a guaranteed slot; 6 Playwright checks cover success, honeypot, early/expired tokens, rate limits, preserved input and the 360 px keyboard flow) |
 | F8 | Calendar and booking requests | 3 | ⬜ |
-| F5 | Dashboard | 4 | ⬜ |
+| F5 | Dashboard | 4 | ✅ (6/6 — the admin start page now reads the typed B6 dashboard contract with a date-keyed TanStack query, renders today's bookings, action counts, inspection and low-stock attention cards, links every card to a real filtered admin page, and covers seeded, empty, loading, populated and retryable error states in Playwright; 3 dashboard browser checks green on 2026-09-14) |
 | F9 | Work orders | 4 | ⬜ |
 | F10 | Quotes and service protocols | 5 | ⬜ |
 | F11 | Settings, service rules, partner links | 6 | ⬜ |

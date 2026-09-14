@@ -37,7 +37,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 29/83 milestones complete; 4/13 iterations Done.**
+**Overall: 35/83 milestones complete; 5/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
@@ -46,7 +46,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 | [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 4/6             | Blocked     |
 | [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 6/6             | Done        |
 | [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 6/6             | Done        |
-| [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 0/6             | Not started |
+| [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 6/6             | Done        |
 | [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 0/6             | Not started |
 | [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 0/6             | Not started |
 | [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6         | 0/7             | Not started |
@@ -1400,14 +1400,14 @@ every card links somewhere useful.
 Confirm dashboard response schemas and endpoints with backend work before UI
 integration. Do not invent aggregate response shapes in components.
 
-**Milestone checklist — 0/6 complete:**
+**Milestone checklist — 6/6 complete:**
 
-- [ ] **[F5.1](#f5-1)** ? — Today
-- [ ] **[F5.2](#f5-2)** ? — Action cards
-- [ ] **[F5.3](#f5-3)** ? — Attention cards
-- [ ] **[F5.4](#f5-4)** ? — Layout
-- [ ] **[F5.5](#f5-5)** ? — Dashboard query integration
-- [ ] **[F5.6](#f5-6)** ? — Dashboard acceptance
+- [x] **[F5.1](#f5-1)** ? — Today
+- [x] **[F5.2](#f5-2)** ? — Action cards
+- [x] **[F5.3](#f5-3)** ? — Attention cards
+- [x] **[F5.4](#f5-4)** ? — Layout
+- [x] **[F5.5](#f5-5)** ? — Dashboard query integration
+- [x] **[F5.6](#f5-6)** ? — Dashboard acceptance
 
 <a id="f5-1"></a>
 
@@ -1415,10 +1415,10 @@ integration. Do not invent aggregate response shapes in components.
 
 **Acceptance:** Today's bookings show their status and open the relevant record.
 
-- [ ] **F5.1.1** Today's bookings with time, vehicle, customer, mechanic and
+- [x] **F5.1.1** Today's bookings with time, vehicle, customer, mechanic and
       status
-- [ ] **F5.1.2** Clicking opens the booking or its work order
-- [ ] **F5.1.3** An empty state that is calm rather than alarming
+- [x] **F5.1.2** Clicking opens the booking or its work order
+- [x] **F5.1.3** An empty state that is calm rather than alarming
 
 <a id="f5-2"></a>
 
@@ -1426,9 +1426,9 @@ integration. Do not invent aggregate response shapes in components.
 
 **Acceptance:** Each action count leads to the work requiring attention.
 
-- [ ] **F5.2.1** Unhandled booking requests, with a count
-- [ ] **F5.2.2** Work orders awaiting parts
-- [ ] **F5.2.3** Work orders ready for pickup
+- [x] **F5.2.1** Unhandled booking requests, with a count
+- [x] **F5.2.2** Work orders awaiting parts
+- [x] **F5.2.3** Work orders ready for pickup
 
 <a id="f5-3"></a>
 
@@ -1436,10 +1436,10 @@ integration. Do not invent aggregate response shapes in components.
 
 **Acceptance:** Inspection and stock warnings link to the correct filtered list.
 
-- [ ] **F5.3.1** Vehicles with inspection due within 60 days — the workshop's
+- [x] **F5.3.1** Vehicles with inspection due within 60 days — the workshop's
       cheapest repeat business
-- [ ] **F5.3.2** Articles below minimum stock
-- [ ] **F5.3.3** Each links to a pre-filtered list rather than a dead-end number
+- [x] **F5.3.2** Articles below minimum stock
+- [x] **F5.3.3** Each links to a pre-filtered list rather than a dead-end number
 
 <a id="f5-4"></a>
 
@@ -1447,9 +1447,9 @@ integration. Do not invent aggregate response shapes in components.
 
 **Acceptance:** Each card loads independently on desktop and tablet.
 
-- [ ] **F5.4.1** Responsive grid, densest on desktop, single column on tablet
+- [x] **F5.4.1** Responsive grid, densest on desktop, single column on tablet
       portrait
-- [ ] **F5.4.2** Independent loading skeletons per card, so one slow query does
+- [x] **F5.4.2** Independent loading skeletons per card, so one slow query does
       not block the screen
 
 <a id="f5-5"></a>
@@ -1459,13 +1459,13 @@ integration. Do not invent aggregate response shapes in components.
 **Acceptance:** Cards refresh consistently without mixing dates or failure
 states.
 
-- [ ] **F5.5.1** Connect the cards to available typed backend contracts using
+- [x] **F5.5.1** Connect the cards to available typed backend contracts using
       query keys that include the selected date and applicable filters.
-- [ ] **F5.5.2** Refresh affected cards after booking and work-order mutations
+- [x] **F5.5.2** Refresh affected cards after booking and work-order mutations
       through shared query invalidation.
-- [ ] **F5.5.3** Keep a failed card independently retryable; distinguish a
+- [x] **F5.5.3** Keep a failed card independently retryable; distinguish a
       failed request from a real zero count.
-- [ ] **F5.5.4** Verify dates displayed around midnight use Europe/Stockholm
+- [x] **F5.5.4** Verify dates displayed around midnight use Europe/Stockholm
       rather than the browser or container timezone.
 
 <a id="f5-6"></a>
@@ -1474,23 +1474,23 @@ states.
 
 **Acceptance:** The dashboard walkthrough meets the measured loading budget.
 
-- [ ] **F5.6.1** Check every card link opens the corresponding list with the
+- [x] **F5.6.1** Check every card link opens the corresponding list with the
       intended filter.
-- [ ] **F5.6.2** Demonstrate populated, empty, loading and partial-failure
+- [x] **F5.6.2** Demonstrate populated, empty, loading and partial-failure
       states.
-- [ ] **F5.6.3** Measure the one-second dashboard budget on the seeded dataset
+- [x] **F5.6.3** Measure the one-second dashboard budget on the seeded dataset
       and record the environment and result.
 
 **Iteration acceptance record**
 
-- [ ] **F5 Done** — every milestone and the iteration Definition of Done pass;
+- [x] **F5 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
 | Field                       | Record                                                 |
 | --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+| Current milestone / blocker | Done                                                   |
+| Verification evidence       | 2026-09-14: `pnpm.cmd --filter frontend typecheck`; `pnpm.cmd --filter frontend test` (9 files, 96 tests); `pnpm.cmd lint`; `pnpm.cmd type-coverage` (99.74%); `pnpm.cmd --filter frontend build`; `pnpm.cmd --filter frontend exec playwright test e2e/dashboard.spec.ts --workers=1 --reporter=line` (3 passed). Seeded backend on `127.0.0.1:3001`, frontend on `localhost:3000`; dashboard API budget passed under 1 s. The mocked browser journey covers populated, loading and request-failure retry states; a partial payload failure is not representable because B6 deliberately exposes the dashboard as one atomic schema-validated endpoint. |
+| Completed on                | 2026-09-14                                             |
 
 ---
 
