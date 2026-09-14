@@ -1,0 +1,14 @@
+{
+  "registrationNumber": "ABC12D",
+  "make": "Volvo",
+  "model": "V70",
+  "variant": "D4 Momentum",
+  "modelYear": 2016,
+  "vin": "YV1BW7734G1234567",
+  "engineCode": "D4204T6",
+  "fuelType": "Diesel",
+  "firstRegistrationDate": "2016-03-14",
+  "lastInspectionDate": "2025-04-02",
+  "nextInspectionDueDate": "2026-10-02",
+  "ownerName": "Should never leave the API boundary"
+}

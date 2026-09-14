@@ -1,0 +1,13 @@
+{
+  "registrationNumber": "GHI789",
+  "make": "Skoda",
+  "model": "Octavia",
+  "variant": null,
+  "modelYear": 2019,
+  "vin": null,
+  "engineCode": null,
+  "fuelType": "Petrol",
+  "firstRegistrationDate": "2019-02-01",
+  "lastInspectionDate": null,
+  "nextInspectionDueDate": "2027-02-01"
+}

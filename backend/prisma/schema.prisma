@@ -206,6 +206,7 @@ model Vehicle {
   bookings         Booking[]
   workOrders       WorkOrder[]
   recommendations  ServiceRecommendation[]
+  dataSnapshots    VehicleDataSnapshot[]
 
   @@index([customerId])
   /// The dashboard scans this daily for inspections due within 60 days (§8.2).
@@ -1083,4 +1084,59 @@ model ServiceRecommendation {
 
   @@unique([vehicleId, serviceType])
   @@index([severity, status])
+}
+
+// ---------------------------------------------------------------------------
+// B10 — the vehicle-data provider's cache history, and partner deep links
+// (PROJECT_SPEC.md §4.2, §7.1, §7.2).
+//
+// `Vehicle`'s own columns (make, model, dataFetchedAt, ...) are the cache
+// that is actually read — the same shape B4's `Article.stockQuantity` and
+// B3's `Vehicle.lastKnownOdometerKm` already use. `VehicleDataSnapshot` is
+// the append-only history behind that cache: every call that gets an answer
+// writes one row here, and the Vehicle's columns are updated from it, but a
+// lookup never reads this table back — it reads `Vehicle.dataFetchedAt`.
+// ---------------------------------------------------------------------------
+
+/// One successful provider answer for one vehicle (§7.1, B10.2.1). Never
+/// written for a confirmed "no such registration number" — there is nothing
+/// to cache — only for an answer that named a real vehicle.
+model VehicleDataSnapshot {
+  id           String   @id @default(uuid(7))
+  vehicleId    String
+  vehicle      Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  providerName String
+  /// The internal `VehicleDataResult` shape (`shared`), already mapped out of
+  /// whatever the provider's own response looked like — no provider's field
+  /// names appear outside its own implementation (§7.1).
+  dataJson     Json
+  fetchedAt    DateTime @db.Timestamptz(3)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  /// The history for one vehicle, newest first.
+  @@index([vehicleId, fetchedAt])
+}
+
+/// A partner webshop's deep link, configured as data rather than a constant
+/// so a redesign is fixed in thirty seconds without a deploy (§7.2, B10.6.1).
+model PartnerLink {
+  id              String                     @id @default(uuid(7))
+  name            String
+  urlTemplate     String
+  placeholderType PartnerLinkPlaceholderType
+  /// Names an icon the frontend already ships; never a URL to fetch.
+  iconKey         String?
+  /// Explicit display order, reordered as a whole set by the admin (B10.6.2).
+  sortOrder       Int                        @default(0)
+  isActive        Boolean                    @default(true)
+  createdAt       DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime                   @updatedAt @db.Timestamptz(3)
+
+  @@index([isActive, sortOrder])
+}
+
+enum PartnerLinkPlaceholderType {
+  REGNR
+  ARTICLE_NUMBER
+  FREE_TEXT
 }

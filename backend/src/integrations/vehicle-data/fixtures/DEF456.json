@@ -1,0 +1,13 @@
+{
+  "registrationNumber": "DEF456",
+  "make": "Toyota",
+  "model": "Corolla",
+  "variant": null,
+  "modelYear": 2020,
+  "vin": null,
+  "engineCode": null,
+  "fuelType": "Hybrid",
+  "firstRegistrationDate": "2020-06-01",
+  "lastInspectionDate": null,
+  "nextInspectionDueDate": "2027-06-01"
+}

@@ -39,8 +39,9 @@ export const PDF_FONT_WEIGHT = {
 /**
  * Resolved from this module rather than from the working directory, so it is
  * the same path under `tsx` in development and under `node dist/` in
- * production. `backend/scripts/copy-pdf-assets.mjs` copies the directory into
- * `dist` as part of the build, because `tsc` emits JavaScript and nothing else.
+ * production. `backend/scripts/copy-static-assets.mjs` copies the directory
+ * into `dist` as part of the build, because `tsc` emits JavaScript and
+ * nothing else.
  *
  * `fileURLToPath` rather than the URL itself: `fontkit.open` takes a
  * filesystem path, and a `file://` URL reaches it as a filename that does not

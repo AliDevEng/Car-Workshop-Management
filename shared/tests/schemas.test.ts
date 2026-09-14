@@ -392,6 +392,15 @@ describe('partner links (§7.2)', () => {
     expect(schema.safeParse('https://partner.se/sok').success).toBe(false);
     expect(schema.safeParse('http://partner.se/{regnr}').success).toBe(false);
   });
+
+  it('rejects a template that starts with https:// but contains raw whitespace', () => {
+    const schema = partnerLinkSchemas.partnerLinkUrlTemplateSchema;
+    // Passes the `startsWith` and placeholder checks on their own; only the
+    // whitespace check catches the stray space in the host.
+    expect(
+      schema.safeParse('https:// partner.se/sok?regnr={regnr}').success,
+    ).toBe(false);
+  });
 });
 
 describe('opening hours (§3.6)', () => {

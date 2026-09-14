@@ -4,6 +4,7 @@ export * from './quantity.js';
 export * from './units.js';
 export * from './regnr.js';
 export * from './phone.js';
+export * from './partner-link.js';
 export * from './time.js';
 export * from './work-order-state.js';
 export * from './work-order-totals.js';

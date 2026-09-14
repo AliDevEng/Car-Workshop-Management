@@ -62,6 +62,17 @@ export const vehicleLookupInputSchema = z.object({
 export type VehicleLookupInput = z.infer<typeof vehicleLookupInputSchema>;
 
 /**
+ * Unlike the booking form's token (`FORM_TOKEN_MIN_AGE_SECONDS`), there is no
+ * minimum age: §6.2's 3-second time trap exists because a bot fills a whole
+ * form instantly, but a visitor can read and submit a single registration
+ * number in under three seconds, and rejecting that would punish the fastest
+ * real users. The token is still required and still checked for age — it is
+ * a spending control (§6.1), not a time trap.
+ */
+export const VEHICLE_LOOKUP_TOKEN_MIN_AGE_SECONDS = 0;
+export const VEHICLE_LOOKUP_TOKEN_MAX_AGE_SECONDS = 2 * 60 * 60;
+
+/**
  * Why the answer looks the way it does. The hero degrades honestly rather than
  * failing: above the daily ceiling it serves cache only, and failing that it
  * says so plainly and offers the plain booking form (§6.1).
@@ -112,7 +123,9 @@ export const vehicleLookupResponseSchema = z.object({
   registrationNumber: normalisedRegistrationNumberSchema,
   data: vehicleDataResultSchema.nullable(),
   source: vehicleLookupSourceSchema,
-  unavailableReason: vehicleLookupUnavailableReasonSchema.nullable().default(null),
+  unavailableReason: vehicleLookupUnavailableReasonSchema
+    .nullable()
+    .default(null),
   fetchedAt: isoDateTimeSchema.nullable(),
   suggestedServices: z.array(publicServiceSuggestionSchema).max(10).default([]),
 });

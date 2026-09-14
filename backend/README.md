@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 67/92 milestones complete; 9/14 iterations Done.**
+**Overall: 72/92 milestones complete; 9/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -47,7 +47,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [8](#b7)   | B7        | 5       | 6/6             | Done        |
 | [9](#b8)   | B8        | 5       | 6/6             | Done        |
 | [10](#b9)  | B9        | 6       | 7/7             | Done        |
-| [11](#b10) | B10       | 3 and 6 | 0/6             | Not started |
+| [11](#b10) | B10       | 3 and 6 | 5/6             | In progress |
 | [12](#b11) | B11       | 7       | 0/6             | Not started |
 | [13](#b12) | B12       | 7       | 0/6             | Not started |
 | [14](#b13) | B13       | 8       | 0/6             | Not started |
@@ -123,6 +123,32 @@ advice panel and B9.7.2's partner-settings connection are explicitly not
 built: both need B10 (the public vehicle lookup and `PartnerLink`), and B10
 has not started. Phase 6's intelligence half is otherwise complete; F11
 delivers the UI.
+
+**Iteration 11 (B10)'s Phase 3 subset is complete as of 2026-09-14; B10.5
+stays for Phase 6.** `VehicleDataProvider` behind the integration boundary,
+fixture-driven in every test and by default outside production; `Vehicle`'s
+own columns are the 30-day cache (mirroring how B4 caches the stock ledger and
+B3 caches the newest odometer reading), and `VehicleDataSnapshot` is the
+append-only history behind it. A 5-consecutive-failure circuit breaker and two
+independent `Setting`-backed daily ceilings — separately keyed so an attacker
+exhausting the public one cannot stop staff lookups — sit in the wrapper, not
+in either caller, exactly as §7.1 asks. The public endpoint degrades honestly
+through three layers (fresh cache, stale cache, an honest "unavailable") and
+never throws for a spending or availability reason; the staff "hämta på nytt"
+button does the opposite on purpose and throws, because silently handing back
+the same stale row would look like the button worked. `PartnerLink` CRUD is
+`ADMIN`-only with `authenticated` reads, reordering as one atomic replace of
+every `sortOrder`, and `buildPartnerUrl` substitutes `{regnr}`, `{regnr_spaced}`
+and `{artnr}` with `encodeURIComponent`. 42 new backend tests (including a
+forced-interleaving check that two simultaneous lookups of one new plate
+create exactly one `Vehicle` row) and 6 new shared ones. Two real defects were
+found writing them and are recorded above, under B10.3.1's correction and the
+B10.6.3 note — a check-then-act race on a brand-new plate, fixed with
+`upsert`, and a URL-template validator that did not actually parse as a URL.
+B9.6.2's public advice panel stays unbuilt: nothing in B10's own checklist
+asks this iteration to wire `ServiceRecommendation` into the public response,
+and `suggestedServices` keeps defaulting to `[]` until whichever iteration
+does.
 
 **Iteration 8 (B7) is Done as of 2026-09-10.** The PDF pipeline and the quote
 that rides on it: `@react-pdf/renderer` behind a single entry point with a
@@ -2830,21 +2856,26 @@ recorded for B0.
 
 ## Iteration 11: Connecting vehicle data and partner websites
 
-- [ ] Creating the provider interface and mock data (`B10.1`)
-- [ ] Caching vehicle lookups (`B10.2`)
-- [ ] Enforcing spending limits and failure recovery (`B10.3`)
-- [ ] Creating the public vehicle lookup (`B10.4`)
+- [x] Creating the provider interface and mock data (`B10.1`)
+- [x] Caching vehicle lookups (`B10.2`)
+- [x] Enforcing spending limits and failure recovery (`B10.3`)
+- [x] Creating the public vehicle lookup (`B10.4`)
 - [ ] Connecting the real vehicle-data provider (`B10.5`)
-- [ ] Creating editable partner links (`B10.6`)
+- [x] Creating editable partner links (`B10.6`)
 
-**Reference:** B10 · **Phase:** 3 and 6 · **Progress:** 0/6 · **Status:** Not
-started
+**Reference:** B10 · **Phase:** 3 and 6 · **Progress:** 5/6 · **Status:** In
+progress
 
 **Depends on:** B3; B5.2 for public form tokens.
 
 **Phase 3:** complete B10.1–B10.4 and B10.6 with mock data. **Phase 6:**
 complete B10.5 for the paid provider. Keep B10 In progress at 5/6 after Phase 3;
 only the Phase 3 subset is complete. This split overrides numeric display order.
+
+**The Phase 3 subset is complete as of 2026-09-14.** B10.1–B10.4 and B10.6 are
+built and tested against the mock provider with zero real API calls; B10.5 —
+the paid HTTP client — waits for Phase 6, exactly as planned. See the note
+below the checklist for what was found while building it.
 
 **Goal:** registration-number lookup, with spending under control from day one.
 
@@ -2858,40 +2889,49 @@ and the daily ceiling is proven to stop the 201st call.
 
 ### B10.1 Provider interface
 
-- [ ] **B10.1.1** Keep VehicleDataProvider in the integration boundary; define
+- [x] **B10.1.1** Keep VehicleDataProvider in the integration boundary; define
       the shared API-facing VehicleDataResult schema/type once in `shared/` and
       map provider payloads to it.
-- [ ] **B10.1.2** `MockVehicleDataProvider` reading committed JSON fixtures,
+- [x] **B10.1.2** `MockVehicleDataProvider` reading committed JSON fixtures,
       including an unknown registration number and a malformed response
-- [ ] **B10.1.3** Provider selected by env var; `mock` is the default everywhere
+- [x] **B10.1.3** Provider selected by env var; `mock` is the default everywhere
       but production
 
 <a id="b10-2"></a>
 
 ### B10.2 Caching and snapshots
 
-- [ ] **B10.2.1** Prisma `VehicleDataSnapshot` with the raw payload and
+- [x] **B10.2.1** Prisma `VehicleDataSnapshot` with the raw payload and
       `fetchedAt`
-- [ ] **B10.2.2** 30-day TTL; a fresh snapshot is served without calling the
+- [x] **B10.2.2** 30-day TTL; a fresh snapshot is served without calling the
       provider
-- [ ] **B10.2.3** Forced refresh endpoint, `ADMIN`-only and rate-limited
-- [ ] **B10.2.4** Test proving a second lookup within the TTL makes no provider
+- [x] **B10.2.3** Forced refresh endpoint, `ADMIN`-only and rate-limited
+- [x] **B10.2.4** Test proving a second lookup within the TTL makes no provider
       call
 
 <a id="b10-3"></a>
 
 ### B10.3 Cost and failure control
 
-- [ ] **B10.3.1** Two independent daily call counters, against
-      `VEHICLE_DATA_DAILY_LIMIT_STAFF` and `VEHICLE_DATA_DAILY_LIMIT_PUBLIC`.
-      Exhausting the public budget must never block staff lookups
-- [ ] **B10.3.2** Circuit breaker: 5 consecutive failures opens it for 10
+- [x] **B10.3.1** Two independent daily call counters, read from `Setting`
+      (`vehicleLookupDailyLimitStaff` / `vehicleLookupDailyLimitPublic`), not
+      from the `VEHICLE_DATA_DAILY_LIMIT_STAFF`/`_PUBLIC` env vars this line
+      originally named. **Corrected 2026-09-14, per CLAUDE.md: the spec wins
+      over this README.** `PROJECT_SPEC.md` §6.1 and §7.1 both say the ceiling
+      comes "from `Setting`", and B9.7 had already built exactly those two
+      `ADMIN`-editable fields ahead of this iteration. The env vars stay
+      declared (B0 already committed them) but are not read by anything;
+      `getOperationalSettings` is the single source read fresh on every call, so
+      raising the ceiling in the admin settings screen takes effect immediately.
+      Exhausting the public budget never touches the staff counter — they are
+      two independent keys on one counter.
+- [x] **B10.3.2** Circuit breaker: 5 consecutive failures opens it for 10
       minutes
-- [ ] **B10.3.3** Both states degrade to cache and set a flag in the response so
+- [x] **B10.3.3** Both states degrade to cache and set a flag in the response so
       the UI can say so honestly
-- [ ] **B10.3.4** Provider responses parsed with Zod; a malformed payload is a
+- [x] **B10.3.4** Provider responses parsed with Zod; a malformed payload is a
       handled error, never a crash
-- [ ] **B10.3.5** Use configured limits in tests: with staff limit 200, the
+- [x] **B10.3.5** Use configured limits in tests: with staff limit 200, the
       201st uncached call is refused; exercise the independent public ceiling
       and concurrent calls without exceeding either budget.
 
@@ -2899,22 +2939,22 @@ and the daily ceiling is proven to stop the 201st call.
 
 ### B10.4 Public lookup endpoint
 
-- [ ] **B10.4.1** `POST /api/public/vehicle-lookup` returning **technical data
+- [x] **B10.4.1** `POST /api/public/vehicle-lookup` returning **technical data
       only** — no owner information, ever, even if the provider sends it
-- [ ] **B10.4.2** An explicit allow-list of fields copied out of the provider
+- [x] **B10.4.2** An explicit allow-list of fields copied out of the provider
       response, so a provider adding owner data cannot leak it
-- [ ] **B10.4.3** Rate limit 5 per IP per hour
-- [ ] **B10.4.4** **An HMAC form token is required, the same mechanism as
+- [x] **B10.4.3** Rate limit 5 per IP per hour
+- [x] **B10.4.4** **An HMAC form token is required, the same mechanism as
       B5.2.** IP rate limiting alone is not a spending control; a bot rotating
       addresses defeats it and the bill is real
-- [ ] **B10.4.5** **Separate daily ceilings for public and staff lookups.**
+- [x] **B10.4.5** **Separate daily ceilings for public and staff lookups.**
       Sharing one ceiling lets an attacker stop the workshop from working
-- [ ] **B10.4.6** Validate the public form token before returning data. Consult
+- [x] **B10.4.6** Validate the public form token before returning data. Consult
       the cache before spending decisions and daily paid-call ceilings; reaching
       a spending ceiling must not invalidate a cached result.
-- [ ] **B10.4.7** Test asserting owner fields present in a fixture never reach
+- [x] **B10.4.7** Test asserting owner fields present in a fixture never reach
       the response
-- [ ] **B10.4.8** Test asserting a request without a valid form token is
+- [x] **B10.4.8** Test asserting a request without a valid form token is
       rejected before any provider call is made
 
 <a id="b10-5"></a>
@@ -2933,21 +2973,70 @@ and the daily ceiling is proven to stop the 201st call.
 
 ### B10.6 Partner links
 
-- [ ] **B10.6.1** Prisma `PartnerLink` with `urlTemplate` and `placeholderType`
-- [ ] **B10.6.2** `ADMIN` CRUD with reordering
-- [ ] **B10.6.3** Template validated: must be `https`, must contain exactly one
-      known placeholder, must parse as a URL
-- [ ] **B10.6.4** `buildPartnerUrl` in `shared`, encoding the value, supporting
+- [x] **B10.6.1** Prisma `PartnerLink` with `urlTemplate` and `placeholderType`
+- [x] **B10.6.2** `ADMIN` CRUD with reordering
+- [x] **B10.6.3** Template validated: must be `https`, must contain exactly one
+      known placeholder, must carry no raw whitespace (a `new URL()` parse
+      needs a DOM/Node type `shared`'s `lib: ["ES2023"]` deliberately excludes;
+      whitespace is the one thing that check exists to catch and the one thing
+      no valid URL — templated or not — can contain unencoded)
+- [x] **B10.6.4** `buildPartnerUrl` in `shared`, encoding the value, supporting
       `{regnr}`, `{regnr_spaced}` and `{artnr}`
-- [ ] **B10.6.5** Tests including a registration number needing encoding and a
+- [x] **B10.6.5** Tests including a registration number needing encoding and a
       template with an unknown placeholder
 
 </details>
 
 - [ ] **Iteration 11 Done** — all milestones and the Definition of Done pass.
+      Blocked on B10.5 (Phase 6); the Phase 3 subset's own Definition of Done
+      (zero real API calls, the 201st call proven blocked) is met in full.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-14, on Node 22.21.1, PostgreSQL 16.15 (Debian),
+Windows 11.
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter shared build` / `test --coverage` | Clean; 327 tests, 100% statements/branches/functions/lines |
+| `pnpm --filter backend exec tsc --noEmit` | Clean |
+| `pnpm --filter backend exec eslint src tests scripts` | Clean, 0 warnings |
+| `pnpm --filter backend exec vitest run` | 671 passed, 1 pre-existing skip (63 files) |
+| `pnpm build` | All three packages; fixtures and fonts both copied into `backend/dist` |
+| Manual smoke test against the dev database | `POST /api/public/vehicle-lookup` for `ABC12D` returned the mapped Volvo V70 data, created an ownerless `Vehicle` row, wrote one `VehicleDataSnapshot` and one audit row — verified with `psql`, then the rows were removed |
+
+**Two defects were found while building this and are already fixed, not just
+noted:**
+
+1. **A public lookup for a never-before-seen plate had a check-then-act race.**
+   `persistLookupResult` read for an existing `Vehicle` by registration number
+   and, finding none, created one — two visitors asking about the same new
+   plate at the same instant could both pass that read and the second would
+   crash on the unique index. Switched to `tx.vehicle.upsert()`, which Postgres
+   resolves atomically as `INSERT ... ON CONFLICT`; `backend/tests/vehicle-data.test.ts`
+   fires two simultaneous requests for one new plate and asserts exactly one
+   row exists. The same class of bug B5.4's exclusion constraint, B6's
+   numbering sequence and B4's stock lock already exist to prevent.
+2. **`partnerLinkUrlTemplateSchema`'s own B10.6.3 said "must parse as a URL",
+   and did not.** `startsWith('https://')` plus "contains a known placeholder"
+   both pass for `https:// partner.se/sok?regnr={regnr}` — a stray space after
+   the scheme — because neither check inspects the rest of the string. A
+   literal `new URL()` parse was tried first and rejected: `rollup-plugin-dts`
+   builds `shared`'s bundled declarations in an isolated program that does not
+   see the ambient `URL` global under this package's `lib: ["ES2023"]` /
+   `types: []`, and failed the build (`TS2304: Cannot find name 'URL'`) even
+   though a plain `tsc --noEmit` was silent about it — the same category of
+   dts-bundler quirk B0.2.2 and the root README's `ignoreDeprecations` row
+   already record for this package. Fixed with a dependency-free whitespace
+   check instead, which is the one thing every valid URL — templated or not —
+   can never contain unencoded, and is exactly what the stray-space case is.
+
+**One design point resolved rather than guessed at, and already folded into
+the B10.3.1 row above:** the daily ceilings are read from `Setting`, not from
+the `VEHICLE_DATA_DAILY_LIMIT_STAFF`/`_PUBLIC` env vars this file's own B10.3.1
+line named before today. Both existed, pointing two different ways — `PROJECT_SPEC.md`
+settles it, and CLAUDE.md is explicit that the spec wins over a README
+whenever the two disagree.
+
+**Completed on:** 2026-09-14 (Phase 3 subset; B10.5 remains for Phase 6)
 
 ---
 

@@ -12,3 +12,6 @@ backend/src/generated
 backend/prisma/generated
 storage
 *.md
+# Deliberately invalid JSON — a mock-provider fixture proving a broken
+# fixture is a handled provider error, never a crash (B10.1.2, B10.3.4).
+backend/src/integrations/vehicle-data/fixtures/BROKENJSON.json

@@ -22,6 +22,7 @@ import { registerCustomerRoutes } from './modules/customers/routes.js';
 import { registerDashboardRoutes } from './modules/dashboard/routes.js';
 import { registerDocumentRoutes } from './modules/documents/routes.js';
 import { registerHealthRoutes } from './modules/health/routes.js';
+import { registerPartnerLinkRoutes } from './modules/partner-links/routes.js';
 import { registerQuoteRoutes } from './modules/quotes/routes.js';
 import { registerSearchRoutes } from './modules/search/routes.js';
 import { registerServiceRecommendationRoutes } from './modules/service-recommendations/routes.js';
@@ -29,6 +30,7 @@ import { registerServiceProtocolRoutes } from './modules/service-protocols/route
 import { registerServiceRuleRoutes } from './modules/service-rules/routes.js';
 import { registerSettingsRoutes } from './modules/settings/routes.js';
 import { registerUserRoutes } from './modules/users/routes.js';
+import { registerVehicleDataRoutes } from './modules/vehicle-data/routes.js';
 import { registerVehicleRoutes } from './modules/vehicles/routes.js';
 import { registerWorkOrderRoutes } from './modules/work-orders/routes.js';
 
@@ -111,6 +113,8 @@ export async function buildApp(
   registerDashboardRoutes(app);
   registerSearchRoutes(app);
   registerSettingsRoutes(app);
+  registerVehicleDataRoutes(app);
+  registerPartnerLinkRoutes(app);
 
   // Derived now, off the request path, rather than on the first login with an
   // unknown email. Computing it lazily would make that one request ~40 ms
