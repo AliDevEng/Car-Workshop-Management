@@ -14,6 +14,16 @@ import { expect, test, type Page } from '@playwright/test';
 
 const WEIGHTS = [400, 500, 600, 700] as const;
 const SWEDISH = 'ÅÄÖåäö';
+const ADMIN_EMAIL = 'admin@verkstaden.se';
+const ADMIN_PASSWORD = 'utveckling-admin-2026';
+
+async function login(page: Page): Promise<void> {
+  await page.goto('/admin/logga-in?returnTo=/admin');
+  await page.getByLabel('E-post').fill(ADMIN_EMAIL);
+  await page.getByLabel('Lösenord').fill(ADMIN_PASSWORD);
+  await page.getByRole('button', { name: 'Logga in' }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+}
 
 /** The family name `next/font/local` generated, from the CSS variable. */
 async function familyOf(page: Page, cssVariable: string): Promise<string> {
@@ -133,7 +143,10 @@ test.describe('self-hosted fonts', () => {
   }
 
   test('the admin surface is scoped, not a global theme', async ({ page }) => {
-    await page.goto('/admin');
+    // `/admin` has required a session since F4 added route protection; this
+    // check predates that and only ever exercised the redirect to
+    // `/admin/logga-in`, not the scoped surface it names.
+    await login(page);
 
     const scope = page.locator('.admin-scope');
     await expect(scope).toBeVisible();

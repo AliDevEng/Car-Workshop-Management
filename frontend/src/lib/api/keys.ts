@@ -20,4 +20,15 @@ export const queryKeys = {
   vehicle: (id: string) => [...queryKeys.vehiclesRoot(), id] as const,
   odometerReadings: (vehicleId: string) =>
     [...queryKeys.vehiclesRoot(), vehicleId, 'odometer-readings'] as const,
+  articlesRoot: () => ['articles'] as const,
+  articles: <Params extends object>(params: Readonly<Params>) =>
+    [...queryKeys.articlesRoot(), params] as const,
+  article: (id: string) => [...queryKeys.articlesRoot(), id] as const,
+  lowStockArticles: () => [...queryKeys.articlesRoot(), 'low-stock'] as const,
+  stockMovementsRoot: (articleId: string) =>
+    [...queryKeys.articlesRoot(), articleId, 'movements'] as const,
+  stockMovements: <Params extends object>(
+    articleId: string,
+    params: Readonly<Params>,
+  ) => [...queryKeys.stockMovementsRoot(articleId), params] as const,
 };

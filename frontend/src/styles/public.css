@@ -16,13 +16,30 @@
 
   .site-header {
     position: sticky;
+    isolation: isolate;
     z-index: 40;
     top: 0;
     border-bottom: 1px solid rgb(28 43 51 / 12%);
-    background: rgb(242 243 241 / 94%);
     color: var(--color-steel);
     font-family: var(--font-body-admin);
+  }
+
+  /*
+   * The translucent blur lives on a pseudo-element, not on `.site-header`
+   * itself. `backdrop-filter` on an element establishes a containing block
+   * for its `position: fixed` descendants (same rule as `transform`/
+   * `filter`), so the mobile nav's fixed backdrop and panel would resolve
+   * `inset: 0` / `top/right/bottom: 0` against the 76px-tall header instead
+   * of the viewport — collapsing the open menu into the header's height and
+   * letting the hero content show through underneath the nav links.
+   */
+  .site-header::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: rgb(242 243 241 / 94%);
     backdrop-filter: blur(14px);
+    content: '';
   }
 
   .site-nav-link {

@@ -188,10 +188,11 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**41/83 frontend milestones are complete as of 2026-09-14:** all seven of F0's,
+**47/83 frontend milestones are complete as of 2026-09-15:** all seven of F0's,
 all six of F1's, four of F2's six milestones, all six of F3's milestones,
-all six of F4's milestones, all six of F5's milestones, and all six of F6's
-milestones. F0, F1, F3, F4, F5 and F6 are Done. F2's public layout,
+all six of F4's milestones, all six of F5's milestones, all six of F6's
+milestones, and all six of F7's milestones. F0, F1, F3, F4, F5, F6 and F7 are
+Done. F2's public layout,
 service pages, SEO and recorded performance budget are complete; the live lookup
 now has its backend half (B10.1–B10.4) but still awaits its own frontend
 integration, and the about page awaits real owner photographs. F3 replaces
@@ -214,6 +215,21 @@ query surfaces (customer `type` filter and `vehicleCount`; vehicle
 `inspectionDueSoon`) were added alongside it, both covered by new backend
 tests. F6.5.1's own wording ("only a registration number required") is
 corrected to match §4.2 and B3's `NOT NULL` `make`/`model` columns.
+**F7 replaces the `/admin/lager` placeholder** with the Phase 2 inventory
+screen: an article list with search, a low-stock toggle and an inactive
+toggle, a full create/edit form (`MoneyInput` prices, a VAT-rate select
+capped to the four rates a Swedish workshop actually invoices at, a new
+tag input for OE numbers), an article detail page with its movement history
+and "Justera lager"/"Inventera" actions, and a dedicated low-stock report
+sorted by deficit with a CSV export. Price and stock-adjustment controls are
+disabled and explained (not hidden) for a non-admin, verified live as both
+roles; article results are activated in the F4 global search. Phase 2 (B4 +
+F7) is now Done. Two pre-existing mobile defects the user reported before
+this iteration's own work began — the admin panel's mobile menu showing
+icons with no labels, and the public site's mobile menu collapsing to header
+height because of a `backdrop-filter` containing-block interaction — were
+found, fixed and verified first; see F2.1.4 and F4.3.4 in
+`frontend/README.md`.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -222,7 +238,7 @@ corrected to match §4.2 and B3's `NOT NULL` `make`/`model` columns.
 |---|---|---|---|
 | 0 — Foundation | 🟨 In progress | 2026-09-07 | |
 | 1 — Core data | ✅ Done | 2026-09-08 | 2026-09-14 |
-| 2 — Inventory | 🟨 In progress | 2026-09-09 | |
+| 2 — Inventory | ✅ Done | 2026-09-09 | 2026-09-15 |
 | 3 — Booking | 🟨 In progress | 2026-09-09 | |
 | 4 — Work | 🟨 In progress | 2026-09-09 | |
 | 5 — Documents | 🟨 In progress | 2026-09-10 | |
@@ -258,7 +274,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | F1 | Design system | 1 | ✅ (6/6 — Radix-based shadcn primitives restyled onto the §9.2 tokens, surface-aware status/link inks, four conversion inputs, DataTable, feedback and a measured `/admin/styleguide`; 26 Playwright checks green) |
 | F4 | Admin shell and authentication | 1 | ✅ (6/6 — login with local return-path validation, Next 16 proxy redirect plus server-side `/auth/me` verification, the responsive admin shell, logout/session-expiry cache clearing, keyboard global search for customers and vehicles, reusable admin page patterns and Playwright coverage for unauthenticated access, logout, search and a MECHANIC 403 envelope) |
 | F6 | Customers and vehicles | 1 | ✅ (6/6 — a customer list, dialog and detail page with inline-saved contact fields and notes; a vehicle list with a real, paginated inspection-due-soon filter replacing the dashboard's capped preview; the vehicle detail centrepiece with editable technical data, a colour-coded inspection status, an odometer sparkline and history, and owner reassignment; every later integration — lookup, service advice, partner links, work-order history, GDPR activation — named to its owning iteration rather than silently skipped. Two small additive backend query surfaces (customer `type`/`vehicleCount`, vehicle `inspectionDueSoon`), both tested; F6.5.1's wording corrected to match §4.2's required `make`/`model`. 3 new backend tests, 33 new frontend tests, a new `customers-vehicles.spec.ts` Playwright file (3 tests) against the live backend) |
-| F7 | Inventory | 2 | ⬜ |
+| F7 | Inventory | 2 | ✅ (6/6 — an article list with search/low-stock/inactive filters, a shared create-and-edit form with `MoneyInput` prices, a capped VAT-rate select and a new OE-number tag input, an article detail page with movement history and "Justera lager"/"Inventera" actions, and a dedicated deficit-sorted low-stock report with CSV export; price and stock-adjustment controls disabled and explained for non-admins, verified live as both roles against the real backend; article results activated in the F4 global search) |
 | F2 | Public site | 3 | ⛔ (4/6 — frontend work and the Lighthouse budget pass; live vehicle lookup and real owner photos remain external blockers) |
 | F3 | Public booking flow | 3 | ✅ (6/6 — `/boka` is a real public booking-request form with pre-filled registration numbers, preferred date/time, service choices, honeypot and HMAC form token; `/boka/tack` promises staff review rather than a guaranteed slot; 6 Playwright checks cover success, honeypot, early/expired tokens, rate limits, preserved input and the 360 px keyboard flow) |
 | F8 | Calendar and booking requests | 3 | ⬜ |

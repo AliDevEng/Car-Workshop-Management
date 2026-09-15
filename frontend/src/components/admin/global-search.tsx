@@ -2,6 +2,7 @@
 
 import {
   CarFrontIcon,
+  PackageIcon,
   SearchIcon,
   UserRoundIcon,
   XIcon,
@@ -35,14 +36,18 @@ import { cn } from '@/lib/utils';
 
 type SupportedSearchResult = Extract<
   SearchResult,
-  { type: 'CUSTOMER' | 'VEHICLE' }
+  { type: 'CUSTOMER' | 'VEHICLE' | 'ARTICLE' }
 >;
 
 const RECENT_SEARCHES_KEY = 'verkstad.recentSearches';
 const recentSearchesSchema = z.array(searchResultSchema).max(8);
 
 function isSupportedResult(result: SearchResult): result is SupportedSearchResult {
-  return result.type === 'CUSTOMER' || result.type === 'VEHICLE';
+  return (
+    result.type === 'CUSTOMER' ||
+    result.type === 'VEHICLE' ||
+    result.type === 'ARTICLE'
+  );
 }
 
 function resultHref(result: SupportedSearchResult): string {
@@ -51,6 +56,8 @@ function resultHref(result: SupportedSearchResult): string {
       return `/admin/kunder/${result.id}`;
     case 'VEHICLE':
       return `/admin/fordon/${result.id}`;
+    case 'ARTICLE':
+      return `/admin/lager/${result.id}`;
   }
 }
 
@@ -60,6 +67,8 @@ function resultTitle(result: SupportedSearchResult): string {
       return result.name;
     case 'VEHICLE':
       return result.registrationNumberDisplay;
+    case 'ARTICLE':
+      return result.name;
   }
 }
 
@@ -71,11 +80,21 @@ function resultDescription(result: SupportedSearchResult): string {
       return `${result.make} ${result.model}${
         result.customerName === null ? '' : ` · ${result.customerName}`
       }`;
+    case 'ARTICLE':
+      return result.sku;
   }
 }
 
+const RESULT_ICONS: Readonly<
+  Record<SupportedSearchResult['type'], typeof UserRoundIcon>
+> = {
+  CUSTOMER: UserRoundIcon,
+  VEHICLE: CarFrontIcon,
+  ARTICLE: PackageIcon,
+};
+
 function ResultIcon({ type }: { readonly type: SupportedSearchResult['type'] }) {
-  const Icon = type === 'CUSTOMER' ? UserRoundIcon : CarFrontIcon;
+  const Icon = RESULT_ICONS[type];
   return <Icon aria-hidden="true" className="size-4 text-muted-foreground" />;
 }
 
@@ -188,6 +207,7 @@ export function GlobalSearch() {
       {
         CUSTOMER: [],
         VEHICLE: [],
+        ARTICLE: [],
       };
     for (const result of results) {
       next[result.type].push(result);
@@ -229,7 +249,7 @@ export function GlobalSearch() {
         }}
       >
         <SearchIcon aria-hidden="true" />
-        <span className="truncate">Sök kund eller fordon</span>
+        <span className="truncate">Sök kund, fordon eller artikel</span>
         <kbd className="ml-auto hidden rounded-sharp border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground md:inline">
           /
         </kbd>
@@ -256,7 +276,7 @@ export function GlobalSearch() {
             <SearchIcon aria-hidden="true" className="size-4 text-muted-foreground" />
             <DialogTitle className="sr-only">Sök</DialogTitle>
             <DialogDescription className="sr-only">
-              Sök efter kunder och fordon i registret.
+              Sök efter kunder, fordon och artiklar i registret.
             </DialogDescription>
             <Input
               autoFocus
@@ -277,7 +297,7 @@ export function GlobalSearch() {
                   }
                 }
               }}
-              placeholder="Sök på namn, telefon eller regnr"
+              placeholder="Sök på namn, telefon, regnr eller artikelnummer"
               className="border-0 px-0 focus-visible:border-transparent"
             />
             <Button
@@ -318,7 +338,7 @@ export function GlobalSearch() {
 
             {error === null && !isLoading && !shownRecent && !hasResults ? (
               <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-                Ingen kund eller fordon matchar sökningen.
+                Ingen kund, fordon eller artikel matchar sökningen.
               </p>
             ) : null}
 
@@ -345,6 +365,13 @@ export function GlobalSearch() {
                   onOpen={openResult}
                   buttonRefs={resultButtonRefs}
                   offset={grouped.CUSTOMER.length}
+                />
+                <ResultGroup
+                  title={SEARCH_RESULT_TYPE_LABELS.ARTICLE}
+                  results={grouped.ARTICLE}
+                  onOpen={openResult}
+                  buttonRefs={resultButtonRefs}
+                  offset={grouped.CUSTOMER.length + grouped.VEHICLE.length}
                 />
               </>
             ) : null}

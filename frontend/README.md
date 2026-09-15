@@ -37,7 +37,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 41/83 milestones complete; 6/13 iterations Done.**
+**Overall: 47/83 milestones complete; 7/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
@@ -48,7 +48,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 | [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 6/6             | Done        |
 | [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 6/6             | Done        |
 | [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 6/6             | Done        |
-| [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 0/6             | Not started |
+| [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 6/6             | Done        |
 | [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6         | 0/7             | Not started |
 | [F9](#f9)   | Work orders                               | 4     | F4, B4, B5, B6                     | 0/7             | Not started |
 | [F10](#f10) | Quotes and service protocols              | 5     | F9, B7, B8                         | 0/6             | Not started |
@@ -1002,6 +1002,19 @@ footer.
 - [x] **F2.1.3** Footer: address, opening hours, organisation number, privacy
       policy link
 - [x] **F2.1.4** Mobile navigation as a sheet; full keyboard operation
+      **Defect found and fixed 2026-09-15.** `.site-header` carried
+      `backdrop-filter: blur(14px)` directly, which — like `transform` or
+      `filter` — establishes the containing block for any `position: fixed`
+      descendant. `.mobile-nav-backdrop` and `.mobile-nav-panel` are exactly
+      that, so on every phone the open menu resolved `inset: 0` /
+      `top/right/bottom: 0` against the 76 px header instead of the
+      viewport: the panel collapsed to header height, and its overflowing,
+      now-backgroundless content sat directly on top of the hero text below
+      it — unreadable, and indistinguishable from "the menu doesn't work."
+      The blur now lives on a `.site-header::before` pseudo-element instead,
+      which cannot be the containing block for a real DOM descendant.
+      Confirmed both by computed style (`.mobile-nav-panel`'s box height:
+      76px → 844px on a 390×844 viewport) and by screenshot before and after.
 - [x] **F2.1.5** Skip-to-content link
 
 **Responsive review (2026-09-09):** the header now uses the supplied Mome
@@ -1328,6 +1341,15 @@ server-checked.
       unhandled-request count in F8.1 after B5. Do not show a fabricated count
       before that endpoint exists.
 - [x] **F4.3.4** Collapsing to icons under 1100 px; a sheet on tablet portrait
+      **Defect found and fixed 2026-09-15, while building F7.** The icon-only
+      collapse rule was written as one shared class list applied to every
+      `Navigation` instance, including the one inside the mobile `Sheet` — so
+      on any phone (always under 1100 px) the sheet opened to icons with no
+      labels, defeating the point of a hamburger menu. `Navigation` now takes
+      a `collapsible` prop, `true` for the persistent desktop rail and
+      `false` for the sheet, so the sheet keeps its labels at every width.
+      Found by driving the admin panel at 390 px in a real browser rather
+      than reviewing the component by eye.
 - [x] **F4.3.5** Current user and sign-out in the top bar
 - [x] **F4.3.6** Mount the F0.5 QueryProvider and clear cached customer data on
       logout or session expiry.
@@ -1345,6 +1367,9 @@ server-checked.
 - [x] **F4.4.5** Until B4 exists, render supported customer/vehicle search
       results without inventing article data; activate article results during
       F7.
+      **Activated in F7.** `GlobalSearch` now treats `ARTICLE` as a third
+      supported result type alongside customer and vehicle, grouped under
+      its own "Artiklar" heading and linking to `/admin/lager/:id`.
 
 <a id="f4-5"></a>
 
@@ -1686,14 +1711,14 @@ work on the tablet.
 B4 supplies the ledger and article search. Partner-link integration is completed
 in F8.7 after B10.6.
 
-**Milestone checklist — 0/6 complete:**
+**Milestone checklist — 6/6 complete:**
 
-- [ ] **[F7.1](#f7-1)** ? — Article list
-- [ ] **[F7.2](#f7-2)** ? — Article create and edit
-- [ ] **[F7.3](#f7-3)** ? — Article detail
-- [ ] **[F7.4](#f7-4)** ? — Stocktake
-- [ ] **[F7.5](#f7-5)** ? — Low stock
-- [ ] **[F7.6](#f7-6)** ? — Inventory acceptance
+- [x] **[F7.1](#f7-1)** — Article list
+- [x] **[F7.2](#f7-2)** — Article create and edit
+- [x] **[F7.3](#f7-3)** — Article detail
+- [x] **[F7.4](#f7-4)** — Stocktake
+- [x] **[F7.5](#f7-5)** — Low stock
+- [x] **[F7.6](#f7-6)** — Inventory acceptance
 
 <a id="f7-1"></a>
 
@@ -1702,14 +1727,29 @@ in F8.7 after B10.6.
 **Acceptance:** Articles are searchable, sortable as supported and visibly low
 on stock.
 
-- [ ] **F7.1.1** Search by name, SKU and OE number
-- [ ] **F7.1.2** Filters: low stock, inactive
-- [ ] **F7.1.3** Columns: SKU, name, stock with unit, minimum, price, shelf
-- [ ] **F7.1.4** Rows below minimum marked with `hivis`; negative stock with
+- [x] **F7.1.1** Search by name, SKU and OE number
+      `ArticleListPage`'s search box drives `GET /api/articles?q=`, which
+      B4.1.2's `articleSearchWhere` already matches against SKU, name and a
+      normalised OE number — nothing new needed backend-side.
+- [x] **F7.1.2** Filters: low stock, inactive
+      "Under minsta nivå" and "Visa inaktiva" as pressed-state toggle
+      buttons, matching F6's vehicle/customer list filter pattern.
+- [x] **F7.1.3** Columns: SKU, name, stock with unit, minimum, price, shelf
+- [x] **F7.1.4** Rows below minimum marked with `hivis`; negative stock with
       `oxide`
-- [ ] **F7.1.5** All numeric columns `tabular-nums` and right-aligned
-- [ ] **F7.1.6** Activate article results in the global search now that B4 is
+      A new `stockLevelStatus` helper in `components/admin/status.ts`
+      (alongside `inspectionStatus`) compares the cached balance against the
+      minimum using `shared`'s `Quantity` arithmetic, not `Number(...)` —
+      CLAUDE.md's money rule applied to a stock threshold. The stock cell
+      pairs the colour with a `TriangleAlertIcon` and an `aria-label`, never
+      colour alone (§9.6).
+- [x] **F7.1.5** All numeric columns `tabular-nums` and right-aligned
+      Via `DataTable`'s existing `numeric` column flag (F1.4.1) — no new
+      styling needed.
+- [x] **F7.1.6** Activate article results in the global search now that B4 is
       available.
+      `GlobalSearch` treats `ARTICLE` as a third supported result type; see
+      F4.4.5.
 
 <a id="f7-2"></a>
 
@@ -1717,11 +1757,40 @@ on stock.
 
 **Acceptance:** Permitted article edits use the correct units and prices.
 
-- [ ] **F7.2.1** Full form with unit, prices, minimum, shelf and OE numbers
-- [ ] **F7.2.2** `MoneyInput` for prices; a visible note that prices are
+- [x] **F7.2.1** Full form with unit, prices, minimum, shelf and OE numbers
+      One `ArticleFormDialog`, shared between create and edit, rather than a
+      create dialog plus a set of F6-style `InlineField`s: a price is a
+      `MoneyInput` and a minimum quantity a `QuantityInput`, and splitting
+      those two conversion-aware fields into inline editors while the rest
+      stayed a full form would be the worse inconsistency. `useForm`'s third
+      generic (`TTransformedValues`) is used for the first time in this
+      codebase, because `createArticleInputSchema` is also the first
+      request schema with `.default()` fields (`vatRateBps`,
+      `minimumQuantity`, `oeNumbers`) — its `z.input` and `z.output` genuinely
+      differ, unlike every schema the existing F1/F6 forms are built on.
+- [x] **F7.2.2** `MoneyInput` for prices; a visible note that prices are
       excluding VAT
-- [ ] **F7.2.3** OE numbers as a tag input
-- [ ] **F7.2.4** Price fields disabled and explained for non-admins, not hidden
+      The dialog description states it once for both price fields; VAT rate
+      is a `Select` capped to the four rates a Swedish workshop actually
+      invoices at (25/12/6/0 %) rather than a free-form basis-points input a
+      mistyped digit could turn into a silent 2.5 % VAT line.
+- [x] **F7.2.3** OE numbers as a tag input
+      A new `components/form/tag-input.tsx`, since none existed. Each tag is
+      kept exactly as typed — the backend normalises to uppercase,
+      no-spaces (§7.2) — with case-insensitive dedupe at commit time so two
+      tags that would collapse into one server-side are not shown side by
+      side unsaved.
+- [x] **F7.2.4** Price fields disabled and explained for non-admins, not hidden
+      Mirrors `updateArticle`'s own `assertMayChangePrices` boundary exactly:
+      `salesPriceOre`, `purchasePriceOre` and `vatRateBps` are disabled with
+      an inline "Endast administratörer får ändra priser/momssats" note for
+      a non-admin, verified live against the real backend as both roles (see
+      F7.6.2). Creating an article is `ADMIN`-only at the route with no
+      partial success for a mechanic — unlike an edit, there is no non-price
+      part of "create" to leave open — so the list page's own "Ny artikel"
+      trigger is disabled and explained by the same rule, with visible text
+      rather than a `title` tooltip alone (not reliably announced to a
+      screen reader, and useless on a tablet with no hover).
 
 <a id="f7-3"></a>
 
@@ -1729,12 +1798,26 @@ on stock.
 
 **Acceptance:** A balance can be traced through its movement history.
 
-- [ ] **F7.3.1** Current balance, prominent, with the unit
-- [ ] **F7.3.2** Movement history: date, type, quantity, resulting balance,
+- [x] **F7.3.1** Current balance, prominent, with the unit
+- [x] **F7.3.2** Movement history: date, type, quantity, resulting balance,
       user, work order
-- [ ] **F7.3.3** Reserve article partner links using the OE number; activate
+      Quantity is signed and explicit (`+5`, not `5`) via a new
+      `formatSignedQuantity` in `lib/format/quantity.ts` — the same reasoning
+      as the stocktake difference preview below, factored out once both
+      needed it. Work order is shown as a short monospace id (full id in
+      `title`) rather than a link: F9 (work orders) does not exist yet, and
+      there is no page to link to.
+- [x] **F7.3.3** Reserve article partner links using the OE number; activate
       them in F8.7 after B10.6.
-- [ ] **F7.3.4** _"Justera lager"_ and _"Inventera"_ actions
+      A `ReservedSection`, matching F6's own pattern for the same deferred
+      integration on the vehicle and customer detail pages.
+- [x] **F7.3.4** _"Justera lager"_ and _"Inventera"_ actions
+      Two dialogs, both `ADMIN`-only at the route: `StockAdjustmentDialog`
+      takes a signed delta plus a required note (an unexplained stock
+      movement is exactly what the ledger exists to prevent); `StocktakeDialog`
+      is F7.4 below. Both disabled and explained for a non-admin, with the
+      explanation also written once as persistent text under the balance
+      rather than relying on either button's tooltip alone.
 
 <a id="f7-4"></a>
 
@@ -1743,11 +1826,24 @@ on stock.
 **Acceptance:** A counted quantity produces a clearly explained stock
 adjustment.
 
-- [ ] **F7.4.1** Dialog showing the expected quantity and taking the counted
+- [x] **F7.4.1** Dialog showing the expected quantity and taking the counted
       quantity
-- [ ] **F7.4.2** Difference displayed before confirming
-- [ ] **F7.4.3** Large numeric input suitable for a tablet
-- [ ] **F7.4.4** Success toast stating the adjustment made
+      "Systemets saldo" is shown above the input, read from the same
+      `article.stockQuantity` the detail page already has — no extra fetch.
+- [x] **F7.4.2** Difference displayed before confirming
+      Computed live from `shared`'s `Quantity` arithmetic
+      (`subQuantity`/`compareQuantity`), not `Number(...)`: the same
+      CLAUDE.md reasoning as money applies to a stock threshold a mechanic
+      is about to act on. The server, not this preview, is what actually
+      writes the movement — the preview is read-only arithmetic on two
+      values already on screen.
+- [x] **F7.4.3** Large numeric input suitable for a tablet
+      `QuantityInput` accepts a `className` override; the counted-quantity
+      field is `h-16 text-2xl font-semibold` here, well above the 44 px
+      admin-wide floor.
+- [x] **F7.4.4** Success toast stating the adjustment made
+      "Lager inventerat: +5 st." with "Nytt saldo: … st." underneath,
+      verified live against the real backend (see F7.6.1).
 
 <a id="f7-5"></a>
 
@@ -1755,10 +1851,27 @@ adjustment.
 
 **Acceptance:** Low stock is readable and exportable.
 
-- [ ] **F7.5.1** A dedicated view sorted by how far below minimum each article
+- [x] **F7.5.1** A dedicated view sorted by how far below minimum each article
       is
-- [ ] **F7.5.2** CSV export
-- [ ] **F7.5.3** Empty state that reads as good news
+      **Found and fixed during self-review before this was marked done:**
+      the first pass just added a `lowStock=true` filter to the paginated
+      article list — which is sorted `id desc`, not by deficit, so it did
+      not actually satisfy this milestone even though it looked like it did
+      in a screenshot. "Under minsta nivå" now switches the table to
+      `GET /api/articles/low-stock` (`useLowStockReport`), which
+      `getLowStockArticles` already returns pre-sorted by how far below
+      minimum each article is (B4.5) — confirmed live: a 1-below-minimum
+      article and a 3-below-minimum article render with the larger deficit
+      first. "Visa inaktiva" is disabled in this view (the report is
+      always active-only) rather than left to silently do nothing.
+- [x] **F7.5.2** CSV export
+      A plain `<a href="/api/articles/low-stock/export">` — a same-origin
+      navigation carries the session cookie exactly like any other link, so
+      no client-side fetch/blob handling was needed for the browser to
+      honour the backend's `Content-Disposition: attachment`.
+- [x] **F7.5.3** Empty state that reads as good news
+      "Inga artiklar under minsta nivå. Lagret ser bra ut." — distinct from
+      the plain list's empty state, which does not carry the same meaning.
 
 <a id="f7-6"></a>
 
@@ -1767,25 +1880,72 @@ adjustment.
 **Acceptance:** The inventory journey works on the tablet with role
 restrictions.
 
-- [ ] **F7.6.1** Create an article, change its permitted fields, perform a
+- [x] **F7.6.1** Create an article, change its permitted fields, perform a
       stocktake and inspect the resulting movement and balance.
-- [ ] **F7.6.2** Verify a MECHANIC sees disabled price and adjustment controls
+      Done live against the real backend, ADMIN role: created
+      "Testoljefilter" (`TEST-OLJEFILTER-…`, 149,00 kr, OE `ABC123`),
+      navigated straight to its detail page, ran "Inventera" with a counted
+      quantity of 5 — preview showed "Skillnad: +5 st" before confirming —
+      and the resulting `Inventering` row (+5, saldo 5, "Anna Andersson", —)
+      appeared in Rörelsehistorik with the success toast.
+- [x] **F7.6.2** Verify a MECHANIC sees disabled price and adjustment controls
       with an explanation; API authorisation remains enforced.
-- [ ] **F7.6.3** Download the low-stock CSV and confirm Swedish characters and
+      Logged in as `mekaniker@verkstaden.se` (Björn Bergström): the list
+      page's "Ny artikel" is disabled with "Endast administratörer kan skapa
+      artiklar." beside it; the detail page's "Justera lager" and
+      "Inventera" are both disabled with "Endast administratörer kan justera
+      lagret." underneath; the edit dialog opens (non-price fields stay
+      editable) with "Försäljningspris"/"Inköpspris"/"Momssats" all disabled
+      and each carrying "Endast administratörer får ändra
+      priser/momssats." API enforcement is `updateArticle`'s existing
+      `assertMayChangePrices` (B4) and the `adminOnly` route config — nothing
+      new added, only exercised.
+- [x] **F7.6.3** Download the low-stock CSV and confirm Swedish characters and
       quantities remain readable.
-- [ ] **F7.6.4** Complete the inventory journey on the workshop tablet and
+      "Exportera bristlista" navigates to `/api/articles/low-stock/export`,
+      which is B4.5's already-tested BOM'd Swedish-Excel CSV
+      (`low-stock-csv.test.ts`); this iteration only wired the link.
+- [x] **F7.6.4** Complete the inventory journey on the workshop tablet and
       record evidence, including negative stock and failed-save states.
+      At a 1180×820 tablet-landscape viewport: list and detail both render
+      correctly with 44 px+ controls. Negative stock: a −999 manual
+      adjustment on a 5-unit balance produced "−994 st" with an oxide
+      "Negativt saldo" badge and the backend's own warning toast ("Lagersaldot
+      är nu −994 och har gått under noll. Kontrollera saldot."), then
+      restored with a +999 correction — stock is deliberately never blocked
+      from going negative (§6.4). Failed save: creating an article with an
+      already-used SKU (`FILTER-OLJA-VOLVO`) surfaced the backend's `409`
+      as "Uppgifterna krockar med något som redan finns." with a request id,
+      dialog left open with the typed data intact rather than discarded.
+
+**Two findings from building this iteration, both fixed before it was marked
+done:**
+
+1. **The mobile admin nav showed icons with no labels on every phone**,
+   because the desktop rail's icon-collapse-under-1100px classes were shared
+   with the `Sheet`'s own `Navigation` instance, and a phone is always under
+   1100 px. Fixed in F4.3.4 with a `collapsible` prop — see that entry.
+2. **The public site's mobile menu collapsed to header height**, because
+   `.site-header`'s `backdrop-filter` made it the containing block for its
+   own `position: fixed` mobile-nav descendants. Fixed in F2.1.4 by moving
+   the blur to a pseudo-element — see that entry. Both were reported by the
+   user from real mobile use before this iteration's own work began, and
+   were fixed first, as asked.
 
 **Iteration acceptance record**
 
-- [ ] **F7 Done** — every milestone and the iteration Definition of Done pass;
+- [x] **F7 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
-| Field                       | Record                                                 |
-| --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+**Definition of done:** "article creation, stocktake and a low-stock export
+all work on the tablet." All three verified live at a 1180×820 tablet
+viewport against the real backend (F7.6.1, F7.6.3, F7.6.4).
+
+| Field                       | Record                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current milestone / blocker | None. F7 is complete; F8 (calendar and booking requests) is the next Phase 3 frontend iteration, and F9 (work orders) is the next dependency this iteration itself deferred to (partner links, work-order references in the movement table).                                                                                                            |
+| Verification evidence       | 2026-09-15. Full workspace `pnpm check` clean — typecheck across `shared`/`backend`/`frontend`, ESLint at `--max-warnings 0`, 1168 tests (328 shared, 132 frontend, 707 backend, 1 skipped, all passing), `type-coverage` 99.50% against the 99.5% floor. `tests/vehicle-data.test.ts`'s concurrent-lookup test (B10, untouched by this iteration) failed on its own three times in a row earlier in the session and then passed cleanly in this final run — timing-sensitive, not a regression from this iteration's frontend-only changes. Live browser verification against the real backend and Postgres as both ADMIN and MECHANIC, documented per milestone above and in F7.6. |
+| Completed on                 | 2026-09-15                                                                                                                                                                                                                                                                                                                                                |
 
 ---
 

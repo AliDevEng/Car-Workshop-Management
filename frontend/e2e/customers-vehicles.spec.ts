@@ -66,7 +66,7 @@ test.describe('customers and vehicles (F6)', () => {
     await page.goto('/admin');
     await page.keyboard.press('/');
     await page
-      .getByPlaceholder('Sök på namn, telefon eller regnr')
+      .getByPlaceholder('Sök på namn, telefon, regnr eller artikelnummer')
       .fill(plate);
     await page.getByText(displayPlate).click();
     await expect(page).toHaveURL(/\/admin\/fordon\/.+/);

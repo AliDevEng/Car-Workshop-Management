@@ -3,6 +3,8 @@ import {
   BOOKING_STATUS_LABELS,
   QUOTE_STATUS_LABELS,
   WORK_ORDER_STATUS_LABELS,
+  compareQuantity,
+  parseQuantity,
   type BookingRequestStatus,
   type BookingStatus,
   type QuoteStatus,
@@ -176,4 +178,29 @@ export function inspectionStatus(
     label: `${String(daysRemaining)} dagar kvar`,
     meaning: dueSoon ? 'attention' : 'neutral',
   };
+}
+
+/**
+ * An article's cached balance against its minimum (F7.1.4): `error` once
+ * stock has gone negative, `attention` below the minimum, `null` otherwise —
+ * a healthy row carries no badge at all, the same restraint `EmptyState`
+ * applies to a filter with nothing to flag.
+ *
+ * Compared with `shared`'s `Quantity` arithmetic rather than `Number(...)`:
+ * both values are the canonical decimal strings the API carries (§3.4), and
+ * CLAUDE.md's ban on floating-point money applies just as much to a stock
+ * threshold a mechanic is deciding whether to trust.
+ */
+export function stockLevelStatus(
+  stockQuantity: string,
+  minimumQuantity: string,
+): StatusDescriptor | null {
+  const stock = parseQuantity(stockQuantity);
+  if (compareQuantity(stock, parseQuantity('0')) < 0) {
+    return { label: 'Negativt saldo', meaning: 'error' };
+  }
+  if (compareQuantity(stock, parseQuantity(minimumQuantity)) < 0) {
+    return { label: 'Under minsta nivå', meaning: 'attention' };
+  }
+  return null;
 }

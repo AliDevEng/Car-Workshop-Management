@@ -63,7 +63,9 @@ test('global search opens from the keyboard and navigates to vehicles', async ({
   await login(page);
 
   await page.keyboard.press('/');
-  await page.getByPlaceholder('Sök på namn, telefon eller regnr').fill('ABC');
+  await page
+    .getByPlaceholder('Sök på namn, telefon, regnr eller artikelnummer')
+    .fill('ABC');
   await page.getByText('ABC 12A').click();
 
   await expect(page).toHaveURL(/\/admin\/fordon\//);

@@ -49,7 +49,21 @@ function isActivePath(pathname: string, href: string): boolean {
   return pathname === href || (href !== '/admin' && pathname.startsWith(`${href}/`));
 }
 
-function Navigation({ onNavigate }: { readonly onNavigate?: () => void }) {
+function Navigation({
+  onNavigate,
+  collapsible = true,
+}: {
+  readonly onNavigate?: () => void;
+  /**
+   * Collapse to an icon-only rail under 1100px. Only the persistent desktop
+   * aside wants this — the mobile Sheet is a full-width menu at every
+   * viewport it renders at, so it always keeps its labels regardless of
+   * width. Without this switch the same `max-[1099px]:` rule that shrinks
+   * the desktop rail also fires inside the Sheet on every phone, hiding the
+   * one thing a hamburger menu exists to show.
+   */
+  collapsible?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -66,16 +80,27 @@ function Navigation({ onNavigate }: { readonly onNavigate?: () => void }) {
             className={cn(
               'grid min-h-11 grid-cols-[24px_minmax(0,1fr)] items-center gap-3 rounded-sharp px-3 text-sm font-medium',
               'text-muted-foreground hover:bg-accent hover:text-foreground',
-              'max-[1099px]:grid-cols-1 max-[1099px]:justify-items-center max-[1099px]:px-0',
+              collapsible &&
+                'max-[1099px]:grid-cols-1 max-[1099px]:justify-items-center max-[1099px]:px-0',
               active && 'bg-accent text-foreground',
             )}
           >
             <Icon aria-hidden="true" className="size-5" />
-            <span className="nav-label truncate max-[1099px]:sr-only">
+            <span
+              className={cn(
+                'nav-label truncate',
+                collapsible && 'max-[1099px]:sr-only',
+              )}
+            >
               {item.label}
             </span>
             {item.href === '/admin/bokningar' ? (
-              <span className="nav-label max-[1099px]:sr-only">
+              <span
+                className={cn(
+                  'nav-label',
+                  collapsible && 'max-[1099px]:sr-only',
+                )}
+              >
                 <BookingBadge />
               </span>
             ) : null}
@@ -136,6 +161,7 @@ export function AdminShell({
               </SheetHeader>
               <div className="px-4">
                 <Navigation
+                  collapsible={false}
                   onNavigate={() => {
                     setMobileNavOpen(false);
                   }}
