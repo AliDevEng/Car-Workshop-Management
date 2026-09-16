@@ -188,11 +188,11 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**53/83 frontend milestones are complete as of 2026-09-16:** all seven of F0's,
+**60/83 frontend milestones are complete as of 2026-09-16:** all seven of F0's,
 all six of F1's, five of F2's six milestones, all six of F3's milestones,
 all six of F4's milestones, all six of F5's milestones, all six of F6's
-milestones, all six of F7's milestones, and five of F8's seven milestones.
-F0, F1, F3, F4, F5, F6 and F7 are Done. F2's public layout, service pages, SEO,
+milestones, all six of F7's milestones, five of F8's seven milestones, and
+all seven of F9's. F0, F1, F3, F4, F5, F6, F7 and F9 are Done. F2's public layout, service pages, SEO,
 recorded performance budget and — as of this iteration — the live lookup hero
 are complete; only the about page's real owner photographs remain, so F2 stays
 Blocked on that alone. F3 replaces
@@ -258,6 +258,45 @@ correctly unticked — is now closed. F8.6.3 (an adjacent/cancelled-booking
 walkthrough) and F8.7.3/F8.7.4 (a copy-and-open link fallback of unspecified
 scope, and browser verification of two F8.7.1 admin actions) remain, so F8 is
 In progress rather than Done.
+**F9 replaces the `/admin/arbetsordrar` read-only placeholder** with the full
+Phase 4 work-order screen: a filterable list (a single backend-enum `status`
+value and `assignedUserId` filter server-side; "active work" and any date
+range fall back to a capped, client-filtered report fetch, the same shape
+F7.5's low-stock view already established for the identical reason — the
+list endpoint has no "several statuses" or date-range query); a detail page
+with autosaved header fields, a status control limited to `shared`'s legal
+transitions, and `OdometerInput` in/out; lines that can be added (article
+search showing stock, free text, or labour), inline-edited, dragged or
+keyboard-reordered, and deleted, all locked once the order is `COMPLETED` or
+`CANCELLED`; a totals panel that only ever renders `workOrder.totals`;
+completion behind a confirmation dialog naming what stock it will deduct,
+blocked without an out-odometer or a line, holding one `Idempotency-Key` per
+attempt so a retried tap replays rather than deducting twice; and a version
+conflict on a header or status write opening a dialog offering to keep
+editing or reload, rather than silently discarding either side. The two
+`ReservedSection`s F6.4.6 named to this iteration are now real
+newest-first work-order history lists on the vehicle and customer pages, and
+the disabled "Starta arbete" placeholder on a booking's detail dialog now
+creates a work order pre-filled from that booking. No backend changes were
+needed — B6 already carried everything this screen needed. **One real bug
+was found and fixed during verification, not merely by running the code:**
+the report-mode fetch asked for `limit=200`, above the backend's own
+`cursorQuerySchema` maximum of 100, so the default "Aktivt arbete" view
+400'd on every load — caught only by driving the page in a real browser
+against the live backend, not by any static check. A `code-review`-skill
+pass over the finished diff then found and fixed five further issues before
+sign-off: `useDraftField` callers clearing "dirty" before their save had
+actually resolved (a failed edit could be silently overwritten by an
+unrelated background refetch); the shared response-caching helper's
+invalidation prefix-matching, and therefore immediately refetching, the
+exact detail query it had just written a line above; only the completion
+dialog holding an idempotency key across a retry rather than every status
+transition, when a revert from `COMPLETED` shares the identical stock-return
+side effect; a missing pagination reset on the two date filters; and two
+rapid reorder clicks able to race on a stale line order with nothing to stop
+them. Verification evidence — including a live two-browser-context
+concurrency run and a direct API-level idempotent-retry check — is recorded
+in `frontend/README.md`'s F9 iteration record.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -268,7 +307,7 @@ In progress rather than Done.
 | 1 — Core data | ✅ Done | 2026-09-08 | 2026-09-14 |
 | 2 — Inventory | ✅ Done | 2026-09-09 | 2026-09-15 |
 | 3 — Booking | 🟨 In progress | 2026-09-09 | |
-| 4 — Work | 🟨 In progress | 2026-09-09 | |
+| 4 — Work | ✅ Done | 2026-09-09 | 2026-09-16 |
 | 5 — Documents | 🟨 In progress | 2026-09-10 | |
 | 6 — Intelligence | 🟨 In progress | 2026-09-13 | |
 | 7 — Hardening | 🟨 In progress | 2026-09-14 | |
@@ -307,7 +346,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | F3 | Public booking flow | 3 | ✅ (6/6 — `/boka` is a real public booking-request form with pre-filled registration numbers, preferred date/time, service choices, honeypot and HMAC form token; `/boka/tack` promises staff review rather than a guaranteed slot; 6 Playwright checks cover success, honeypot, early/expired tokens, rate limits, preserved input and the 360 px keyboard flow) |
 | F8 | Calendar and booking requests | 3 | ⬜ |
 | F5 | Dashboard | 4 | ✅ (6/6 — the admin start page now reads the typed B6 dashboard contract with a date-keyed TanStack query, renders today's bookings, action counts, inspection and low-stock attention cards, links every card to a real filtered admin page, and covers seeded, empty, loading, populated and retryable error states in Playwright; 3 dashboard browser checks green on 2026-09-14) |
-| F9 | Work orders | 4 | ⬜ |
+| F9 | Work orders | 4 | ✅ (7/7 — a work-order list (server-side status/mechanic filters, a capped client-filtered report fetch for "active work" and date ranges), a detail page with autosaved header fields, a legal-transitions-only status control and in/out `OdometerInput`; lines addable via article search, free text or labour, inline-edited, drag-or-keyboard-reordered and deleted, locked once `COMPLETED`/`CANCELLED`; a backend-only totals panel; completion behind a confirmation naming the stock it will deduct, guarded by an `Idempotency-Key` held per attempt across every status transition, not completion alone; a version-conflict dialog on header/status writes offering to keep editing or reload; and the F6.4.6 history placeholders and the booking "Starta arbete" placeholder both now real. No backend changes needed. One real bug (a report-mode fetch exceeding the backend's own query-limit cap, 400ing the default view) found live; five more found and fixed by a `code-review`-skill pass. 3 new Playwright tests, including a real two-browser-context concurrency run and a direct API-level idempotent-retry check) |
 | F10 | Quotes and service protocols | 5 | ⬜ |
 | F11 | Settings, service rules, partner links | 6 | ⬜ |
 | F12 | Polish, accessibility and performance | 8 | ⬜ |

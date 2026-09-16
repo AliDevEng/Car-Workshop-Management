@@ -41,4 +41,16 @@ export const queryKeys = {
   partnerLinksRoot: () => ['partner-links'] as const,
   partnerLinks: <Params extends object>(params: Readonly<Params>) =>
     [...queryKeys.partnerLinksRoot(), params] as const,
+  workOrdersRoot: () => ['work-orders'] as const,
+  workOrders: <Params extends object>(params: Readonly<Params>) =>
+    [...queryKeys.workOrdersRoot(), params] as const,
+  workOrder: (id: string) => [...queryKeys.workOrdersRoot(), id] as const,
+  vehicleWorkOrderHistory: <Params extends object>(
+    vehicleId: string,
+    params: Readonly<Params>,
+  ) => [...queryKeys.workOrdersRoot(), 'vehicle', vehicleId, params] as const,
+  customerWorkOrderHistory: <Params extends object>(
+    customerId: string,
+    params: Readonly<Params>,
+  ) => [...queryKeys.workOrdersRoot(), 'customer', customerId, params] as const,
 };

@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  ClipboardListIcon,
   ExternalLinkIcon,
   Link2Icon,
   RefreshCwIcon,
@@ -24,31 +23,38 @@ import { ReassignOwnerDialog } from '@/components/admin/reassign-owner-dialog';
 import { RecordOdometerReadingDialog } from '@/components/admin/record-odometer-reading-dialog';
 import { ReservedSection } from '@/components/admin/reserved-section';
 import { inspectionStatus } from '@/components/admin/status';
+import { VehicleWorkOrderHistory } from '@/components/admin/work-order-history';
 import { StatusBadge } from '@/components/admin/status-badge';
-import { DetailSkeleton, EmptyState, ErrorState } from '@/components/admin/states';
+import {
+  DetailSkeleton,
+  EmptyState,
+  ErrorState,
+} from '@/components/admin/states';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ApiError } from '@/lib/api';
-import { schemaValidator, validateModelYear, validateVin } from '@/lib/admin/validators';
+import {
+  schemaValidator,
+  validateModelYear,
+  validateVin,
+} from '@/lib/admin/validators';
 import { useCurrentUser } from '@/lib/api/current-user';
 import { usePartnerLinks } from '@/lib/api/partner-links';
 import { useRefreshVehicleData } from '@/lib/api/vehicle-data';
-import { useOdometerReadings, useUpdateVehicle, useVehicle } from '@/lib/api/vehicles';
+import {
+  useOdometerReadings,
+  useUpdateVehicle,
+  useVehicle,
+} from '@/lib/api/vehicles';
 import { formatDate, formatRelative } from '@/lib/format/date';
 import { formatOdometer } from '@/lib/format/odometer';
 
 const validateName = schemaValidator(nameSchema);
 
 type EditableTextField =
-  | 'make'
-  | 'model'
-  | 'variant'
-  | 'engineCode'
-  | 'fuelType';
+  'make' | 'model' | 'variant' | 'engineCode' | 'fuelType';
 type EditableDateField =
-  | 'firstRegistrationDate'
-  | 'lastInspectionDate'
-  | 'nextInspectionDueDate';
+  'firstRegistrationDate' | 'lastInspectionDate' | 'nextInspectionDueDate';
 
 export function VehicleDetailPage({
   vehicleId,
@@ -77,7 +83,9 @@ export function VehicleDetailPage({
         onRetry={() => {
           void vehicleQuery.refetch();
         }}
-        {...(error.requestId === undefined ? {} : { requestId: error.requestId })}
+        {...(error.requestId === undefined
+          ? {}
+          : { requestId: error.requestId })}
       />
     );
   }
@@ -88,12 +96,22 @@ export function VehicleDetailPage({
 
   const vehicle = vehicleQuery.data;
 
-  async function saveText(field: EditableTextField, value: string): Promise<void> {
-    await updateVehicle.mutateAsync({ [field]: value === '' ? undefined : value });
+  async function saveText(
+    field: EditableTextField,
+    value: string,
+  ): Promise<void> {
+    await updateVehicle.mutateAsync({
+      [field]: value === '' ? undefined : value,
+    });
   }
 
-  async function saveDate(field: EditableDateField, value: string): Promise<void> {
-    await updateVehicle.mutateAsync({ [field]: value === '' ? undefined : value });
+  async function saveDate(
+    field: EditableDateField,
+    value: string,
+  ): Promise<void> {
+    await updateVehicle.mutateAsync({
+      [field]: value === '' ? undefined : value,
+    });
   }
 
   async function saveModelYear(value: string): Promise<void> {
@@ -109,14 +127,18 @@ export function VehicleDetailPage({
   async function handleRefreshVehicleData(): Promise<void> {
     try {
       const updated = await refreshVehicleData.mutateAsync();
-      notifySuccess(`Biluppgifter uppdaterade för ${updated.registrationNumberDisplay}.`);
+      notifySuccess(
+        `Biluppgifter uppdaterade för ${updated.registrationNumberDisplay}.`,
+      );
     } catch (error) {
       notifyError(error);
     }
   }
 
   const readingsOldestFirst = [...(odometerQuery.data?.data ?? [])]
-    .sort((a: OdometerReading, b: OdometerReading) => a.readAt.localeCompare(b.readAt))
+    .sort((a: OdometerReading, b: OdometerReading) =>
+      a.readAt.localeCompare(b.readAt),
+    )
     .map((reading: OdometerReading) => reading.km);
 
   const regNrPartnerLinks = (partnerLinksQuery.data?.data ?? []).filter(
@@ -126,7 +148,9 @@ export function VehicleDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={<span>Admin / Fordon / {vehicle.registrationNumberDisplay}</span>}
+        breadcrumb={
+          <span>Admin / Fordon / {vehicle.registrationNumberDisplay}</span>
+        }
         title={vehicle.registrationNumberDisplay}
         description={`${vehicle.make} ${vehicle.model}${
           vehicle.modelYear === null ? '' : ` · ${String(vehicle.modelYear)}`
@@ -171,7 +195,9 @@ export function VehicleDetailPage({
                   label="Modellår"
                   type="number"
                   validate={validateModelYear}
-                  value={vehicle.modelYear === null ? '' : String(vehicle.modelYear)}
+                  value={
+                    vehicle.modelYear === null ? '' : String(vehicle.modelYear)
+                  }
                   onSave={saveModelYear}
                 />
                 <InlineField
@@ -194,7 +220,9 @@ export function VehicleDetailPage({
                   label="Första registrering"
                   type="date"
                   value={vehicle.firstRegistrationDate ?? ''}
-                  onSave={(value: string) => saveDate('firstRegistrationDate', value)}
+                  onSave={(value: string) =>
+                    saveDate('firstRegistrationDate', value)
+                  }
                 />
 
                 <div className="flex flex-col gap-2 rounded-sharp border border-dashed border-border p-3">
@@ -238,17 +266,23 @@ export function VehicleDetailPage({
                   label="Senast besiktigad"
                   type="date"
                   value={vehicle.lastInspectionDate ?? ''}
-                  onSave={(value: string) => saveDate('lastInspectionDate', value)}
+                  onSave={(value: string) =>
+                    saveDate('lastInspectionDate', value)
+                  }
                 />
                 <InlineField
                   label="Nästa besiktning senast"
                   type="date"
                   value={vehicle.nextInspectionDueDate ?? ''}
-                  onSave={(value: string) => saveDate('nextInspectionDueDate', value)}
+                  onSave={(value: string) =>
+                    saveDate('nextInspectionDueDate', value)
+                  }
                 />
                 {vehicle.nextInspectionDueDate === null ? null : (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Status</span>
+                    <span className="text-sm text-muted-foreground">
+                      Status
+                    </span>
                     <StatusBadge
                       status={inspectionStatus(vehicle.nextInspectionDueDate)}
                     />
@@ -276,9 +310,17 @@ export function VehicleDetailPage({
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {regNrPartnerLinks.map((link: PartnerLink) => (
-                      <Button key={link.id} asChild variant="secondary" size="sm">
+                      <Button
+                        key={link.id}
+                        asChild
+                        variant="secondary"
+                        size="sm"
+                      >
                         <a
-                          href={buildPartnerUrl(link, vehicle.registrationNumber)}
+                          href={buildPartnerUrl(
+                            link,
+                            vehicle.registrationNumber,
+                          )}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
@@ -292,11 +334,14 @@ export function VehicleDetailPage({
               </CardContent>
             </Card>
 
-            <ReservedSection
-              icon={ClipboardListIcon}
-              title="Arbetsorderhistorik"
-              message="Fordonets arbetsorderhistorik kopplas in i F9.7, tillsammans med resten av arbetsordermodulen."
-            />
+            <Card className="rounded-soft">
+              <CardHeader>
+                <CardTitle>Arbetsorderhistorik</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <VehicleWorkOrderHistory vehicleId={vehicleId} />
+              </CardContent>
+            </Card>
           </div>
         }
         aside={
@@ -344,16 +389,21 @@ export function VehicleDetailPage({
                 />
                 {(odometerQuery.data?.data.length ?? 0) === 0 ? null : (
                   <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-                    {odometerQuery.data?.data.slice(0, 5).map((reading: OdometerReading) => (
-                      <li key={reading.id} className="flex justify-between gap-2">
-                        <span className="tabular-nums">
-                          {formatDate(reading.readAt)}
-                        </span>
-                        <span className="tabular-nums">
-                          {formatOdometer(reading.km)}
-                        </span>
-                      </li>
-                    ))}
+                    {odometerQuery.data?.data
+                      .slice(0, 5)
+                      .map((reading: OdometerReading) => (
+                        <li
+                          key={reading.id}
+                          className="flex justify-between gap-2"
+                        >
+                          <span className="tabular-nums">
+                            {formatDate(reading.readAt)}
+                          </span>
+                          <span className="tabular-nums">
+                            {formatOdometer(reading.km)}
+                          </span>
+                        </li>
+                      ))}
                   </ul>
                 )}
               </CardContent>

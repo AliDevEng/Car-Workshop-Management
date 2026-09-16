@@ -37,7 +37,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 53/83 milestones complete; 7/13 iterations Done.**
+**Overall: 60/83 milestones complete; 8/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
@@ -50,7 +50,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 | [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 6/6             | Done        |
 | [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 6/6             | Done        |
 | [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6         | 5/7             | In progress |
-| [F9](#f9)   | Work orders                               | 4     | F4, B4, B5, B6                     | 0/7             | Not started |
+| [F9](#f9)   | Work orders                               | 4     | F4, B4, B5, B6                     | 7/7             | Done        |
 | [F10](#f10) | Quotes and service protocols              | 5     | F9, B7, B8                         | 0/6             | Not started |
 | [F11](#f11) | Settings, service rules and partner links | 6     | F4, B9, B10; settings contracts    | 0/6             | Not started |
 | [F12](#f12) | Polish, accessibility and performance     | 8     | F0–F11, B11, B12; B13 measurements | 0/8             | Not started |
@@ -2267,15 +2267,15 @@ keyboard, and a concurrent edit is handled without data loss.
 Complete B6 before testing job completion and concurrency. The history panels
 reserved in F6 are activated here.
 
-**Milestone checklist — 0/7 complete:**
+**Milestone checklist — 7/7 complete:**
 
-- [ ] **[F9.1](#f9-1)** ? — Work order list
-- [ ] **[F9.2](#f9-2)** ? — Work order detail
-- [ ] **[F9.3](#f9-3)** ? — Lines
-- [ ] **[F9.4](#f9-4)** ? — Totals
-- [ ] **[F9.5](#f9-5)** ? — Completion
-- [ ] **[F9.6](#f9-6)** ? — Concurrency
-- [ ] **[F9.7](#f9-7)** ? — History integration and job acceptance
+- [x] **[F9.1](#f9-1)** ✅ — Work order list
+- [x] **[F9.2](#f9-2)** ✅ — Work order detail
+- [x] **[F9.3](#f9-3)** ✅ — Lines
+- [x] **[F9.4](#f9-4)** ✅ — Totals
+- [x] **[F9.5](#f9-5)** ✅ — Completion
+- [x] **[F9.6](#f9-6)** ✅ — Concurrency
+- [x] **[F9.7](#f9-7)** ✅ — History integration and job acceptance
 
 <a id="f9-1"></a>
 
@@ -2283,9 +2283,17 @@ reserved in F6 are activated here.
 
 **Acceptance:** Active work is easy to find and filter.
 
-- [ ] **F9.1.1** Filter by status, mechanic and date range
-- [ ] **F9.1.2** Columns: number, vehicle, customer, status, mechanic, total
-- [ ] **F9.1.3** Default filter is active work only
+- [x] **F9.1.1** Filter by status, mechanic and date range. `status` and
+      `assignedUserId` are server-side (the backend's own single-value filter);
+      a date range has no backend query param, so it — and the "several
+      statuses at once" case `Aktivt arbete`/`Alla statusar` need — runs as a
+      capped (`limit=100`, the backend's own maximum), client-filtered report
+      fetch, the same shape F7.5's low-stock view already uses for the
+      identical reason. A note names the cap if a filter ever matches exactly
+      that many rows.
+- [x] **F9.1.2** Columns: number, vehicle, customer, status, mechanic, total
+- [x] **F9.1.3** Default filter is active work only (`Aktivt arbete`,
+      excluding `COMPLETED`/`CANCELLED`)
 
 <a id="f9-2"></a>
 
@@ -2293,13 +2301,15 @@ reserved in F6 are activated here.
 
 **Acceptance:** Header editing and status controls follow the shared rules.
 
-- [ ] **F9.2.1** Header: number, vehicle with registration number, customer,
+- [x] **F9.2.1** Header: number, vehicle with registration number, customer,
       status, mechanic
-- [ ] **F9.2.2** Status control offering only legal transitions, from the
-      `shared` state machine
-- [ ] **F9.2.3** Description and internal note, autosaved on blur
-- [ ] **F9.2.4** In and out odometer using `OdometerInput`, with the low-reading
-      warning surfaced inline
+- [x] **F9.2.2** Status control offering only legal transitions, from the
+      `shared` state machine (`allowedTransitions`)
+- [x] **F9.2.3** Description and internal note, autosaved on blur
+      (`InlineField`)
+- [x] **F9.2.4** In and out odometer using `OdometerInput`, with the low-reading
+      warning surfaced inline (both as a toast and, live-verified, in the
+      response `warnings[]`)
 
 <a id="f9-3"></a>
 
@@ -2307,13 +2317,17 @@ reserved in F6 are activated here.
 
 **Acceptance:** Staff can add, edit, reorder and remove permitted order lines.
 
-- [ ] **F9.3.1** Add a line: article search, free text, or labour
-- [ ] **F9.3.2** Article search shows stock balance in the results, so a
+- [x] **F9.3.1** Add a line: article search, free text, or labour
+- [x] **F9.3.2** Article search shows stock balance in the results, so a
       mechanic sees a shortage before committing to it
-- [ ] **F9.3.3** Inline editing of quantity, price and description
-- [ ] **F9.3.4** Drag to reorder, with a keyboard alternative
-- [ ] **F9.3.5** Delete with confirmation
-- [ ] **F9.3.6** A visible note when a line's price differs from the article's
+- [x] **F9.3.3** Inline editing of quantity, price and description, autosaved
+      on blur — never on keystroke — via `useDraftField`
+- [x] **F9.3.4** Drag to reorder (native HTML5, the same mechanism F8's
+      calendar uses), with "Flytta upp"/"Flytta ner" as the keyboard
+      alternative; both disabled while a reorder is in flight so two rapid
+      moves cannot race and silently drop one of them
+- [x] **F9.3.5** Delete with confirmation
+- [x] **F9.3.6** A visible note when a line's price differs from the article's
       current price, explaining that the line keeps its original price
 
 <a id="f9-4"></a>
@@ -2322,9 +2336,9 @@ reserved in F6 are activated here.
 
 **Acceptance:** Displayed totals always come from the backend.
 
-- [ ] **F9.4.1** Sticky totals panel: net, VAT, gross
-- [ ] **F9.4.2** Updates as lines change
-- [ ] **F9.4.3** Rendered from backend-calculated values — **totals are never
+- [x] **F9.4.1** Sticky totals panel: net, VAT, gross
+- [x] **F9.4.2** Updates as lines change
+- [x] **F9.4.3** Rendered from backend-calculated values — **totals are never
       computed in the browser**, so the screen cannot disagree with the PDF
 
 <a id="f9-5"></a>
@@ -2334,16 +2348,21 @@ reserved in F6 are activated here.
 **Acceptance:** Completion explains stock effects and tolerates a retried
 request.
 
-- [ ] **F9.5.1** _"Slutför arbetsorder"_ opening a confirmation that lists what
+- [x] **F9.5.1** _"Slutför arbetsorder"_ opening a confirmation that lists what
       will happen, including which articles will be deducted
-- [ ] **F9.5.2** Blocked with an explanation if the out-odometer is missing or
+- [x] **F9.5.2** Blocked with an explanation if the out-odometer is missing or
       there are no lines
-- [ ] **F9.5.3** An `Idempotency-Key` sent with the request, so a double tap is
+- [x] **F9.5.3** An `Idempotency-Key` sent with the request, so a double tap is
       safe
-- [ ] **F9.5.4** Success reveals the protocol action
-- [ ] **F9.5.5** Reuse the same idempotency key when retrying one completion
+- [x] **F9.5.4** Success reveals the protocol action — a "Skapa
+      serviceprotokoll (kopplas i F10)" reserved action appears once `status`
+      is `COMPLETED`
+- [x] **F9.5.5** Reuse the same idempotency key when retrying one completion
       attempt; do not mint a different key just because the network response was
-      lost.
+      lost. The same rule now also applies to every other status transition
+      (`WorkOrderStatusControl`'s `applyTransition`), not completion alone —
+      a revert from `COMPLETED` writes compensating stock `RETURN` movements,
+      the identical class of side effect.
 
 <a id="f9-6"></a>
 
@@ -2352,13 +2371,17 @@ request.
 **Acceptance:** Concurrent edits are handled without silently discarding local
 work.
 
-- [ ] **F9.6.1** `version` carried on **header and status mutations only**. Line
+- [x] **F9.6.1** `version` carried on **header and status mutations only**. Line
       operations are not version-checked — two mechanics adding different lines
-      is normal and must not fail. Lines and totals are refetched after every
-      line mutation (`PROJECT_SPEC.md` §6.5)
-- [ ] **F9.6.2** A `409` prompts: keep editing, or reload and lose local changes
-- [ ] **F9.6.3** Local changes shown in the dialog so nothing is lost silently
-- [ ] **F9.6.4** E2E test of two browser contexts editing the same order
+      is normal and must not fail. Every mutation's response already carries
+      the whole recomputed order, lines and totals, so "refetch after every
+      line mutation" (`PROJECT_SPEC.md` §6.5) is the mutation's own response
+      rather than a second round trip
+- [x] **F9.6.2** A `409` prompts: keep editing, or reload and lose local changes
+      (`WorkOrderConflictDialog`)
+- [x] **F9.6.3** Local changes shown in the dialog so nothing is lost silently
+- [x] **F9.6.4** E2E test of two browser contexts editing the same order
+      (`frontend/e2e/work-orders.spec.ts`)
 
 <a id="f9-7"></a>
 
@@ -2366,25 +2389,34 @@ work.
 
 **Acceptance:** A completed job appears in history and deducts stock once.
 
-- [ ] **F9.7.1** Connect customer and vehicle work-order history reserved in F6,
-      with newest-first ordering and links to the order.
-- [ ] **F9.7.2** Link day-view work-order actions from F8 now that B6 is
-      available.
-- [ ] **F9.7.3** Complete a mixed labour/parts job against the test API and
-      verify the displayed stock balance changes exactly once after a retry.
-- [ ] **F9.7.4** Verify the customer and vehicle history show the completed
+- [x] **F9.7.1** Connect customer and vehicle work-order history reserved in F6,
+      with newest-first ordering and links to the order
+      (`VehicleWorkOrderHistory`/`CustomerWorkOrderHistory`, replacing both
+      `ReservedSection`s F6.4.6 named to this iteration).
+- [x] **F9.7.2** Link day-view work-order actions from F8 now that B6 is
+      available — booking-detail-dialog's disabled "Starta arbete (kopplas i
+      F9.7)" placeholder now opens `CreateWorkOrderDialog` in `fromBooking`
+      mode (disabled with an explanation instead when the booking has no
+      vehicle, since a work order always needs one).
+- [x] **F9.7.3** Complete a mixed labour/parts job against the test API and
+      verify the displayed stock balance changes exactly once after a retry —
+      verified twice: live in the browser (a `PART` line's negative-stock
+      warning surfaced correctly after completion) and directly against the
+      API with two `POST .../status` calls sharing one `Idempotency-Key`
+      (article stock: `5 → 4 → 4`, not `5 → 4 → 3`).
+- [x] **F9.7.4** Verify the customer and vehicle history show the completed
       order; record the job walkthrough and concurrency test evidence.
 
 **Iteration acceptance record**
 
-- [ ] **F9 Done** — every milestone and the iteration Definition of Done pass;
+- [x] **F9 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
 
-| Field                       | Record                                                 |
-| --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+| Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Current milestone / blocker | None — F9 complete.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Verification evidence        | `pnpm typecheck`, `pnpm lint` (0 warnings) and `pnpm type-coverage` (99.54%) all clean across the workspace. `pnpm --filter frontend test`: 155/155 unit tests pass. `frontend/e2e/work-orders.spec.ts` (new, 3 tests) green, including a real two-browser-context version-conflict run; the pre-existing `dashboard`, `bookings-calendar` and `customers-vehicles` suites re-run green, confirming no regression from the booking/vehicle/customer detail changes this iteration also made. A full manual walkthrough against the live dev backend and a seeded Postgres database (`admin@verkstaden.se`): created a work order from the list, added a labour and a part line, edited a line's quantity inline, reordered lines via the keyboard control, transitioned `DRAFT → IN_PROGRESS → COMPLETED`, saw the negative-stock warning toast, saw the reserved protocol action appear, and confirmed the completed order in both the vehicle's and the customer's "Arbetsorderhistorik". A direct API-level retry (two `POST /work-orders/:id/status` calls, one `Idempotency-Key`) confirmed the referenced article's stock moved `5 → 4` once, not twice. One real bug was found and fixed during this verification: the report-mode fetch used `limit=200`, exceeding the backend's own `cursorQuerySchema` maximum of 100 and 400ing on every load of the default "Aktivt arbete" view. A `code-review`-skill pass surfaced and fixed five further issues before completion: `useDraftField` callers clearing "dirty" before their save resolved (risking a failed edit being silently overwritten by an unrelated refetch); `applyWorkOrderResponse`'s cache invalidation prefix-matching, and therefore immediately refetching, the exact detail query it had just written; only the completion dialog holding an idempotency key across a retry, not the other status transitions (a revert from `COMPLETED` shares the same stock-`RETURN` side effect); a missing `resetPaging()` on the date-range filters; and two rapid reorder clicks racing on a stale line order with nothing to stop it. |
+| Completed on                 | 2026-09-16                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ---
 

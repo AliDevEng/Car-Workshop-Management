@@ -11,6 +11,7 @@ import {
 } from 'shared';
 import { isConflictError } from '@/components/admin/conflict';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
+import { CreateWorkOrderDialog } from '@/components/admin/create-work-order-dialog';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { bookingStatus } from '@/components/admin/status';
 import { StatusBadge } from '@/components/admin/status-badge';
@@ -163,7 +164,10 @@ export function BookingDetailDialog({
           <div className="flex flex-col gap-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="booking-detail-date" className="text-sm font-medium">
+                <label
+                  htmlFor="booking-detail-date"
+                  className="text-sm font-medium"
+                >
                   Datum
                 </label>
                 <Input
@@ -176,7 +180,10 @@ export function BookingDetailDialog({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="booking-detail-time" className="text-sm font-medium">
+                <label
+                  htmlFor="booking-detail-time"
+                  className="text-sm font-medium"
+                >
                   Starttid
                 </label>
                 <Input
@@ -210,7 +217,10 @@ export function BookingDetailDialog({
               </div>
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium">Mekaniker</span>
-                <Select value={assignedUserId} onValueChange={setAssignedUserId}>
+                <Select
+                  value={assignedUserId}
+                  onValueChange={setAssignedUserId}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -237,9 +247,37 @@ export function BookingDetailDialog({
               </p>
             ) : null}
 
-            <Button type="button" variant="secondary" size="sm" disabled className="self-start">
-              Starta arbete (kopplas i F9.7)
-            </Button>
+            {booking.vehicle === null ? (
+              <div className="flex flex-col items-start gap-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled
+                  className="self-start"
+                >
+                  Starta arbete
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Bokningen saknar ett kopplat fordon. En arbetsorder kräver ett
+                  fordon.
+                </p>
+              </div>
+            ) : (
+              <CreateWorkOrderDialog
+                mode={{ kind: 'fromBooking', booking }}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="self-start"
+                  >
+                    Starta arbete
+                  </Button>
+                }
+              />
+            )}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">

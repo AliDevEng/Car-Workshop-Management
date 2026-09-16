@@ -2,7 +2,6 @@
 
 import {
   CarFrontIcon,
-  ClipboardListIcon,
   PlusIcon,
   ShieldIcon,
   UserRoundIcon,
@@ -26,7 +25,12 @@ import { InlineField } from '@/components/admin/inline-field';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { PageHeader } from '@/components/admin/page-header';
 import { ReservedSection } from '@/components/admin/reserved-section';
-import { DetailSkeleton, EmptyState, ErrorState } from '@/components/admin/states';
+import {
+  DetailSkeleton,
+  EmptyState,
+  ErrorState,
+} from '@/components/admin/states';
+import { CustomerWorkOrderHistory } from '@/components/admin/work-order-history';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,7 +87,9 @@ export function CustomerDetailPage({
         onRetry={() => {
           void customerQuery.refetch();
         }}
-        {...(error.requestId === undefined ? {} : { requestId: error.requestId })}
+        {...(error.requestId === undefined
+          ? {}
+          : { requestId: error.requestId })}
       />
     );
   }
@@ -138,9 +144,7 @@ export function CustomerDetailPage({
           : { description: 'Kunden är inaktiverad.' })}
         actions={
           <div className="flex items-center gap-2">
-            {customer.isActive ? null : (
-              <Badge tone="neutral">Inaktiv</Badge>
-            )}
+            {customer.isActive ? null : <Badge tone="neutral">Inaktiv</Badge>}
             {customer.isActive ? (
               <>
                 <Button
@@ -183,169 +187,175 @@ export function CustomerDetailPage({
       <DetailLayout
         main={
           <div className="flex flex-col gap-4">
-          <Card className="rounded-soft">
-            <CardHeader>
-              <CardTitle>Kontaktuppgifter</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="customer-type"
-                  className="text-sm font-medium"
-                >
-                  Typ
-                </label>
-                <Select
-                  value={customer.type}
-                  onValueChange={(value) => {
-                    void changeType(value);
-                  }}
-                >
-                  <SelectTrigger id="customer-type" className="w-full sm:w-56">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {CUSTOMER_TYPE_LABELS[type]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <Card className="rounded-soft">
+              <CardHeader>
+                <CardTitle>Kontaktuppgifter</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="customer-type"
+                    className="text-sm font-medium"
+                  >
+                    Typ
+                  </label>
+                  <Select
+                    value={customer.type}
+                    onValueChange={(value) => {
+                      void changeType(value);
+                    }}
+                  >
+                    <SelectTrigger
+                      id="customer-type"
+                      className="w-full sm:w-56"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CUSTOMER_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {CUSTOMER_TYPE_LABELS[type]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <InlineField
-                label="Namn"
-                value={customer.name}
-                required
-                onSave={(value) => saveField('name', value)}
-              />
-              <InlineField
-                label="Telefon"
-                type="tel"
-                value={customer.phone}
-                required
-                validate={validatePhone}
-                onSave={(value) => saveField('phone', value)}
-              />
-              <InlineField
-                label="E-post"
-                type="email"
-                value={customer.email ?? ''}
-                validate={validateEmail}
-                onSave={(value) => saveField('email', value)}
-              />
-              {customer.type === 'COMPANY' ? (
                 <InlineField
-                  label="Organisationsnummer"
-                  value={customer.orgNumber ?? ''}
-                  validate={validateOrgNumber}
-                  onSave={(value) => saveField('orgNumber', value)}
+                  label="Namn"
+                  value={customer.name}
+                  required
+                  onSave={(value) => saveField('name', value)}
                 />
-              ) : null}
-              <InlineField
-                label="Adress"
-                value={customer.address ?? ''}
-                validate={validateAddress}
-                onSave={(value) => saveField('address', value)}
-              />
-            </CardContent>
-          </Card>
+                <InlineField
+                  label="Telefon"
+                  type="tel"
+                  value={customer.phone}
+                  required
+                  validate={validatePhone}
+                  onSave={(value) => saveField('phone', value)}
+                />
+                <InlineField
+                  label="E-post"
+                  type="email"
+                  value={customer.email ?? ''}
+                  validate={validateEmail}
+                  onSave={(value) => saveField('email', value)}
+                />
+                {customer.type === 'COMPANY' ? (
+                  <InlineField
+                    label="Organisationsnummer"
+                    value={customer.orgNumber ?? ''}
+                    validate={validateOrgNumber}
+                    onSave={(value) => saveField('orgNumber', value)}
+                  />
+                ) : null}
+                <InlineField
+                  label="Adress"
+                  value={customer.address ?? ''}
+                  validate={validateAddress}
+                  onSave={(value) => saveField('address', value)}
+                />
+              </CardContent>
+            </Card>
 
-          <Card className="rounded-soft">
-            <CardHeader>
-              <CardTitle>Fordon</CardTitle>
-              <CardAction>
-                <CreateVehicleDialog
-                  customerId={customerId}
-                  onCreated={() => {
-                    void queryClient.invalidateQueries({
-                      queryKey: queryKeys.customer(customerId),
-                    });
-                  }}
-                  trigger={
-                    <Button type="button" variant="secondary" size="sm">
-                      <PlusIcon aria-hidden="true" />
-                      Lägg till fordon
-                    </Button>
-                  }
-                />
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              {customer.vehicles.length === 0 ? (
-                <EmptyState
-                  icon={CarFrontIcon}
-                  message="Kunden äger inga fordon än."
-                />
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {customer.vehicles.map((vehicle) => (
-                    <li key={vehicle.id}>
-                      <Link
-                        href={`/admin/fordon/${vehicle.id}`}
-                        className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-sharp border border-border px-3 py-2 hover:bg-accent focus-visible:bg-accent"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium tabular-nums">
-                            {vehicle.registrationNumberDisplay}
+            <Card className="rounded-soft">
+              <CardHeader>
+                <CardTitle>Fordon</CardTitle>
+                <CardAction>
+                  <CreateVehicleDialog
+                    customerId={customerId}
+                    onCreated={() => {
+                      void queryClient.invalidateQueries({
+                        queryKey: queryKeys.customer(customerId),
+                      });
+                    }}
+                    trigger={
+                      <Button type="button" variant="secondary" size="sm">
+                        <PlusIcon aria-hidden="true" />
+                        Lägg till fordon
+                      </Button>
+                    }
+                  />
+                </CardAction>
+              </CardHeader>
+              <CardContent>
+                {customer.vehicles.length === 0 ? (
+                  <EmptyState
+                    icon={CarFrontIcon}
+                    message="Kunden äger inga fordon än."
+                  />
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {customer.vehicles.map((vehicle) => (
+                      <li key={vehicle.id}>
+                        <Link
+                          href={`/admin/fordon/${vehicle.id}`}
+                          className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-sharp border border-border px-3 py-2 hover:bg-accent focus-visible:bg-accent"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium tabular-nums">
+                              {vehicle.registrationNumberDisplay}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {vehicle.make} {vehicle.model}
+                            </span>
                           </span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {vehicle.make} {vehicle.model}
-                          </span>
-                        </span>
-                        <CarFrontIcon
-                          aria-hidden="true"
-                          className="size-4 text-muted-foreground"
-                        />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+                          <CarFrontIcon
+                            aria-hidden="true"
+                            className="size-4 text-muted-foreground"
+                          />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
 
-          <ReservedSection
-            icon={ClipboardListIcon}
-            title="Arbetsorderhistorik"
-            message="Kundens arbetsorderhistorik kopplas in i F9.7, tillsammans med resten av arbetsordermodulen."
-          />
+            <Card className="rounded-soft">
+              <CardHeader>
+                <CardTitle>Arbetsorderhistorik</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CustomerWorkOrderHistory customerId={customerId} />
+              </CardContent>
+            </Card>
           </div>
         }
         aside={
           <div className="flex flex-col gap-4">
-          <Card className="rounded-soft">
-            <CardHeader>
-              <CardTitle>Anteckningar</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <InlineField
-                label="Interna anteckningar"
-                multiline
-                value={customer.notes ?? ''}
-                onSave={(value) => saveField('notes', value)}
-              />
-            </CardContent>
-          </Card>
+            <Card className="rounded-soft">
+              <CardHeader>
+                <CardTitle>Anteckningar</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InlineField
+                  label="Interna anteckningar"
+                  multiline
+                  value={customer.notes ?? ''}
+                  onSave={(value) => saveField('notes', value)}
+                />
+              </CardContent>
+            </Card>
 
-          <ReservedSection
-            icon={ShieldIcon}
-            title="Sekretess (GDPR)"
-            message="Export och anonymisering av kunduppgifter aktiveras för administratörer i F12.7, sedan de har verifierats mot en riktig radering."
-          />
+            <ReservedSection
+              icon={ShieldIcon}
+              title="Sekretess (GDPR)"
+              message="Export och anonymisering av kunduppgifter aktiveras för administratörer i F12.7, sedan de har verifierats mot en riktig radering."
+            />
 
-          <Card className="rounded-soft" size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xs text-muted-foreground">
-                <UserRoundIcon aria-hidden="true" className="size-4" />
-                Kund sedan
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {formatDate(customer.createdAt)}
-            </CardContent>
-          </Card>
+            <Card className="rounded-soft" size="sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <UserRoundIcon aria-hidden="true" className="size-4" />
+                  Kund sedan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm">
+                {formatDate(customer.createdAt)}
+              </CardContent>
+            </Card>
           </div>
         }
       />
