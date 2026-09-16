@@ -188,14 +188,14 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**47/83 frontend milestones are complete as of 2026-09-15:** all seven of F0's,
-all six of F1's, four of F2's six milestones, all six of F3's milestones,
+**53/83 frontend milestones are complete as of 2026-09-16:** all seven of F0's,
+all six of F1's, five of F2's six milestones, all six of F3's milestones,
 all six of F4's milestones, all six of F5's milestones, all six of F6's
-milestones, and all six of F7's milestones. F0, F1, F3, F4, F5, F6 and F7 are
-Done. F2's public layout,
-service pages, SEO and recorded performance budget are complete; the live lookup
-now has its backend half (B10.1–B10.4) but still awaits its own frontend
-integration, and the about page awaits real owner photographs. F3 replaces
+milestones, all six of F7's milestones, and five of F8's seven milestones.
+F0, F1, F3, F4, F5, F6 and F7 are Done. F2's public layout, service pages, SEO,
+recorded performance budget and — as of this iteration — the live lookup hero
+are complete; only the about page's real owner photographs remain, so F2 stays
+Blocked on that alone. F3 replaces
 the `/boka` placeholder with a schema-validated public request form, token
 recovery, spam-response fallbacks and a staff-review thank-you page. F4 adds the
 authenticated admin shell, local return-path login, server-verified protection,
@@ -230,6 +230,34 @@ icons with no labels, and the public site's mobile menu collapsing to header
 height because of a `backdrop-filter` containing-block interaction — were
 found, fixed and verified first; see F2.1.4 and F4.3.4 in
 `frontend/README.md`.
+**F8 replaces the `/admin/bokningar` read-only placeholder** with the real
+inbox and calendar: a request inbox with status filters, spam flagged but
+still reviewable, and a confirmation dialog that matches the request's phone
+and registration number against existing customers/vehicles before letting a
+new one be created; a custom month calendar (not a native date input) with
+Saturday and Sunday tinted and every past date a real, disabled button rather
+than merely hidden; and a shared week/day grid — one column per mechanic plus
+"Ej tilldelad" — with native drag-to-reschedule, optimistic updates and
+rollback on the exclusion constraint's `409`. One small, additive backend
+surface (`GET /api/users/roster`, `authenticated` rather than `ADMIN`-only)
+was added so a `MECHANIC` can populate a mechanic picker at all, the same
+`GET /api/users` cannot. **Two real, pre-existing-pattern defects were found
+and fixed while verifying this iteration live, not merely by running the
+code:** a booking block sitting visually on top of its own drop target meant
+dragging one booking onto an *occupied* slot was silently swallowed rather
+than reaching the server at all — F8.6.2 asks explicitly to verify exactly
+this case, and the original implementation would have failed it silently;
+and the public homepage's vehicle-lookup hero (F2.2, shipped in Phase 3)
+had been submitting a **booking**-purposed form token to the **vehicle-lookup**
+endpoint since it was built — each token's HMAC binds its purpose
+specifically so one cannot unlock the other, so every public lookup was
+broken, and every existing e2e test for it stayed green throughout because
+each one mocked the same wrong endpoint the code called. Both are detailed,
+with the fixes, under F8.3 and F8.7 in `frontend/README.md`; F2.2.3 — left
+correctly unticked — is now closed. F8.6.3 (an adjacent/cancelled-booking
+walkthrough) and F8.7.3/F8.7.4 (a copy-and-open link fallback of unspecified
+scope, and browser verification of two F8.7.1 admin actions) remain, so F8 is
+In progress rather than Done.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -406,6 +434,9 @@ past row.
 | 2026-09-14 | **B11.3.1 — the advisory lock is `pg_try_advisory_xact_lock` (transaction-scoped), not `pg_advisory_lock`/`pg_advisory_unlock` (session-scoped)** | §8.4 requires "a pinned database connection where lock semantics require it" (B11.5.1's wording). A session lock must be released on the exact connection that took it, and a pooled Prisma client gives no such guarantee across two separate `$queryRaw` calls. Prisma's interactive `$transaction` already reserves one connection for its whole duration, so taking the lock inside it pins the connection for free and releases the lock automatically on commit, rollback, or a crash — with no manual unlock to forget, unlike the session-scoped pair |
 | 2026-09-14 | **F6.5.1 corrected: vehicle creation requires `make` and `model`, not just a registration number** | The milestone's own wording said "create with only a registration number; everything else optional", but `PROJECT_SPEC.md` §4.2 lists `make`/`model` with no `?`, and `Vehicle.make`/`Vehicle.model` have been `NOT NULL` with no default since B3 shipped (Phase 1, already Done). A frontend plan describing a form the schema cannot accept is the README-vs-spec conflict CLAUDE.md resolves in the spec's favour; corrected in the same commit as the F6 creation dialog that depends on it, rather than building a form that would fail every submission |
 | 2026-09-14 | **F6.1.2's "last visit" column is not built** | No table has a single, uncontested definition of "a visit" yet — the last booking (any status) and the last completed work order are both defensible and disagree in the ordinary case of a no-show followed by a rebooking. Deciding it now would be inventing a requirement CLAUDE.md asks not to guess at; revisit once F9.7 gives the work-order/booking history a natural place to answer it without a per-row aggregate on every customer-list page |
+| 2026-09-16 | **`GET /api/users/roster` added**, `authenticated` rather than `ADMIN`-only like the rest of user management | F8.2.2 needs every active user's name for a booking's mechanic picker, reachable by a `MECHANIC` confirming or rescheduling a booking — `GET /api/users` is `ADMIN`-only (§5.3's "workshop policy" class), and a booking's own `assignedUser` only names a mechanic already on some booking, not the roster to assign one to a new one. Returns `id`/`name`/`role` only, the same shape `bookingWithRelations.assignedUser` already exposes to the same role |
+| 2026-09-16 | **F8's week/day grid resolves a drag-and-drop target from pointer position, not from `event.target`** | A `BookingBlock` renders on top of the background slot cells it shares a grid with; dropping onto an *occupied* slot lands on the block, which has no drop handler, so the drop was silently swallowed with no error and no rollback attempted — exactly the case F8.6.2 asks to verify, and found only by dragging one real booking onto another's slot in a live browser, not by reading the code. `onDragOver`/`onDrop` moved from ~700 per-cell divs to one handler per day, computing row/column from `event.clientX`/`clientY` against `getBoundingClientRect()`; a drop event bubbles regardless of which element is topmost, so this now resolves correctly whether the cursor lands on empty grid or on another booking's card |
+| 2026-09-16 | **F2.2's public vehicle-lookup hero was broken since it was built, invisible to its own test suite** | `usePublicFormToken` always fetched `/public/booking-form-token`; the vehicle-lookup hero called it too, submitting a **booking**-purposed token to the **vehicle-lookup** endpoint. Each token's HMAC binds its purpose specifically so one form's token cannot unlock the other (`backend/src/lib/form-token.ts`) — a mismatched purpose fails `verifyFormToken` with `BAD_SIGNATURE` unconditionally, so every real public lookup 400'd. Every existing e2e test for it mocked `**/api/public/booking-form-token` — the same wrong endpoint the code called — so the mock "worked" by coincidence and the bug was invisible to CI. Found while wiring F8.7's reuse of the same lookup for vehicle creation. Fixed by giving the hook a required `purpose` parameter and adding a deliberately unmocked test against the real backend and the real mock fixture, which is what actually catches this class of bug |
 
 ---
 

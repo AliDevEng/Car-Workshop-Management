@@ -1,4 +1,4 @@
-import type { User as UserDto } from 'shared';
+import type { User as UserDto, UserSummary } from 'shared';
 import { ConflictError, NotFoundError } from 'shared';
 import { writeAuditLog } from '../../lib/audit.js';
 import type { Database } from '../../lib/prisma.js';
@@ -65,6 +65,24 @@ export async function listUsers(
     rows.length > options.limit ? (page.at(-1)?.id ?? null) : null;
 
   return { data: page.map(toUserDto), nextCursor };
+}
+
+/**
+ * Every active user, for a booking's mechanic-assignment picker (F8.2.2).
+ * Unlike {@link listUsers}, not paginated and not `ADMIN`-only: a small
+ * workshop's whole staff list is one round trip, and any authenticated user
+ * may need to assign a booking to a colleague. Ordered by name, since this
+ * fills a picker rather than an audit list.
+ */
+export async function listActiveUserRoster(
+  db: Database,
+): Promise<UserSummary[]> {
+  const rows = await db.user.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, role: true },
+    orderBy: { name: 'asc' },
+  });
+  return rows;
 }
 
 export async function getUser(db: Database, id: string): Promise<UserDto> {

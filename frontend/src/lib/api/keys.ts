@@ -31,4 +31,14 @@ export const queryKeys = {
     articleId: string,
     params: Readonly<Params>,
   ) => [...queryKeys.stockMovementsRoot(articleId), params] as const,
+  userRoster: () => ['users', 'roster'] as const,
+  bookingRequestsRoot: () => ['booking-requests'] as const,
+  bookingRequests: <Params extends object>(params: Readonly<Params>) =>
+    [...queryKeys.bookingRequestsRoot(), params] as const,
+  calendarRoot: () => ['calendar'] as const,
+  calendar: <Params extends object>(params: Readonly<Params>) =>
+    [...queryKeys.calendarRoot(), params] as const,
+  partnerLinksRoot: () => ['partner-links'] as const,
+  partnerLinks: <Params extends object>(params: Readonly<Params>) =>
+    [...queryKeys.partnerLinksRoot(), params] as const,
 };

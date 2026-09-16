@@ -158,7 +158,7 @@ export function BookingForm({
   telephoneHref,
 }: BookingFormProps) {
   const router = useRouter();
-  const token = usePublicFormToken();
+  const token = usePublicFormToken({ purpose: 'booking' });
   const [status, setStatus] = useState<FormStatus>({ kind: 'idle' });
 
   const {

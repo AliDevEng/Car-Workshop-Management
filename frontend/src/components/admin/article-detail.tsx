@@ -1,12 +1,20 @@
 'use client';
 
-import { HashIcon, HistoryIcon, Link2Icon, PencilIcon } from 'lucide-react';
+import {
+  ExternalLinkIcon,
+  HashIcon,
+  HistoryIcon,
+  Link2Icon,
+  PencilIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
   STOCK_MOVEMENT_TYPE_LABELS,
   UNIT_LABELS,
+  buildPartnerUrl,
   ore,
   parseQuantity,
+  type PartnerLink,
   type StockMovementWithUser,
 } from 'shared';
 import { ArticleFormDialog } from '@/components/admin/article-form-dialog';
@@ -15,7 +23,6 @@ import { DataTable, type DataTableColumn } from '@/components/admin/data-table';
 import { DetailLayout } from '@/components/admin/detail-layout';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { PageHeader } from '@/components/admin/page-header';
-import { ReservedSection } from '@/components/admin/reserved-section';
 import { StockAdjustmentDialog } from '@/components/admin/stock-adjustment-dialog';
 import { StocktakeDialog } from '@/components/admin/stocktake-dialog';
 import { stockLevelStatus } from '@/components/admin/status';
@@ -36,6 +43,7 @@ import {
   useStockMovements,
 } from '@/lib/api/articles';
 import { useCurrentUser } from '@/lib/api/current-user';
+import { usePartnerLinks } from '@/lib/api/partner-links';
 import { formatCurrency } from '@/lib/format/currency';
 import { formatDate, formatDateTime } from '@/lib/format/date';
 import { formatSignedQuantity } from '@/lib/format/quantity';
@@ -98,6 +106,7 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
   const currentUserQuery = useCurrentUser();
   const isAdmin = currentUserQuery.data?.role === 'ADMIN';
   const setActive = useSetArticleActive(articleId);
+  const partnerLinksQuery = usePartnerLinks({ isActive: true });
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const [cursorStack, setCursorStack] = useState<readonly string[]>([]);
 
@@ -139,6 +148,9 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
   const article = articleQuery.data;
   const unitLabel = UNIT_LABELS[article.unit];
   const levelStatus = stockLevelStatus(article.stockQuantity, article.minimumQuantity);
+  const articleNumberPartnerLinks = (partnerLinksQuery.data?.data ?? []).filter(
+    (link: PartnerLink) => link.placeholderType === 'ARTICLE_NUMBER',
+  );
   const adjustmentDisabledReason = isAdmin
     ? undefined
     : 'Endast administratörer kan justera lagret.';
@@ -320,11 +332,46 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
               </CardContent>
             </Card>
 
-            <ReservedSection
-              icon={Link2Icon}
-              title="Partnerlänkar"
-              message="Snabblänkar till reservdelspartners utifrån artikelns OE-nummer kopplas in i F8.7, sedan B10.6 finns."
-            />
+            <Card className="rounded-soft">
+              <CardHeader>
+                <CardTitle>Partnerlänkar</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {articleNumberPartnerLinks.length === 0 ||
+                article.oeNumbers.length === 0 ? (
+                  <EmptyState
+                    icon={Link2Icon}
+                    message={
+                      article.oeNumbers.length === 0
+                        ? 'Lägg till ett OE-nummer för att få snabblänkar.'
+                        : 'Inga partnerlänkar är konfigurerade än.'
+                    }
+                  />
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {article.oeNumbers.map((oeNumber: string) => (
+                      <div key={oeNumber} className="flex flex-wrap items-center gap-2">
+                        <Badge tone="neutral" className="tabular-nums">
+                          {oeNumber}
+                        </Badge>
+                        {articleNumberPartnerLinks.map((link: PartnerLink) => (
+                          <Button key={link.id} asChild variant="secondary" size="sm">
+                            <a
+                              href={buildPartnerUrl(link, oeNumber)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {link.name}
+                              <ExternalLinkIcon aria-hidden="true" />
+                            </a>
+                          </Button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         }
         aside={

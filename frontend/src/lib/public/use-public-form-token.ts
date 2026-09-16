@@ -8,7 +8,21 @@ type TokenState =
   | { readonly status: 'ready'; readonly token: string }
   | { readonly status: 'error'; readonly token: null };
 
+/**
+ * Each purpose is bound into its token's HMAC signature
+ * (`backend/src/lib/form-token.ts`), specifically so a token issued for one
+ * form cannot unlock the other — the vehicle lookup is the paid one (§6.1).
+ * That makes the endpoint purpose-specific too; there is no single
+ * `/public/form-token` a caller could get away with hard-coding.
+ */
+const TOKEN_ENDPOINTS = {
+  booking: '/public/booking-form-token',
+  'vehicle-lookup': '/public/vehicle-lookup-form-token',
+} as const;
+type FormTokenPurpose = keyof typeof TOKEN_ENDPOINTS;
+
 interface PublicFormTokenOptions {
+  readonly purpose: FormTokenPurpose;
   readonly eager?: boolean;
 }
 
@@ -17,8 +31,9 @@ interface GetTokenOptions {
 }
 
 export function usePublicFormToken({
+  purpose,
   eager = true,
-}: PublicFormTokenOptions = {}) {
+}: PublicFormTokenOptions) {
   const [state, setState] = useState<TokenState>({
     status: eager ? 'loading' : 'idle',
     token: null,
@@ -33,12 +48,13 @@ export function usePublicFormToken({
 
       if (tokenPromise.current === null) {
         tokenPromise.current = (async () => {
-          const [{ formTokenResponseSchema }, { apiFetch }] = await Promise.all(
-            [import('shared'), import('@/lib/api')],
-          );
-          const response = await apiFetch(
-            '/public/booking-form-token',
-            formTokenResponseSchema,
+          const [sharedModule, apiModule]: [
+            typeof import('shared'),
+            typeof import('@/lib/api'),
+          ] = await Promise.all([import('shared'), import('@/lib/api')]);
+          const response = await apiModule.apiFetch(
+            TOKEN_ENDPOINTS[purpose],
+            sharedModule.formTokenResponseSchema,
           );
           return response.token;
         })();
@@ -58,7 +74,7 @@ export function usePublicFormToken({
         throw error;
       }
     },
-    [],
+    [purpose],
   );
 
   const refreshToken = useCallback(

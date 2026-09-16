@@ -80,5 +80,18 @@ export const userListQuerySchema = cursorQuerySchema.extend({
 });
 export type UserListQuery = z.infer<typeof userListQuerySchema>;
 
+/**
+ * `GET /api/users/roster` — every active user's name, for populating a
+ * booking's mechanic assignment (§6.2, F8.2.2). Deliberately `authenticated`
+ * rather than `ADMIN`-only like the rest of this file: assigning a booking to
+ * a colleague is an everyday operational task for a `MECHANIC`, not staff
+ * management, and `userSummarySchema` already carries no more than a
+ * `bookingWithRelations.assignedUser` exposes to the same role today.
+ */
+export const userRosterResponseSchema = z.object({
+  data: z.array(userSummarySchema),
+});
+export type UserRosterResponse = z.infer<typeof userRosterResponseSchema>;
+
 export const userIdParamsSchema = z.object({ id: idSchema });
 export type UserIdParams = z.infer<typeof userIdParamsSchema>;

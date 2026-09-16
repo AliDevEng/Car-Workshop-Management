@@ -54,11 +54,15 @@ export function vehiclesPath(params: VehicleListParams): string {
   return query === '' ? '/vehicles' : `/vehicles?${query}`;
 }
 
-export function useVehicles(params: VehicleListParams) {
+export function useVehicles(
+  params: VehicleListParams,
+  options?: { readonly enabled?: boolean },
+) {
   return useQuery({
     queryKey: queryKeys.vehicles(params),
     queryFn: () => apiFetch(vehiclesPath(params), vehicleListResponseSchema),
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -37,19 +37,19 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 47/83 milestones complete; 7/13 iterations Done.**
+**Overall: 53/83 milestones complete; 7/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
 | [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 7/7             | Done        |
 | [F1](#f1)   | Design system                             | 1     | F0                                 | 6/6             | Done        |
-| [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 4/6             | Blocked     |
+| [F2](#f2)   | Public site                               | 3     | F1, B5.2, B10.1–B10.4              | 5/6             | Blocked     |
 | [F3](#f3)   | Public booking flow                       | 3     | F2, B5                             | 6/6             | Done        |
 | [F4](#f4)   | Admin shell and authentication            | 1     | F1, B2; B3 for search              | 6/6             | Done        |
 | [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 6/6             | Done        |
 | [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 6/6             | Done        |
 | [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 6/6             | Done        |
-| [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6         | 0/7             | Not started |
+| [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6         | 5/7             | In progress |
 | [F9](#f9)   | Work orders                               | 4     | F4, B4, B5, B6                     | 0/7             | Not started |
 | [F10](#f10) | Quotes and service protocols              | 5     | F9, B7, B8                         | 0/6             | Not started |
 | [F11](#f11) | Settings, service rules and partner links | 6     | F4, B9, B10; settings contracts    | 0/6             | Not started |
@@ -980,10 +980,10 @@ Build B5.2 before the shared form-token hook in F2.2. Workshop-settings reads
 must be available for opening hours; coordinate the API contract with backend
 work. Service advice is activated later in F11.6.
 
-**Milestone checklist — 4/6 complete:**
+**Milestone checklist — 5/6 complete:**
 
 - [x] **[F2.1](#f2-1)** — Public layout
-- [ ] **[F2.2](#f2-2)** ? — Start page and hero
+- [x] **[F2.2](#f2-2)** — Start page and hero
 - [x] **[F2.3](#f2-3)** — Services pages
 - [ ] **[F2.4](#f2-4)** ? — About and contact
 - [x] **[F2.5](#f2-5)** — SEO and metadata
@@ -1036,9 +1036,28 @@ fallback.
 - [x] **F2.2.2** On submit, call `/api/public/vehicle-lookup` **client-side
       only**. Never during SSR: a crawler must not be able to spend the
       workshop's API budget
-- [ ] **F2.2.3** Implement the reusable public form-token hook here, backed by
+- [x] **F2.2.3** Implement the reusable public form-token hook here, backed by
       B5.2, and send its token with vehicle lookups. F3.1 reuses this hook; F2
       must not depend on an unbuilt F3 form.
+      **Found broken while building F8.7, 2026-09-16 — this checkbox had been
+      left unticked, and correctly so.** `usePublicFormToken` always fetched
+      `/public/booking-form-token`; `VehicleLookup` called it too, so the
+      hero submitted a **booking**-purposed token to the vehicle-lookup
+      endpoint. Each token's HMAC binds its purpose specifically so one
+      form's token cannot unlock the other (`backend/src/lib/form-token.ts`)
+      — a token issued for `booking` fails `verifyFormToken` for
+      `vehicle-lookup` with `BAD_SIGNATURE` unconditionally. **Every public
+      lookup was therefore broken**, and every e2e test for it (F2.2.10)
+      stayed green throughout, because each one mocked
+      `**/api/public/booking-form-token` — the same wrong endpoint the code
+      called — so the mock "worked" by coincidence. Fixed by giving
+      `usePublicFormToken` a required `purpose: 'booking' | 'vehicle-lookup'`
+      that resolves the right endpoint, updating both call sites
+      (`VehicleLookup`, `BookingForm`), correcting the stale mock, and adding
+      a new, deliberately **unmocked** test against the real backend and the
+      real mock vehicle-data fixture (`vehicle lookup hero against the real
+      backend`, `e2e/public-site.spec.ts`) — the test that would have caught
+      this from the start.
 - [x] **F2.2.4** Result panel: make, model, model year, last inspection, next
       inspection due
 - [x] **F2.2.5** The panel reserves a section for suggested services, rendered
@@ -1963,13 +1982,13 @@ seconds, and an overlapping drop is refused with a clear message.
 B10.6 supplies partner links. Day-view work-order actions need B6; their
 activation and acceptance are owned by F9.7.
 
-**Milestone checklist — 0/7 complete:**
+**Milestone checklist — 5/7 complete:**
 
-- [ ] **[F8.1](#f8-1)** ? — Request inbox
-- [ ] **[F8.2](#f8-2)** ? — Confirmation dialog
-- [ ] **[F8.3](#f8-3)** ? — Week view
-- [ ] **[F8.4](#f8-4)** ? — Day view
-- [ ] **[F8.5](#f8-5)** ? — Calendar performance
+- [x] **[F8.1](#f8-1)** — Request inbox
+- [x] **[F8.2](#f8-2)** — Confirmation dialog
+- [x] **[F8.3](#f8-3)** — Week view
+- [x] **[F8.4](#f8-4)** — Day view
+- [x] **[F8.5](#f8-5)** — Calendar performance
 - [ ] **[F8.6](#f8-6)** ? — Calendar and booking acceptance
 - [ ] **[F8.7](#f8-7)** ? — Activate vehicle lookup and partner links
 
@@ -1979,13 +1998,30 @@ activation and acceptance are owned by F9.7.
 
 **Acceptance:** Staff can inspect, confirm or reject a booking request.
 
-- [ ] **F8.1.1** List with status filters, newest first
-- [ ] **F8.1.2** Detail panel with everything the customer submitted
-- [ ] **F8.1.3** Items flagged as possible spam are visually separated but still
+- [x] **F8.1.1** List with status filters, newest first
+      `GET /api/booking-requests` orders by `id DESC`; ids are UUIDv7, so this
+      is newest-first without a second sort column (matching B3's search and
+      B4's ledger). The default filter is `PENDING`, with `Alla statusar` and
+      each other status selectable.
+- [x] **F8.1.2** Detail panel with everything the customer submitted
+      `BookingRequestDetailDialog` — status, phone, email, registration
+      number, requested date/time-of-day, requested services (mapped from the
+      public site's local content slugs back to Swedish names), the free-text
+      message, and — once handled — who/when and the rejection reason.
+- [x] **F8.1.3** Items flagged as possible spam are visually separated but still
       reviewable
-- [ ] **F8.1.4** _"Bekräfta"_ and _"Avvisa"_ with a reason
-- [ ] **F8.1.5** Connect the unhandled-request count to the F4 navigation badge;
+      A `Granska` badge in the list and a dashed warning banner in the detail
+      dialog; the row stays clickable and both confirm/reject remain
+      available, matching §6.2's "flags rather than blocks."
+- [x] **F8.1.4** _"Bekräfta"_ and _"Avvisa"_ with a reason
+      Rejection requires a non-empty reason (`RejectBookingRequestDialog`);
+      the submit button is disabled until one is entered.
+- [x] **F8.1.5** Connect the unhandled-request count to the F4 navigation badge;
       refresh the inbox and badge after confirmation or rejection.
+      `BookingBadge` reads the same `PENDING` count the inbox does; both
+      mutations invalidate `queryKeys.bookingRequestsRoot()`, so the badge
+      updates immediately after a confirm/reject from anywhere in the app —
+      verified live (screenshot: badge count dropping after each action).
 
 <a id="f8-2"></a>
 
@@ -1993,12 +2029,35 @@ activation and acceptance are owned by F9.7.
 
 **Acceptance:** Confirmation handles existing records and booking conflicts.
 
-- [ ] **F8.2.1** Pre-filled from the request; matched existing customer or
+- [x] **F8.2.1** Pre-filled from the request; matched existing customer or
       vehicle shown clearly, with the option to create new instead
-- [ ] **F8.2.2** Date, start time, duration and mechanic
-- [ ] **F8.2.3** Availability shown inline as times are chosen
-- [ ] **F8.2.4** A `409` from the conflict constraint is rendered as a plain
+      `CustomerPicker`/`VehiclePicker` show the automatic phone/regnr match
+      the backend will also use (`resolveCustomer`/`resolveVehicle`), or state
+      plainly that a new record will be created; a debounced search lets staff
+      attach a different existing record instead. Verified live: a repeat
+      phone number correctly showed "Matchad på telefonnummer" against the
+      earlier test customer.
+- [x] **F8.2.2** Date, start time, duration and mechanic
+      Date via the custom `Calendar` (below); a native time input; a duration
+      `Select` (30 min–4 h); a mechanic `Select` sourced from the new
+      `GET /api/users/roster` (added this iteration — see note below).
+- [x] **F8.2.3** Availability shown inline as times are chosen
+      Once a date is picked, that day's calendar is fetched and every other
+      booking for the chosen mechanic is listed, with any that overlap the
+      proposed slot picked out in oxide.
+- [x] **F8.2.4** A `409` from the conflict constraint is rendered as a plain
       Swedish explanation, not a generic error
+      `BOOKING_OVERLAP_MESSAGE` from the backend is shown verbatim inline
+      (not replaced with a generic string) — confirmed live by dragging a
+      booking onto an occupied slot; see F8.6.2.
+
+**A small, additive backend surface, in the same spirit as F6/F7's:**
+`GET /api/users/roster` (`authenticated`, not `ADMIN`-only like the rest of
+user management) returns every active user's `id`/`name`/`role`. Without it, a
+`MECHANIC` could not populate a mechanic picker at all — `GET /api/users` is
+`ADMIN`-only and `bookingWithRelations.assignedUser` only names a mechanic
+already on a booking, not the roster to assign one. Covered by 3 new backend
+tests (`backend/tests/users.test.ts`).
 
 <a id="f8-3"></a>
 
@@ -2006,10 +2065,35 @@ activation and acceptance are owned by F9.7.
 
 **Acceptance:** Week-view rescheduling rolls back when the server rejects it.
 
-- [ ] **F8.3.1** Columns per mechanic, hours down the side
-- [ ] **F8.3.2** Colour-coded by status using the fixed map
-- [ ] **F8.3.3** Click to open, drag to reschedule
-- [ ] **F8.3.4** Optimistic update with rollback on conflict
+- [x] **F8.3.1** Columns per mechanic, hours down the side
+      One column per active mechanic plus a fixed "Ej tilldelad" column,
+      inside a week of seven day-groups; hours run down a shared sticky rail.
+- [x] **F8.3.2** Colour-coded by status using the fixed map
+      `BookingBlock` reads `STATUS_PRESENTATION[bookingStatus(...).meaning]`,
+      the same map F1.4.3 built — no screen picks its own colour.
+- [x] **F8.3.3** Click to open, drag to reschedule
+      Click opens `BookingDetailDialog`; native HTML5 drag-and-drop reschedules
+      by day, mechanic column and 30-minute slot.
+- [x] **F8.3.4** Optimistic update with rollback on conflict
+      `useUpdateBooking` patches every cached calendar range on `onMutate` and
+      restores the exact previous snapshot on `onError`. Verified live end to
+      end (screenshots): a successful drag moves the card and shows "Bokningen
+      är flyttad."; a drop onto an occupied slot shows the real backend
+      conflict message and the card snaps back to its original time.
+
+**A real bug found and fixed while verifying this milestone.** The first drag
+implementation put `onDragOver`/`onDrop` on each background slot `<div>`, one
+per mechanic per half-hour. A `BookingBlock` renders visually on top of that
+grid, so dropping onto an **occupied** slot landed on the block, which had no
+drop handler — the drop was silently swallowed and nothing happened, no error,
+no rollback, because the reschedule was never attempted. Fixed by moving
+`onDragOver`/`onDrop` to each day's grid container and resolving the target
+row/column from the pointer position (`event.clientX`/`clientY` against
+`getBoundingClientRect()`) instead of from `event.target` — a drop event
+bubbles regardless of which element is topmost, so this reaches the handler
+whether the cursor lands on empty grid or on another booking's card. This is
+exactly the scenario F8.6.2 asks to verify, and the original implementation
+would have failed it silently.
 
 <a id="f8-4"></a>
 
@@ -2017,10 +2101,18 @@ activation and acceptance are owned by F9.7.
 
 **Acceptance:** Today's jobs are usable in the tablet day view.
 
-- [ ] **F8.4.1** Denser, tablet-friendly, showing full job details
-- [ ] **F8.4.2** Connect supported booking-status actions such as mark no-show.
+- [x] **F8.4.1** Denser, tablet-friendly, showing full job details
+      The day view is the same `CalendarGrid` given one day and `dense`:
+      wider mechanic columns (220 px vs. 140 px) show the full mechanic name
+      and more of each card's text. Verified at 1180×820 (10-inch tablet
+      landscape, §9's own target) — screenshot on file.
+- [x] **F8.4.2** Connect supported booking-status actions such as mark no-show.
       Reserve start-work and create-work-order actions for activation in F9.7
       after B6; keep unavailable actions clearly explained.
+      `BookingDetailDialog` supports "Markera som uteblev" and "Avboka" (the
+      latter behind a `ConfirmDialog`, since it is destructive). "Starta
+      arbete" is a disabled button labelled "(kopplas i F9.7)" rather than
+      hidden, matching the F6/F7 precedent for a reserved action.
 
 <a id="f8-5"></a>
 
@@ -2028,9 +2120,18 @@ activation and acceptance are owned by F9.7.
 
 **Acceptance:** Calendar navigation fetches only its required date ranges.
 
-- [ ] **F8.5.1** Only the visible range is fetched
-- [ ] **F8.5.2** Adjacent weeks prefetched
-- [ ] **F8.5.3** No layout shift when moving between weeks
+- [x] **F8.5.1** Only the visible range is fetched
+      `useCalendar` is keyed on the exact `{from, to, userId}` the visible
+      view needs; switching view or mechanic filter changes the query key
+      rather than filtering a wider fetch client-side.
+- [x] **F8.5.2** Adjacent weeks prefetched
+      An effect calls `prefetchCalendar` for the neighbouring range (±1 day or
+      ±1 week) on every navigation, keyed the same way the real query is.
+- [x] **F8.5.3** No layout shift when moving between weeks
+      Verified live: navigating to an already-prefetched adjacent week never
+      shows the loading skeleton (`[aria-busy="true"]` never appears —
+      `staleTime` 15 s comfortably covers the time between prefetch and the
+      staff member clicking "Nästa").
 
 <a id="f8-6"></a>
 
@@ -2039,14 +2140,39 @@ activation and acceptance are owned by F9.7.
 **Acceptance:** Booking confirmation and conflict recovery meet the iteration
 goal.
 
-- [ ] **F8.6.1** Turn a request into a scheduled booking in under thirty seconds
+- [x] **F8.6.1** Turn a request into a scheduled booking in under thirty seconds
       and record the walkthrough.
-- [ ] **F8.6.2** Drag a booking into an occupied slot, verify the 409
+      Verified live and in `e2e/bookings-calendar.spec.ts`: submit → inbox →
+      open → Bekräfta → pick tomorrow via the calendar → confirm, well under
+      30 s (the Playwright run itself, including the 3 s anti-spam wait,
+      completes in single-digit seconds once past that wait).
+- [x] **F8.6.2** Drag a booking into an occupied slot, verify the 409
       explanation and restore its original position.
+      Verified live (see the F8.3 note above for the bug this caught and
+      fixed): dragging one confirmed booking onto another's slot for the same
+      mechanic produces a real `23P01` from the exclusion constraint, the
+      toast shows `BOOKING_OVERLAP_MESSAGE` verbatim, and the card returns to
+      its exact original position.
 - [ ] **F8.6.3** Verify adjacent bookings and cancelled bookings follow the API
       availability rules.
-- [ ] **F8.6.4** Check a Sweden DST boundary, keyboard access and the day/week
+      **Not independently re-verified at the frontend layer.** The exclusion
+      constraint itself (adjacent, non-overlapping ranges succeed; a
+      `CANCELLED`/`NO_SHOW` booking does not occupy its slot) is B5's own
+      concern and is covered there (`BOOKING_STATUSES_NOT_OCCUPYING_A_SLOT`,
+      83 backend tests). The frontend adds no availability logic of its own —
+      it renders whatever the API returns and forwards whatever the API
+      decides (F8.3.4, F8.6.2) — but a frontend-level walkthrough of this
+      specific case (book adjacent, cancel, rebook the freed slot, confirm the
+      calendar reflects it) has not been recorded.
+- [x] **F8.6.4** Check a Sweden DST boundary, keyboard access and the day/week
       views on the tablet.
+      DST: `lib/admin/calendar.test.ts` asserts `isPastLocalDateTime` and
+      `addMinutesToLocalDateTime` across the 2026-03-29 spring-forward
+      transition. Keyboard: the reschedule e2e test changes date, time,
+      duration and mechanic, and saves, without a single pointer action.
+      Tablet: F8.4.1's 1180×820 screenshot; the week view scrolls
+      horizontally past that width by design (many mechanic columns × seven
+      days), the day view fits without scrolling.
 
 <a id="f8-7"></a>
 
@@ -2055,26 +2181,75 @@ goal.
 **Acceptance:** The previously reserved lookup and partner actions work with the
 mock API.
 
-- [ ] **F8.7.1** After B10.1–B10.4, connect the explicit vehicle-detail and
+- [x] **F8.7.1** After B10.1–B10.4, connect the explicit vehicle-detail and
       vehicle-create lookup actions reserved in F6; display cache age and
       provider failure states.
-- [ ] **F8.7.2** After B10.6, connect vehicle registration-number links and
+      Vehicle detail: a "Uppdatera från fordonsregistret" button
+      (`POST /vehicles/:id/vehicle-data/refresh`, `ADMIN`-only — disabled and
+      explained for a `MECHANIC`, the F7 precedent) with
+      `formatRelative(vehicle.dataFetchedAt)`. Vehicle creation: the same
+      button now calls the real public lookup (there is no staff endpoint for
+      a vehicle that does not exist yet) and pre-fills the form; not-found and
+      provider-unavailable both degrade to "fill in manually" rather than
+      blocking the form.
+- [x] **F8.7.2** After B10.6, connect vehicle registration-number links and
       article OE-number links reserved in F6/F7.
+      Vehicle detail renders every active `REGNR` partner link via
+      `buildPartnerUrl`; article detail renders every active `ARTICLE_NUMBER`
+      link per OE number.
 - [ ] **F8.7.3** Open external links with `rel="noopener noreferrer"`; use the
       shared URL builder and implement the copy-and-open fallback where needed.
+      The link and builder half is done (every partner link is a real
+      `<a target="_blank" rel="noopener noreferrer">` built with
+      `buildPartnerUrl`). The copy-and-open fallback is not built — its
+      trigger condition ("where needed") was not specified anywhere reachable
+      from this plan or `PROJECT_SPEC.md`, and no popup-blocking scenario was
+      observed in manual testing, so it was left rather than guessed at
+      (CLAUDE.md: ask rather than invent a requirement).
 - [ ] **F8.7.4** Verify all flows using the mock provider. The real paid
       provider still waits until Phase 6.
+      The public lookup path is verified live end to end against the real
+      mock-provider fixture, unmocked (`e2e/public-site.spec.ts`, "vehicle
+      lookup hero against the real backend"). The two F8.7.1 admin actions
+      (vehicle-detail refresh, create-dialog lookup) are typechecked and were
+      exercised manually during development but have no recorded browser
+      verification of their own — unlike the rest of F8, which has
+      screenshots or an e2e test backing every checked box.
+
+**A second, unrelated bug found and fixed while wiring the public lookup path
+this milestone reuses.** `VehicleLookup` (F2.2, the homepage hero) fetched its
+form token from `/public/booking-form-token` — the **booking** form's
+endpoint — instead of `/public/vehicle-lookup-form-token`. Each token's HMAC
+signature is bound to its purpose specifically so one form's token cannot
+unlock the other (`backend/src/lib/form-token.ts`); a token issued for
+`booking` fails `verifyFormToken` for `vehicle-lookup` with `BAD_SIGNATURE`
+every time. **Every public vehicle lookup on the homepage was broken**, and
+every existing e2e test for it stayed green throughout, because each one
+mocked `**/api/public/booking-form-token` — the same wrong endpoint the bug
+called — so the mock "worked" by accident regardless of which endpoint the
+code actually needed. Fixed by giving `usePublicFormToken` a required
+`purpose: 'booking' | 'vehicle-lookup'` parameter that resolves the correct
+endpoint, updating both call sites, and replacing the accidentally-correct
+mock with the right one — plus a new, deliberately **unmocked** test
+(`vehicle lookup hero against the real backend`) that exercises the real
+token endpoint and would have caught this on its own.
 
 **Iteration acceptance record**
 
 - [ ] **F8 Done** — every milestone and the iteration Definition of Done pass;
       both README status tables are updated.
+      The iteration's own stated Definition of Done ("a request becomes a
+      scheduled booking in under thirty seconds, and an overlapping drop is
+      refused with a clear message") holds, verified live. F8 is not marked
+      Done because F8.6 and F8.7 each have one named, unverified item
+      (F8.6.3's adjacent/cancelled walkthrough; F8.7.3's copy-fallback and
+      F8.7.4's admin-lookup browser verification) rather than a masked gap.
 
-| Field                       | Record                                                 |
-| --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+| Field                       | Record                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current milestone / blocker | F8.1–F8.5 done. F8.6.3 (adjacent/cancelled walkthrough), F8.7.3 (copy-and-open fallback, scope unspecified) and F8.7.4 (browser verification of the two F8.7.1 admin actions) remain.                                                                                                                                                                                                                                   |
+| Verification evidence       | 2026-09-16. `pnpm check` clean — typecheck, ESLint at `--max-warnings 0`, `pnpm -r test` (155 frontend + 710 backend + shared, 1 pre-existing skip), `type-coverage` 99.58% against the 99.5% floor. `pnpm exec playwright test` — new `e2e/bookings-calendar.spec.ts` (4/4) and the corrected `e2e/public-site.spec.ts` (16/16, including the new unmocked real-backend test) both green in isolation and together under parallel workers. Live verification beyond the automated suites: weekend/past-date calendar styling, phone/regnr customer-vehicle matching, drag success and drag-into-conflict-with-rollback, the unhandled-count badge live-updating, and both day/week views at a 1180×820 tablet viewport — each captured as a screenshot during this session. |
+| Completed on                | —                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 ---
 

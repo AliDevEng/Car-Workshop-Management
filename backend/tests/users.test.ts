@@ -8,7 +8,12 @@ import {
   expect,
   it,
 } from 'vitest';
-import { apiErrorSchema, paginatedResponseSchema, userSchema } from 'shared';
+import {
+  apiErrorSchema,
+  paginatedResponseSchema,
+  userRosterResponseSchema,
+  userSchema,
+} from 'shared';
 import { createTestApp, type TestApp } from './helpers/app.js';
 import { jsonBody } from './helpers/http.js';
 import { loginAs, seedUser, withAgent } from './helpers/auth.js';
@@ -203,6 +208,51 @@ describe('user management', () => {
 
     expect(userSchema.parse(jsonBody(response)).isActive).toBe(true);
     await loginAs(harness, {});
+  });
+});
+
+describe('staff roster (F8.2.2)', () => {
+  let harness: TestApp;
+
+  beforeAll(async () => {
+    harness = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await harness.close();
+  });
+
+  it('is readable by a MECHANIC, unlike the ADMIN-only user list', async () => {
+    const mechanic = await loginAs(harness, { role: 'MECHANIC' });
+
+    const response = await supertest(harness.app.server)
+      .get('/api/users/roster')
+      .set('cookie', mechanic.cookies.join('; '))
+      .expect(200);
+
+    const roster = userRosterResponseSchema.parse(jsonBody(response));
+    expect(roster.data.some((user) => user.id === mechanic.userId)).toBe(
+      true,
+    );
+    // Never a password hash, whatever the field is named.
+    expect(response.text).not.toContain('password');
+  });
+
+  it('excludes a deactivated user', async () => {
+    const admin = await loginAs(harness, { role: 'ADMIN' });
+    const inactive = await seedUser(harness, { isActive: false });
+
+    const response = await supertest(harness.app.server)
+      .get('/api/users/roster')
+      .set('cookie', admin.cookies.join('; '))
+      .expect(200);
+
+    const roster = userRosterResponseSchema.parse(jsonBody(response));
+    expect(roster.data.some((user) => user.id === inactive.id)).toBe(false);
+  });
+
+  it('refuses an unauthenticated request', async () => {
+    await supertest(harness.app.server).get('/api/users/roster').expect(401);
   });
 });
 

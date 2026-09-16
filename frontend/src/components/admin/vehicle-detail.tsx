@@ -2,15 +2,22 @@
 
 import {
   ClipboardListIcon,
+  ExternalLinkIcon,
   Link2Icon,
-  SearchIcon,
+  RefreshCwIcon,
   UserRoundIcon,
   WrenchIcon,
 } from 'lucide-react';
 import Link from 'next/link';
-import { nameSchema } from 'shared';
+import {
+  buildPartnerUrl,
+  nameSchema,
+  type OdometerReading,
+  type PartnerLink,
+} from 'shared';
 import { DetailLayout } from '@/components/admin/detail-layout';
 import { InlineField } from '@/components/admin/inline-field';
+import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { OdometerSparkline } from '@/components/admin/odometer-sparkline';
 import { PageHeader } from '@/components/admin/page-header';
 import { ReassignOwnerDialog } from '@/components/admin/reassign-owner-dialog';
@@ -19,11 +26,15 @@ import { ReservedSection } from '@/components/admin/reserved-section';
 import { inspectionStatus } from '@/components/admin/status';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { DetailSkeleton, EmptyState, ErrorState } from '@/components/admin/states';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ApiError } from '@/lib/api';
 import { schemaValidator, validateModelYear, validateVin } from '@/lib/admin/validators';
+import { useCurrentUser } from '@/lib/api/current-user';
+import { usePartnerLinks } from '@/lib/api/partner-links';
+import { useRefreshVehicleData } from '@/lib/api/vehicle-data';
 import { useOdometerReadings, useUpdateVehicle, useVehicle } from '@/lib/api/vehicles';
-import { formatDate } from '@/lib/format/date';
+import { formatDate, formatRelative } from '@/lib/format/date';
 import { formatOdometer } from '@/lib/format/odometer';
 
 const validateName = schemaValidator(nameSchema);
@@ -47,6 +58,10 @@ export function VehicleDetailPage({
   const vehicleQuery = useVehicle(vehicleId);
   const updateVehicle = useUpdateVehicle(vehicleId);
   const odometerQuery = useOdometerReadings(vehicleId);
+  const currentUserQuery = useCurrentUser();
+  const isAdmin = currentUserQuery.data?.role === 'ADMIN';
+  const refreshVehicleData = useRefreshVehicleData(vehicleId);
+  const partnerLinksQuery = usePartnerLinks({ isActive: true });
 
   const error =
     vehicleQuery.error === null
@@ -91,9 +106,22 @@ export function VehicleDetailPage({
     await updateVehicle.mutateAsync({ vin: value === '' ? undefined : value });
   }
 
+  async function handleRefreshVehicleData(): Promise<void> {
+    try {
+      const updated = await refreshVehicleData.mutateAsync();
+      notifySuccess(`Biluppgifter uppdaterade för ${updated.registrationNumberDisplay}.`);
+    } catch (error) {
+      notifyError(error);
+    }
+  }
+
   const readingsOldestFirst = [...(odometerQuery.data?.data ?? [])]
-    .sort((a, b) => a.readAt.localeCompare(b.readAt))
-    .map((reading) => reading.km);
+    .sort((a: OdometerReading, b: OdometerReading) => a.readAt.localeCompare(b.readAt))
+    .map((reading: OdometerReading) => reading.km);
+
+  const regNrPartnerLinks = (partnerLinksQuery.data?.data ?? []).filter(
+    (link: PartnerLink) => link.placeholderType === 'REGNR',
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -124,19 +152,19 @@ export function VehicleDetailPage({
                   required
                   validate={validateName}
                   value={vehicle.make}
-                  onSave={(value) => saveText('make', value)}
+                  onSave={(value: string) => saveText('make', value)}
                 />
                 <InlineField
                   label="Modell"
                   required
                   validate={validateName}
                   value={vehicle.model}
-                  onSave={(value) => saveText('model', value)}
+                  onSave={(value: string) => saveText('model', value)}
                 />
                 <InlineField
                   label="Variant"
                   value={vehicle.variant ?? ''}
-                  onSave={(value) => saveText('variant', value)}
+                  onSave={(value: string) => saveText('variant', value)}
                   placeholder="T.ex. R-Design"
                 />
                 <InlineField
@@ -155,25 +183,49 @@ export function VehicleDetailPage({
                 <InlineField
                   label="Motorkod"
                   value={vehicle.engineCode ?? ''}
-                  onSave={(value) => saveText('engineCode', value)}
+                  onSave={(value: string) => saveText('engineCode', value)}
                 />
                 <InlineField
                   label="Bränsle"
                   value={vehicle.fuelType ?? ''}
-                  onSave={(value) => saveText('fuelType', value)}
+                  onSave={(value: string) => saveText('fuelType', value)}
                 />
                 <InlineField
                   label="Första registrering"
                   type="date"
                   value={vehicle.firstRegistrationDate ?? ''}
-                  onSave={(value) => saveDate('firstRegistrationDate', value)}
+                  onSave={(value: string) => saveDate('firstRegistrationDate', value)}
                 />
 
-                <ReservedSection
-                  icon={SearchIcon}
-                  title="Biluppgifter från extern källa"
-                  message="Slagning mot fordonsregistret, cacheålder och källa kopplas in i F8.7 när B10.1–B10.4 finns. Ingen automatisk sökning sker."
-                />
+                <div className="flex flex-col gap-2 rounded-sharp border border-dashed border-border p-3">
+                  <p className="text-sm font-medium">
+                    Biluppgifter från fordonsregistret
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {vehicle.dataFetchedAt === null
+                      ? 'Aldrig hämtat.'
+                      : `Senast hämtat ${formatRelative(vehicle.dataFetchedAt)} (${formatDate(vehicle.dataFetchedAt)}).`}
+                  </p>
+                  {isAdmin ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="self-start"
+                      isPending={refreshVehicleData.isPending}
+                      onClick={() => {
+                        void handleRefreshVehicleData();
+                      }}
+                    >
+                      <RefreshCwIcon aria-hidden="true" />
+                      Uppdatera från fordonsregistret
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Endast administratörer kan hämta nya uppgifter.
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -186,13 +238,13 @@ export function VehicleDetailPage({
                   label="Senast besiktigad"
                   type="date"
                   value={vehicle.lastInspectionDate ?? ''}
-                  onSave={(value) => saveDate('lastInspectionDate', value)}
+                  onSave={(value: string) => saveDate('lastInspectionDate', value)}
                 />
                 <InlineField
                   label="Nästa besiktning senast"
                   type="date"
                   value={vehicle.nextInspectionDueDate ?? ''}
-                  onSave={(value) => saveDate('nextInspectionDueDate', value)}
+                  onSave={(value: string) => saveDate('nextInspectionDueDate', value)}
                 />
                 {vehicle.nextInspectionDueDate === null ? null : (
                   <div className="flex items-center gap-2">
@@ -211,11 +263,34 @@ export function VehicleDetailPage({
               message="Regelmotorns förslag, allvarlighetsgrad och möjligheten att acceptera eller avfärda dem kopplas in i F11.6, sedan B9 finns."
             />
 
-            <ReservedSection
-              icon={Link2Icon}
-              title="Partnerlänkar"
-              message="Snabblänkar till reservdelspartners kopplas in i F8.7, sedan B10.6 finns."
-            />
+            <Card className="rounded-soft">
+              <CardHeader>
+                <CardTitle>Partnerlänkar</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {regNrPartnerLinks.length === 0 ? (
+                  <EmptyState
+                    icon={Link2Icon}
+                    message="Inga partnerlänkar är konfigurerade än."
+                  />
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {regNrPartnerLinks.map((link: PartnerLink) => (
+                      <Button key={link.id} asChild variant="secondary" size="sm">
+                        <a
+                          href={buildPartnerUrl(link, vehicle.registrationNumber)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {link.name}
+                          <ExternalLinkIcon aria-hidden="true" />
+                        </a>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <ReservedSection
               icon={ClipboardListIcon}
@@ -269,7 +344,7 @@ export function VehicleDetailPage({
                 />
                 {(odometerQuery.data?.data.length ?? 0) === 0 ? null : (
                   <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-                    {odometerQuery.data?.data.slice(0, 5).map((reading) => (
+                    {odometerQuery.data?.data.slice(0, 5).map((reading: OdometerReading) => (
                       <li key={reading.id} className="flex justify-between gap-2">
                         <span className="tabular-nums">
                           {formatDate(reading.readAt)}

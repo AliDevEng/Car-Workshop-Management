@@ -7,6 +7,7 @@ import {
   updateUserInputSchema,
   userIdParamsSchema,
   userListQuerySchema,
+  userRosterResponseSchema,
   userSchema,
 } from 'shared';
 import { hashPassword } from '../../lib/password.js';
@@ -16,6 +17,7 @@ import {
   createUser,
   deactivateUser,
   getUser,
+  listActiveUserRoster,
   listUsers,
   reactivateUser,
   updateUser,
@@ -24,15 +26,28 @@ import {
 /**
  * Staff account management (PROJECT_SPEC.md §5.3, B2.6).
  *
- * Every route is `ADMIN`-only, declared per route so the guard and the
- * declaration cannot disagree (see plugins/auth.ts).
+ * Every route bar the roster below is `ADMIN`-only, declared per route so
+ * the guard and the declaration cannot disagree (see plugins/auth.ts).
  */
 const adminOnly = { auth: { role: 'ADMIN' } } as const;
+const authenticated = { auth: 'authenticated' } as const;
 
 const userListResponseSchema = paginatedResponseSchema(userSchema);
 
 export function registerUserRoutes(app: FastifyInstance): void {
   const routes = app.withTypeProvider<ZodTypeProvider>();
+
+  // A static path, registered before `/api/users/:id` for clarity — Fastify's
+  // router already disambiguates a static segment from a parametric one
+  // regardless of order, but the articles module sets this convention.
+  routes.get(
+    '/api/users/roster',
+    {
+      config: authenticated,
+      schema: { response: { 200: userRosterResponseSchema } },
+    },
+    async () => ({ data: await listActiveUserRoster(app.prisma) }),
+  );
 
   routes.get(
     '/api/users',

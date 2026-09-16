@@ -42,17 +42,20 @@ async function getErrorState(error: unknown): Promise<LookupState> {
 export function VehicleLookup() {
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [state, setState] = useState<LookupState>({ status: 'idle' });
-  const token = usePublicFormToken({ eager: false });
+  const token = usePublicFormToken({ purpose: 'vehicle-lookup', eager: false });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setState({ status: 'loading' });
     try {
-      const [
-        { vehicleLookupInputSchema, vehicleLookupResponseSchema },
-        { apiFetch },
+      const [sharedModule, apiModule]: [
+        typeof import('shared'),
+        typeof import('@/lib/api'),
       ] = await Promise.all([import('shared'), import('@/lib/api')]);
+      const { vehicleLookupInputSchema, vehicleLookupResponseSchema } =
+        sharedModule;
+      const { apiFetch } = apiModule;
       const input = vehicleLookupInputSchema.safeParse({
         registrationNumber,
         formToken: 'pending',

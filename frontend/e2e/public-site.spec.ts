@@ -18,10 +18,22 @@ async function fulfilJson(route: Route, body: unknown, status = 200) {
   });
 }
 
+/**
+ * The hero calls the vehicle-lookup token endpoint, not the booking form's —
+ * each purpose is bound into its own token's signature
+ * (`backend/src/lib/form-token.ts`), so a mock of the wrong one would let
+ * this suite pass while the real hero 400s on every submission. That
+ * happened here once already: this mock used to intercept
+ * `booking-form-token`, which made `VehicleLookup`'s pre-fix bug (it called
+ * the same wrong endpoint) invisible to this exact test file.
+ */
 async function mockToken(page: Page) {
-  await page.route('**/api/public/booking-form-token', async (route) => {
-    await fulfilJson(route, formToken);
-  });
+  await page.route(
+    '**/api/public/vehicle-lookup-form-token',
+    async (route) => {
+      await fulfilJson(route, formToken);
+    },
+  );
 }
 
 async function submitLookup(page: Page, registrationNumber = 'ABC 123') {
@@ -337,5 +349,22 @@ test.describe('vehicle lookup hero', () => {
     });
     await submitLookup(page, 'XYZ 987');
     await expect(page.getByText('Vi hittade ingen bil')).toBeVisible();
+  });
+});
+
+test.describe('vehicle lookup hero against the real backend', () => {
+  /**
+   * No mocks at all: a real form token from the real endpoint, verified by
+   * the real backend against the real mock vehicle-data provider fixture
+   * (`backend/src/integrations/vehicle-data/fixtures/ABC12D.json`). This is
+   * the test that would have caught the wrong-token-endpoint bug outright —
+   * every mocked test above kept passing straight through it.
+   */
+  test('finds a real fixture vehicle end to end', async ({ page }) => {
+    await page.goto('/');
+    await submitLookup(page, 'ABC 12D');
+    await expect(
+      page.getByRole('heading', { name: 'Volvo V70' }),
+    ).toBeVisible();
   });
 });
