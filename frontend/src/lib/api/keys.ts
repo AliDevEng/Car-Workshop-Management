@@ -53,4 +53,33 @@ export const queryKeys = {
     customerId: string,
     params: Readonly<Params>,
   ) => [...queryKeys.workOrdersRoot(), 'customer', customerId, params] as const,
+  quotesRoot: () => ['quotes'] as const,
+  quotes: <Params extends object>(params: Readonly<Params>) =>
+    [...queryKeys.quotesRoot(), params] as const,
+  quote: (id: string) => [...queryKeys.quotesRoot(), id] as const,
+  workOrderQuotes: <Params extends object>(
+    workOrderId: string,
+    params: Readonly<Params>,
+  ) => [...queryKeys.quotesRoot(), 'work-order', workOrderId, params] as const,
+  serviceProtocolsRoot: () => ['service-protocols'] as const,
+  serviceProtocols: <Params extends object>(params: Readonly<Params>) =>
+    [...queryKeys.serviceProtocolsRoot(), params] as const,
+  serviceProtocol: (id: string) =>
+    [...queryKeys.serviceProtocolsRoot(), id] as const,
+  workOrderServiceProtocols: <Params extends object>(
+    workOrderId: string,
+    params: Readonly<Params>,
+  ) =>
+    [
+      ...queryKeys.serviceProtocolsRoot(),
+      'work-order',
+      workOrderId,
+      params,
+    ] as const,
+  checklistTemplatesRoot: () => ['checklist-templates'] as const,
+  checklistTemplates: <Params extends object>(params: Readonly<Params>) =>
+    [...queryKeys.checklistTemplatesRoot(), params] as const,
+  checklistTemplate: (id: string) =>
+    [...queryKeys.checklistTemplatesRoot(), id] as const,
+  document: (id: string) => ['documents', id] as const,
 };

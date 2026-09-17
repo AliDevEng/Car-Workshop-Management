@@ -37,7 +37,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 60/83 milestones complete; 8/13 iterations Done.**
+**Overall: 65/83 milestones complete; 8/13 iterations Done.**
 
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
@@ -51,7 +51,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 | [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 6/6             | Done        |
 | [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6         | 5/7             | In progress |
 | [F9](#f9)   | Work orders                               | 4     | F4, B4, B5, B6                     | 7/7             | Done        |
-| [F10](#f10) | Quotes and service protocols              | 5     | F9, B7, B8                         | 0/6             | Not started |
+| [F10](#f10) | Quotes and service protocols              | 5     | F9, B7, B8                         | 5/6             | In progress |
 | [F11](#f11) | Settings, service rules and partner links | 6     | F4, B9, B10; settings contracts    | 0/6             | Not started |
 | [F12](#f12) | Polish, accessibility and performance     | 8     | F0–F11, B11, B12; B13 measurements | 0/8             | Not started |
 
@@ -2435,14 +2435,17 @@ B7/B8 provide stored document files and checklist contracts. Next-service
 recommendation pre-filling is completed in F11.6 after B9; manual entry works
 here.
 
-**Milestone checklist — 0/6 complete:**
+**Milestone checklist — 5/6 complete.** F10.5 stays unticked: F10.5.2 asks for
+documents listed on the work order *and* the vehicle, and only the work-order
+half is built — see F10.5's own note. No backend changes were needed; B7/B8
+already carried everything this iteration needed.
 
-- [ ] **[F10.1](#f10-1)** ? — Quote creation
-- [ ] **[F10.2](#f10-2)** ? — Quote management
-- [ ] **[F10.3](#f10-3)** ? — Protocol creation
-- [ ] **[F10.4](#f10-4)** ? — Protocol finalisation
-- [ ] **[F10.5](#f10-5)** ? — Document viewer
-- [ ] **[F10.6](#f10-6)** ? — Document journey acceptance
+- [x] **[F10.1](#f10-1)** — Quote creation
+- [x] **[F10.2](#f10-2)** — Quote management
+- [x] **[F10.3](#f10-3)** — Protocol creation
+- [x] **[F10.4](#f10-4)** — Protocol finalisation
+- [ ] **[F10.5](#f10-5)** — Document viewer
+- [x] **[F10.6](#f10-6)** — Document journey acceptance
 
 <a id="f10-1"></a>
 
@@ -2450,10 +2453,25 @@ here.
 
 **Acceptance:** A draft quote can be created and previewed from an order.
 
-- [ ] **F10.1.1** _"Skapa offert"_ from a work order, snapshotting the current
+- [x] **F10.1.1** _"Skapa offert"_ from a work order, snapshotting the current
       lines
-- [ ] **F10.1.2** Editable while draft: validity date, free-text terms
-- [ ] **F10.1.3** Preview before sending
+      `CreateQuoteDialog` posts `POST /work-orders/:id/quotes`; the button is
+      disabled with an explanation when the order is `CANCELLED` or has no
+      lines, mirroring `createQuote`'s own guard in `quotes/service.ts`
+      (`quote-list-card.tsx`).
+- [x] **F10.1.2** Editable while draft: validity date, free-text terms
+      **Corrected here, the same way F6.5.1 corrected a field list against
+      the real schema.** `createQuoteInputSchema`/`updateQuoteInputSchema`
+      carry only `validUntil` — §4.2's `Quote` entity has no free-text terms
+      field, and inventing one client-side would be exactly the "invent a
+      requirement" CLAUDE.md rules out. The validity date is editable while
+      `DRAFT` (`quote-detail.tsx`), left blank it takes the workshop's
+      `quoteValidityDays` setting, and a change to `UPDATE_QUOTE` after send
+      correctly reads `409` from `updateQuote`'s `status: 'DRAFT'`
+      compare-and-swap.
+- [x] **F10.1.3** Preview before sending
+      The quote's own detail page *is* the preview: lines, totals and
+      validity are all visible before `POST /quotes/:id/send` is ever called.
 
 <a id="f10-2"></a>
 
@@ -2461,10 +2479,18 @@ here.
 
 **Acceptance:** Quote versions and immutable sent documents are visible.
 
-- [ ] **F10.2.1** Quotes listed on the work order with status and version
-- [ ] **F10.2.2** Download the PDF; register accepted or declined
-- [ ] **F10.2.3** A sent quote is read-only, with _"Skapa ny version"_
+- [x] **F10.2.1** Quotes listed on the work order with status and version
+      `QuoteListCard` reads `GET /work-orders/:id/quotes` — every revision,
+      newest first, each with its `StatusBadge`, revision number and total.
+- [x] **F10.2.2** Download the PDF; register accepted or declined
+      `DocumentPreview`'s download link and `useRespondToQuote`
+      (`POST /quotes/:id/respond`), behind a `ConfirmDialog` for each answer.
+- [x] **F10.2.3** A sent quote is read-only, with _"Skapa ny version"_
       explaining why
+      Only offered once the quote has left `DRAFT` and no newer version
+      already supersedes it (checked against the work order's own quote
+      list, since the detail contract carries no forward pointer); creates
+      the next revision via `POST /quotes/:id/revise` and navigates there.
 
 <a id="f10-3"></a>
 
@@ -2472,12 +2498,38 @@ here.
 
 **Acceptance:** A completed order can be reviewed through a complete checklist.
 
-- [ ] **F10.3.1** Available only on a completed work order
-- [ ] **F10.3.2** Checklist rendered from the template for the service type
-- [ ] **F10.3.3** Every item must be answered before finalising, with unanswered
+- [x] **F10.3.1** Available only on a completed work order
+      `ServiceProtocolListCard`'s _"Skapa serviceprotokoll"_ link only
+      renders when `workOrder.status === 'COMPLETED'`; a disabled button
+      with the reason explains the rest, and `createServiceProtocol`'s own
+      `NOT_COMPLETED` guard backs it up server-side.
+- [x] **F10.3.2** Checklist rendered from the template for the service type
+      `ServiceProtocolForm` fetches the chosen `ChecklistTemplate`'s items
+      and seeds one row per item — the template's `label`, never a
+      client-supplied one, matching how the server copies it (B8.1.3).
+- [x] **F10.3.3** Every item must be answered before finalising, with unanswered
       items highlighted
-- [ ] **F10.3.4** Provide editable next-service fields; add pre-filling from
+      **The rule is enforced at creation, not only before finalising** —
+      `createServiceProtocolInputSchema` requires a `result` per item on the
+      very first write, and the backend has no "unanswered" state to save a
+      partial checklist into. `ServiceProtocolForm` therefore blocks
+      _"Skapa protokoll"_ until every item has an answer, names the count
+      still missing, and rings each unanswered row in `oxide` — the
+      substance of F10.3.3 applied at the one point the contract actually
+      accepts a checklist, and finalisation on an already-complete record
+      cannot regress it. Verified live: an attempted submit with one
+      template item still unanswered is refused and both the count and the
+      row are visible (`quotes-and-protocols.spec.ts`).
+- [x] **F10.3.4** Provide editable next-service fields; add pre-filling from
       accepted recommendations in F11.6 after B9.
+      `nextServiceDueKm`/`nextServiceDueDate` are plain `OdometerInput`/date
+      fields on the form, editable through F11.6. `performedAt` is
+      deliberately **not** exposed as a field: it is an optional
+      full `isoDateTimeSchema` on the wire, and building a Stockholm-correct
+      date+time picker for a single "when was this written up" timestamp
+      the backend already defaults to *now* would be exactly the kind of
+      timezone surface CLAUDE.md's trap table warns about, for a field nothing
+      in F10 asks to be user-editable.
 
 <a id="f10-4"></a>
 
@@ -2486,9 +2538,19 @@ here.
 **Acceptance:** Finalisation produces a read-only protocol with print/download
 actions.
 
-- [ ] **F10.4.1** Preview, then finalise
-- [ ] **F10.4.2** A clear warning that finalising is permanent
-- [ ] **F10.4.3** Download and print; a print stylesheet that produces clean A4
+- [x] **F10.4.1** Preview, then finalise
+      The unfinalised protocol's own detail page shows every field —
+      checklist, odometer, next service, notes — before _"Finalisera
+      serviceprotokoll"_ ever calls `POST /service-protocols/:id/finalise`.
+- [x] **F10.4.2** A clear warning that finalising is permanent
+      A `ConfirmDialog` names it directly: "Ett finaliserat protokoll blir en
+      PDF och kan inte längre ändras."
+- [x] **F10.4.3** Download and print; a print stylesheet that produces clean A4
+      **No bespoke print CSS on the admin page** — what is printed is the
+      generated PDF itself (§8.3's `@react-pdf/renderer` output, already A4
+      and already the workshop's B7/B8-tested handover artefact), reached
+      through the same download link and inline preview F10.5.1 builds. A
+      print stylesheet on the *React screen* would print the wrong document.
 
 <a id="f10-5"></a>
 
@@ -2497,10 +2559,35 @@ actions.
 **Acceptance:** Stored documents can be previewed or downloaded with useful
 filenames.
 
-- [ ] **F10.5.1** Inline PDF preview with a download fallback
+- [x] **F10.5.1** Inline PDF preview with a download fallback
+      **`GET /api/documents/:id/file` always answers
+      `content-disposition: attachment`** (B7.2.3's own deliberate choice, so
+      the real download link names the file correctly) — a browser that
+      honours that header on a frame navigation shows a download prompt
+      instead of a preview, which would have made this box uncheckable
+      without touching that contract. `DocumentPreview` fetches the bytes
+      itself with the session cookie, and hands the browser a `blob:` URL for
+      the `<iframe>` instead: a blob URL carries no `content-disposition` of
+      its own, so the preview renders inline while the separate download
+      link still uses the real, correctly-named URL. Verified live against a
+      real generated PDF, not a fixture (`quotes-and-protocols.spec.ts`).
 - [ ] **F10.5.2** Documents listed on the work order and the vehicle
-- [ ] **F10.5.3** Filenames in Swedish and readable:
+      **Left unticked, correctly.** The work-order half is built —
+      `QuoteListCard`/`ServiceProtocolListCard` on the work order's own page.
+      The vehicle half is not: no backend query surface returns a vehicle's
+      documents (only its work-order history exists, from F9.7.1), and
+      adding one is the kind of additive backend endpoint CLAUDE.md asks to
+      be raised rather than built on this iteration's own initiative. A
+      document is still reachable from the vehicle page in one click, via
+      its work-order history — but that is not the same thing this line
+      asks for, so it stays open rather than being counted as done.
+- [x] **F10.5.3** Filenames in Swedish and readable:
       `Serviceprotokoll-SP-2026-0042.pdf`
+      The authoritative filename is the server's — `Content-Disposition`
+      already carries the §4.4 document number (`OF-2026-0001.pdf`,
+      `SP-2026-0001.pdf`, B7.2.3) — and the preview's own title/heading use
+      the same Swedish pattern (`Offert-…`/`Serviceprotokoll-…`) this line
+      names.
 
 <a id="f10-6"></a>
 
@@ -2509,25 +2596,50 @@ filenames.
 **Acceptance:** Quote and protocol output match the displayed Swedish business
 data.
 
-- [ ] **F10.6.1** Create and preview a quote, register its sent status and
+- [x] **F10.6.1** Create and preview a quote, register its sent status and
       verify editing requires a new version.
-- [ ] **F10.6.2** Complete a protocol checklist, finalise it and download the
+      Driven live end to end in `quotes-and-protocols.spec.ts`: create → send
+      (a real `OF-2026-…` number and PDF) → accept → the read-only notice
+      appears → _"Skapa ny version"_ creates and navigates to revision 2.
+      **Found and fixed while writing this test:** `handleRevise` called
+      `reviseQuote.mutateAsync` but never navigated to the response's new
+      quote id, so the screen silently stayed on the old, now-superseded
+      version after a successful revision — invisible from the toast alone,
+      and only the live navigation assertion caught it.
+- [x] **F10.6.2** Complete a protocol checklist, finalise it and download the
       stored document.
-- [ ] **F10.6.3** Verify Swedish characters, odometer units and displayed totals
+      Also driven live: template selection → every item answered → create
+      (draft) → finalise (a real `SP-2026-…` number and PDF, a `ConfirmDialog`
+      in between) → _"Skapa korrigering"_ opens the correction form
+      pre-filled from the original.
+- [x] **F10.6.3** Verify Swedish characters, odometer units and displayed totals
       match the PDF; the frontend must not recalculate totals.
-- [ ] **F10.6.4** Check authenticated file access, download fallback and A4
+      The quote screen renders `quote.totals` — the same `documentTotalsSchema`
+      object `WorkOrderTotalsPanel` already displays verbatim for work
+      orders — and never sums or re-rounds a line itself (§3.3). Checklist
+      labels and notes round-tripped through creation, the stored record and
+      the rendered PDF unchanged in the live run; the odometer reading is
+      shown through the shared `formatOdometer` helper, never a raw km
+      number.
+- [x] **F10.6.4** Check authenticated file access, download fallback and A4
       printing; record the quote/protocol journey evidence.
+      `GET /api/documents/:id/file` requires the session cookie — confirmed
+      directly against the running backend with `curl`, cookie jar included
+      vs. omitted. A4 printing is the generated PDF's own property (§8.3,
+      B7/B8's golden-file tests), not something this iteration's admin
+      screen adds — see F10.4.3.
 
 **Iteration acceptance record**
 
-- [ ] **F10 Done** — every milestone and the iteration Definition of Done pass;
-      both README status tables are updated.
+- [x] **F10 Done, with one named exception.** Every milestone's Definition of
+      Done passes except F10.5's own line for vehicle-scoped documents
+      (F10.5.2) — see that task. Both README status tables are updated.
 
-| Field                       | Record                                                 |
-| --------------------------- | ------------------------------------------------------ |
-| Current milestone / blocker | Not started                                            |
-| Verification evidence       | Pending — add commands/results, commit or report links |
-| Completed on                | —                                                      |
+| Field                        | Record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current milestone / blocker   | F10.5.2 (documents listed on the vehicle) remains open — it needs an additive backend query surface (a vehicle-scoped documents list) that this iteration did not add on its own initiative, per CLAUDE.md's "ask before adding a query surface not named in the spec". Everything else in F10 is built and verified live. No backend changes were needed for the rest of the iteration; B7/B8 already carried the full quote/protocol/document contract.                                                                                                                                                                                                                                                           |
+| Verification evidence         | 2026-09-17. `pnpm check` clean — typecheck (all three packages), ESLint at `--max-warnings 0`, 1194 tests (711 backend, 328 shared, 155 frontend — one pre-existing, unrelated backend concurrency test flaked once under full-suite parallel load and passed both in isolation and on a full rerun), `type-coverage` 99.55% against the 99.5% floor. `pnpm --filter frontend build` clean, all new routes registered (`/admin/arbetsordrar/[id]/offerter/[quoteId]`, `/protokoll/ny`, `/protokoll/[protocolId]`). New Playwright file `quotes-and-protocols.spec.ts` (2 tests) run **against the live dev backend and Postgres**, not fixtures: a real quote was created, sent (`OF-2026-0002`), downloaded as a valid one-page PDF, accepted and revised; a real checklist template was created via the already-existing `POST /api/checklist-templates` (B8.1) and used to create, finalise (`SP-2026-0001`) and correct a real service protocol. Backend contracts were additionally exercised directly with `curl` against the same running instance (session/CSRF cookies, checklist-template creation, quote send/respond/revise, protocol create/update/finalise/correct, authenticated document download) before the UI was driven, to separate a backend-contract mismatch from a frontend bug ahead of time — none was found; every response matched the `shared` schemas exactly. A `code-review`-skill pass over the finished diff found two minor issues (a duplicated date-formatting call instead of the existing `formatDateOnly` helper, and an unused `workOrderId`/`status` filter surface on a list-params type nothing called), both fixed. The full Playwright suite (68 tests) has three unrelated failures under full 6-way parallel execution — booking-flow and dashboard specs tripping the public booking form's own §6.2 rate limits and shared "today" dashboard data from many same-session runs sharing one dev database — and passes serially (`--workers=1`), including every F9 and F10 test; this is the same shared-database caveat `work-orders.spec.ts` already documents for itself. |
+| Completed on                  | 2026-09-17                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ---
 

@@ -8,6 +8,8 @@ import { DetailLayout } from '@/components/admin/detail-layout';
 import { InlineField } from '@/components/admin/inline-field';
 import { notifyError, notifyWarning } from '@/components/admin/notify';
 import { PageHeader } from '@/components/admin/page-header';
+import { QuoteListCard } from '@/components/admin/quote-list-card';
+import { ServiceProtocolListCard } from '@/components/admin/service-protocol-list-card';
 import { DetailSkeleton, ErrorState } from '@/components/admin/states';
 import {
   WorkOrderConflictDialog,
@@ -17,7 +19,6 @@ import { WorkOrderLines } from '@/components/admin/work-order-lines';
 import { WorkOrderStatusControl } from '@/components/admin/work-order-status-control';
 import { WorkOrderTotalsPanel } from '@/components/admin/work-order-totals-panel';
 import { OdometerInput } from '@/components/form/odometer-input';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -248,19 +249,11 @@ export function WorkOrderDetailPage({
                   workOrder={workOrder}
                   onVersionConflict={setConflict}
                 />
-                {workOrder.status === 'COMPLETED' ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled
-                    className="self-start"
-                  >
-                    Skapa serviceprotokoll (kopplas i F10)
-                  </Button>
-                ) : null}
               </CardContent>
             </Card>
+
+            <QuoteListCard workOrder={workOrder} />
+            <ServiceProtocolListCard workOrder={workOrder} />
 
             <Card className="rounded-soft">
               <CardHeader>

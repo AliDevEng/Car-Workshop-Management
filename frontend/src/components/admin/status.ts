@@ -148,6 +148,20 @@ export function quoteStatus(status: QuoteStatus): StatusDescriptor {
 }
 
 /**
+ * A service protocol has no `status` enum of its own (§4.2) — only
+ * `finalisedAt`, nullable until §6.7's finalisation. Modelled here rather
+ * than inline at each call site, for the same reason every other status is:
+ * one place decides what colour "not finalised yet" is.
+ */
+export function serviceProtocolStatus(
+  finalisedAt: string | null,
+): StatusDescriptor {
+  return finalisedAt === null
+    ? { label: 'Utkast', meaning: 'neutral' }
+    : { label: 'Finaliserad', meaning: 'done' };
+}
+
+/**
  * A vehicle's inspection due date, coloured by the same fixed map (F6.4.3).
  *
  * §9.2's palette table names `hivis` for "overdue inspections" explicitly —

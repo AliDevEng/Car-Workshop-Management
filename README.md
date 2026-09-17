@@ -188,11 +188,12 @@ records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**60/83 frontend milestones are complete as of 2026-09-16:** all seven of F0's,
+**65/83 frontend milestones are complete as of 2026-09-17:** all seven of F0's,
 all six of F1's, five of F2's six milestones, all six of F3's milestones,
 all six of F4's milestones, all six of F5's milestones, all six of F6's
-milestones, all six of F7's milestones, five of F8's seven milestones, and
-all seven of F9's. F0, F1, F3, F4, F5, F6, F7 and F9 are Done. F2's public layout, service pages, SEO,
+milestones, all six of F7's milestones, five of F8's seven milestones,
+all seven of F9's, and five of F10's six. F0, F1, F3, F4, F5, F6, F7 and F9
+are Done. F2's public layout, service pages, SEO,
 recorded performance budget and — as of this iteration — the live lookup hero
 are complete; only the about page's real owner photographs remain, so F2 stays
 Blocked on that alone. F3 replaces
@@ -297,6 +298,24 @@ rapid reorder clicks able to race on a stale line order with nothing to stop
 them. Verification evidence — including a live two-browser-context
 concurrency run and a direct API-level idempotent-retry check — is recorded
 in `frontend/README.md`'s F9 iteration record.
+**F10 replaces the disabled "Skapa serviceprotokoll" placeholder** on the
+work-order screen and adds the quote and service-protocol screens B7/B8 had
+no frontend for: a work-order-scoped quote list with status and version,
+a quote detail page (editable validity while draft, send, the customer's
+recorded answer, and a new version once sent), a checklist-driven protocol
+creation and correction form (every item must be answered before the record
+can even be created — the only point the backend accepts a checklist at all
+— with unanswered items highlighted), a protocol detail page (editable
+before finalisation, permanent after, with a correction path), and an inline
+PDF preview with a working download link for both document types. No
+backend changes were needed; B7/B8 already carried the full contract. **One
+real bug was found and fixed while writing the live verification, not
+merely by running the code:** creating a new quote version navigated
+nowhere, silently leaving staff looking at the superseded one. F10.5.2
+(documents listed on the vehicle, not only the work order) stays open — it
+needs a backend query surface this iteration did not add unasked — so F10 is
+In progress at 5/6 rather than Done; see its own row in
+`frontend/README.md`.
 
 **Phase 0 has one item left in total: B0.9.3.** It needs a repository owner
 (branch protection, and the workflow running on a pull request), not code.
@@ -347,7 +366,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Blocked
 | F8 | Calendar and booking requests | 3 | ⬜ |
 | F5 | Dashboard | 4 | ✅ (6/6 — the admin start page now reads the typed B6 dashboard contract with a date-keyed TanStack query, renders today's bookings, action counts, inspection and low-stock attention cards, links every card to a real filtered admin page, and covers seeded, empty, loading, populated and retryable error states in Playwright; 3 dashboard browser checks green on 2026-09-14) |
 | F9 | Work orders | 4 | ✅ (7/7 — a work-order list (server-side status/mechanic filters, a capped client-filtered report fetch for "active work" and date ranges), a detail page with autosaved header fields, a legal-transitions-only status control and in/out `OdometerInput`; lines addable via article search, free text or labour, inline-edited, drag-or-keyboard-reordered and deleted, locked once `COMPLETED`/`CANCELLED`; a backend-only totals panel; completion behind a confirmation naming the stock it will deduct, guarded by an `Idempotency-Key` held per attempt across every status transition, not completion alone; a version-conflict dialog on header/status writes offering to keep editing or reload; and the F6.4.6 history placeholders and the booking "Starta arbete" placeholder both now real. No backend changes needed. One real bug (a report-mode fetch exceeding the backend's own query-limit cap, 400ing the default view) found live; five more found and fixed by a `code-review`-skill pass. 3 new Playwright tests, including a real two-browser-context concurrency run and a direct API-level idempotent-retry check) |
-| F10 | Quotes and service protocols | 5 | ⬜ |
+| F10 | Quotes and service protocols | 5 | 🟨 (5/6 — quote creation, management, protocol creation/finalisation, and the live document journey are built and verified against the running backend; F10.5's vehicle-scoped document listing remains open, needing an additive backend query surface not built on this iteration's own initiative) |
 | F11 | Settings, service rules, partner links | 6 | ⬜ |
 | F12 | Polish, accessibility and performance | 8 | ⬜ |
 
