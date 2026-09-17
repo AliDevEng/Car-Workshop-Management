@@ -36,6 +36,11 @@ const nextConfig: NextConfig = {
   // does not compile workspace packages by default (PROJECT_SPEC.md §2.1).
   transpilePackages: ['shared'],
 
+  // A self-contained `.next/standalone` server with only the dependencies it
+  // actually traces, rather than the full `node_modules` tree — what
+  // `frontend/Dockerfile` copies into the production image (B12.1).
+  output: 'standalone',
+
   images: {
     qualities: [60, 75],
   },

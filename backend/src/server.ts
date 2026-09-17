@@ -2,6 +2,7 @@ import { buildApp } from './app.js';
 import { loadDotEnv } from './config/dotenv.js';
 import { loadEnv } from './config/env.js';
 import { startScheduledJobs } from './jobs/scheduler.js';
+import { initSentry } from './lib/sentry.js';
 
 /**
  * Process entry point. Everything that binds a port, reads a file or installs
@@ -10,6 +11,7 @@ import { startScheduledJobs } from './jobs/scheduler.js';
 
 loadDotEnv();
 const env = loadEnv();
+initSentry(env);
 
 const app = await buildApp({ env });
 

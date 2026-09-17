@@ -1,0 +1,201 @@
+# Production stack (B12.1.3, PROJECT_SPEC.md §2.3): Postgres, the backend and
+# frontend containers, and Caddy in front on one origin. Run from the
+# repository root:
+#   docker compose -f infra/docker-compose.yml --project-directory . up -d
+#
+# `--project-directory .` is required, not cosmetic: this file lives under
+# infra/, but `.env` lives at the repository root, and `--project-directory`
+# is what both the `${POSTGRES_PASSWORD}`-style substitution below *and*
+# `env_file: .env` on the backend service resolve against. Without it,
+# Compose defaults the project directory to this file's own folder and
+# `.env` resolves one level short — found running this stack to verify B12,
+# not assumed. `infra/scripts/backup.sh` and `restore.sh` already pass it.
+#
+# Every build `context:` below is `.`, meaning the repository root once
+# `--project-directory .` is in effect — not this file's own `infra/`
+# directory. This is a pnpm workspace monorepo and both Dockerfiles need
+# `shared/` alongside their own package, so the build context has to be the
+# repository root even though each Dockerfile itself lives under `backend/`
+# or `frontend/` (`dockerfile:` points at it). The Caddyfile bind mount below
+# is spelled `./infra/Caddyfile` for the identical reason.
+#
+# No `TZ` anywhere, deliberately, matching `infra/docker-compose.dev.yml`:
+# containers run UTC and every conversion to Europe/Stockholm is explicit in
+# code (PROJECT_SPEC.md §2.1, §3.6, §8.6).
+
+name: verkstad
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-verkstad}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-verkstad}
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-verkstad} -d ${POSTGRES_DB:-verkstad}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # Not published to the host. A workshop's only customer database has no
+    # reason to be reachable from outside the Compose network; an operator
+    # who needs to reach it uses `docker compose exec postgres psql` or an SSH
+    # tunnel, not an open port (PROJECT_SPEC.md §5.4).
+    logging:
+      driver: json-file
+      options:
+        # Log rotation (B12.6.2): without a cap, Pino's JSON-per-line output
+        # on a long-lived container grows without bound on the VPS's one disk.
+        max-size: '10m'
+        max-file: '5'
+
+  # `prisma migrate deploy`, run once to completion before `backend` is
+  # allowed to start (B12.3.1). `restart: "no"` is load-bearing: a migration
+  # that fails must stay failed and visible in `docker compose ps`/logs, not
+  # be silently retried by Compose into a crash loop that looks like it might
+  # still be working.
+  migrate:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: migrate
+    restart: 'no'
+    # The full `.env`, not just DATABASE_URL: `migrate deploy` itself needs
+    # nothing else, but this same image/service is also how an operator runs
+    # `prisma db seed` or another one-off CLI command
+    # (`docker compose run --rm migrate db seed`), and `loadEnv()` — imported
+    # transitively by `prisma/seed.ts` — refuses to boot without every
+    # required variable. Found running the seed this way to verify B12.2.4,
+    # not assumed.
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-verkstad}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verkstad}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Overrides of the `.env` values that only make sense inside Compose —
+      # the hostname Postgres and the browser-facing address, and the two
+      # settings B12 itself turns on (root README, `.env.example`).
+      #
+      # NODE_ENV is repeated here deliberately even though the image already
+      # sets it: `environment:` wins over both `env_file` and the image's own
+      # `ENV`, so without this line a developer's own `.env` (NODE_ENV=
+      # development, for `pnpm dev`) would silently downgrade the production
+      # container the moment `env_file` pulled it in — found running this
+      # stack locally to verify B12, not assumed.
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-verkstad}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verkstad}?schema=public
+      TRUST_PROXY: 'true'
+      STORAGE_PATH: /repo/backend/storage
+    volumes:
+      - storage:/repo/backend/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Healthcheck is the one declared in `backend/Dockerfile` — not restated
+    # here, because a `healthcheck:` key in Compose replaces the image's
+    # entirely rather than overriding individual fields, and the image's own
+    # `test` is what this service actually needs.
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    environment:
+      # The one frontend-only variable (PROJECT_SPEC.md §2.3): server
+      # components call the backend directly over the Compose network, never
+      # through Caddy. There is deliberately no NEXT_PUBLIC_API_URL — browser
+      # code always calls the relative /api path Caddy routes.
+      INTERNAL_API_URL: http://backend:3001
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp' # HTTP/3
+    environment:
+      # Read by the Caddyfile as `{$DOMAIN:localhost}` (B12.2). Unset, Caddy
+      # serves `localhost` with its own internal CA — enough to verify the
+      # proxy and the cookie behaviour below without a public domain. Set a
+      # real one in `.env` and Caddy requests a Let's Encrypt certificate for
+      # it automatically; nothing else in this file changes.
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      # Caddy's own admin API, not the public site: it answers as soon as the
+      # config has loaded, independent of DNS/ACME/TLS state, which is the
+      # part of "is Caddy itself up" this container can actually attest to
+      # (B12.1.4).
+      test: ['CMD', 'curl', '-sf', 'http://127.0.0.1:2019/config/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+volumes:
+  postgres-data:
+    name: verkstad-postgres-data
+  storage:
+    name: verkstad-storage
+  caddy-data:
+    name: verkstad-caddy-data
+  caddy-config:
+    name: verkstad-caddy-config

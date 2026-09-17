@@ -21,6 +21,14 @@ allowBuilds:
   ssh2: false
 
 # pnpm 12 holds back packages published very recently as a supply-chain
-# precaution. This release was allowed through on 2026-09-07.
+# precaution.
 minimumReleaseAgeExclude:
+  # Allowed through 2026-09-07.
   - lucide-react@1.42.0
+  # @sentry/node and its four transitive workspace deps, added for B12.6.1.
+  # Allowed through 2026-09-17.
+  - '@sentry/core@10.75.0'
+  - '@sentry/node-core@10.75.0'
+  - '@sentry/node@10.75.0'
+  - '@sentry/opentelemetry@10.75.0'
+  - '@sentry/server-utils@10.75.0'

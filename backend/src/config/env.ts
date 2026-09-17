@@ -40,6 +40,11 @@ const envShapeSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
   LOG_LEVEL: logLevelSchema.default('info'),
 
+  // Optional (PROJECT_SPEC.md §8.5, B12.6.1). Error tracking is wired but
+  // stays off — `lib/sentry.ts` never calls `Sentry.init` — until a real DSN
+  // is supplied.
+  SENTRY_DSN: z.url().optional(),
+
   /**
    * Whether to read the client address from `X-Forwarded-For`.
    *

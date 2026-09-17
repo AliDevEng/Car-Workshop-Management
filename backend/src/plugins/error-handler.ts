@@ -18,6 +18,7 @@ import {
   isPrismaKnownRequestError,
   uniqueConstraintFields,
 } from '../lib/prisma-errors.js';
+import { captureException } from '../lib/sentry.js';
 
 /**
  * The single error handler for the API (PROJECT_SPEC.md §3.7).
@@ -233,6 +234,7 @@ function send(
   if (mapped.unexpected) {
     // The stack goes to the log, never to the client (§3.7).
     request.log.error({ err: error }, 'Unhandled error');
+    captureException(error, request.id);
   } else {
     request.log.info(
       { errCode: mapped.code, statusCode: mapped.statusCode },

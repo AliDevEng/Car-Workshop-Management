@@ -1,0 +1,27 @@
+# Build context for both backend/Dockerfile and frontend/Dockerfile (root
+# context, so `shared` is reachable — B12.1). Keep this in sync with
+# .gitignore's reasoning: anything generated, anything secret, never sent to
+# the Docker daemon.
+
+**/node_modules
+**/.pnpm-store
+**/dist
+**/.next
+**/coverage
+**/playwright-report
+**/blob-report
+**/test-results
+backend/src/generated
+storage
+infra/backups
+pgdata
+*.log
+.git
+.github
+.vscode
+.idea
+.claude
+tmp
+*.env
+*.env.*
+!.env.example

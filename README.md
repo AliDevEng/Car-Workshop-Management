@@ -163,11 +163,11 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **78/92 backend milestones are complete as of 2026-09-14**: nine
+is complete. **84/92 backend milestones are complete as of 2026-09-17**: nine
 of B0's ten, all six of B1's, all seven of B2's, all six of B3's, all six of
 B4's, all six of B5's, all eight of B6's, all six of B7's, all six of B8's,
-all seven of B9's, five of B10's six, and all six of B11's. B1, B2, B3, B4,
-B5, B6, B7, B8, B9 and B11 are Done. B9's own Definition of Done (100% branch
+all seven of B9's, five of B10's six, all six of B11's, and all six of B12's.
+B1, B2, B3, B4, B5, B6, B7, B8, B9, B11 and B12 are Done. B9's own Definition of Done (100% branch
 coverage on the pure engine; no recommendation ever becomes a work-order line
 without a recorded decision) is met in full; two of its sub-items stayed
 explicitly deferred rather than guessed at — the public hero's advice panel
@@ -181,6 +181,19 @@ iteration's own checklist. B10.5, the paid provider, remains for Phase 6.
 **B11 is Done independently of B10.5** — nothing in its own checklist depends
 on the paid provider, only on B6 (work orders, for the export) and B9 (the
 recommendation engine, for the nightly refresh), both already complete.
+**B12 is Done as of 2026-09-17**: production Docker images for the backend
+and frontend, `infra/docker-compose.yml` assembling Postgres, a one-shot
+`migrate` service, the app containers and Caddy on one origin, and a real
+restore drill — not merely a passing backup command (§8.6's own requirement)
+— driven against the running stack: a quote's PDF was generated live, backed
+up, the entire stack and **every named volume** destroyed, a clean
+environment brought up from committed images and migrations alone, and the
+backup restored into it. The work order, the document record and the PDF
+file itself all survived, the file byte-identical with an unchanged SHA-256.
+**Restore drill: 2026-09-17, 67 seconds** from `docker compose down -v` to a
+verified-ready restored stack (backend/README.md's Iteration 13 entry has the
+full account, including the live cookie-propagation check through Caddy and
+the `NODE_ENV` leak this run of the stack found and fixed).
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion
@@ -529,6 +542,11 @@ past row.
 | 2026-09-17 | **H1 finding 3 decided: a work-order line's `vatRateBps` stays unconstrained at the API** | The frontend select is capped to the four Swedish rates a workshop actually invoices at, but §3.3 stores the rate per line precisely so a future rate change does not rewrite history — constraining the API to match the UI was considered and declined, since an arbitrary rate is arguably legitimate and the UI already prevents the ordinary mistake. No code change |
 | 2026-09-17 | **H1 finding 19 decided: a phone-in booking is real, wanted scope — recorded as backlog (`backend/README.md` H1.17), not built** | There is no route to create a booking directly for a phone-in customer; only `POST /api/booking-requests/:id/confirm` exists, so a walk-in needs a fabricated request today. Confirmed as a gap worth closing rather than an oversight to leave alone, but it is new scope with no Definition of Done yet, and CLAUDE.md asks not to skip ahead of the plan to build it inside a hardening pass |
 | 2026-09-17 | **H1 — a concurrent public lookup of a brand-new plate answered `409`, not `200`, under Prisma 7** | Found only while re-verifying `pnpm check` for this pass — not one of the original twenty candidates, and unrelated to any of them. `persistLookupResult`'s own comment assumed `upsert` compiles to one atomic `INSERT ... ON CONFLICT DO UPDATE`; true of the old Rust query engine, but Prisma 7's query compiler turns an `upsert` with an empty `update` clause into a plain `INSERT` with no `ON CONFLICT` at all, so two racing lookups for the same never-before-seen plate now raise a genuine `P2002` on the loser rather than quietly joining the winner — the exact race `tests/vehicle-data.test.ts` already had a test for. Fixed by catching the `P2002` (`lib/prisma-errors.ts`'s structural check, already used by `lib/idempotency.ts`) and retrying once against the winner's row |
+| 2026-09-17 | **B12 — needs a B12.2.3 correction: `encode zstd gzip`, not brotli** | The stock `caddy:2` image has no `http.encoders.br` module — `caddy validate` refuses a Caddyfile naming `br` outright, confirmed by running it. Brotli needs a custom `xcaddy` build linking a C brotli library, which is a real build/maintenance cost for a compression algorithm zstd already beats or matches at comparable settings, and every browser this system needs to support already sends `Accept-Encoding: zstd`. Not raised as a question — the stock image's own validator settled it as a fact, not a judgement call |
+| 2026-09-17 | **`@sentry/node` 10.75.0 added**, wired but inert without `SENTRY_DSN` | §8.5 calls Sentry "optional but recommended" and names no package; B12.6.1 asks for it "or equivalent" wired. Confirmed with the human before adding an undeclared dependency (CLAUDE.md): on, behind an env var nobody has a value for yet, rather than left unbuilt or faked with a stub. `lib/sentry.ts#captureException` fires only from the error handler's `unexpected` branch, tagged with the same `requestId` already on the matching Pino log line |
+| 2026-09-17 | **`DOMAIN` is an optional Caddyfile-only variable, `{$DOMAIN:localhost}`, not a required one** | B12.2 needs a real public domain for Caddy's automatic HTTPS, and none is registered yet — confirmed with the human rather than inventing one. Unset, Caddy serves `localhost` under its own internal CA, which is what B12.2.4's cookie verification actually ran against; setting a real domain in `.env` later needs no other change, because Caddy requests its Let's Encrypt certificate the moment ACME can reach a name that resolves |
+| 2026-09-17 | **`infra/scripts/backup.sh`'s off-site copy is pluggable (`BACKUP_OFFSITE_RCLONE_REMOTE`), not built against a real destination** | B12.4.2 asks for an off-site copy and none exists yet to copy to — confirmed with the human rather than guessing at a provider (S3? a second VPS? something already owned?) that would have been thrown away the moment a real answer arrived. The nightly backup still runs and still enforces 30-day local retention either way; only the off-site step is a documented no-op until `.env` names a destination and `rclone` is configured on the host |
+| 2026-09-17 | **B12 — `docker-compose.yml`'s `backend` service repeats `NODE_ENV: production` even though the image already sets it** | Found bringing the production stack up to verify B12.2.4, not read from the compose file. Compose's `environment:` only wins over `env_file` for a key it repeats; `env_file: .env` pulls in a developer's own `NODE_ENV=development` (needed for `pnpm dev`), which would otherwise silently override the image's `ENV NODE_ENV=production` — a "production" container quietly running in development mode, with the production placeholder-secret check in `config/env.ts` disabled, the first time anyone's personal `.env` reached this file |
 
 ---
 
@@ -588,6 +606,33 @@ curl http://127.0.0.1:3001/api/health/ready  # {"status":"ok","database":"up"}
 | `pnpm db:migrate` | Create and apply a migration |
 | `pnpm db:studio` | Prisma Studio |
 
+### Production (B12)
+
+```bash
+# From the repository root. --project-directory . is required: this file
+# lives under infra/, but .env lives at the repository root, and Compose
+# resolves every relative path (env_file, the Caddyfile bind mount) against
+# whichever directory --project-directory names.
+docker compose -f infra/docker-compose.yml --project-directory . up -d --build
+```
+
+Brings up Postgres, a one-shot `migrate` service (`prisma migrate deploy`,
+never run on application boot — B12.3.1), the backend and frontend, and Caddy
+in front on one origin — `{$DOMAIN:localhost}` in `.env` if a real domain
+exists yet, Caddy's own internal CA otherwise. Nothing but Caddy's 80/443 is
+published to the host.
+
+```bash
+infra/scripts/backup.sh                          # pg_dump + storage, gzipped, 30-day local retention
+infra/scripts/restore.sh <db.dump.gz> <storage.tar.gz>   # asks to type "restore" first
+```
+
+Backups belong on a 02:00 cron line — see the header of `backup.sh` for the
+exact entry and how a failure is meant to page someone. A restore has
+actually been performed end to end against this stack, not merely assumed to
+work: `backend/README.md`'s Iteration 13 entry has the full record, including
+the rollback procedure for a bad migration under B12.3.2.
+
 ### Environment variables
 
 All are validated by a Zod schema at boot; a missing or malformed value stops
@@ -598,7 +643,7 @@ the process immediately with a readable message.
 | `NODE_ENV` | `development` | `development` \| `test` \| `production` |
 | `HOST` | `127.0.0.1` | Backend listen address. `0.0.0.0` inside a container |
 | `PORT` | `3001` | Backend listen port |
-| `TRUST_PROXY` | `false` | Read the client address from `X-Forwarded-For`. **Must be `true` in the B12 deployment**, where Caddy sits in front: without it every request carries the proxy's address, and the per-IP login limit (§5.1), the global rate limit (§5.4) and the stored `ipHash` (§5.5) all silently describe one client. Never `true` when nothing in front overwrites the header — a caller could then pick their own rate-limit bucket |
+| `TRUST_PROXY` | `false` | Read the client address from `X-Forwarded-For`. `infra/docker-compose.yml` sets it to `true` for the `backend` service, where Caddy sits in front: without it every request carries the proxy's address, and the per-IP login limit (§5.1), the global rate limit (§5.4) and the stored `ipHash` (§5.5) all silently describe one client. Never `true` when nothing in front overwrites the header — a caller could then pick their own rate-limit bucket |
 | `DATABASE_URL` | `postgresql://verkstad:verkstad@127.0.0.1:5433/verkstad?schema=public` | Port 5433 in development, so the container does not collide with a native PostgreSQL on 5432 |
 | `POSTGRES_USER` / `_PASSWORD` / `_DB` / `_PORT` | `verkstad` … `5433` | Read by `infra/docker-compose.dev.yml` only, never by the application. Must agree with `DATABASE_URL` |
 | `SHADOW_DATABASE_URL` | *(unset)* | Only for `prisma migrate diff --from-migrations`, which the CI drift check runs. `migrate dev` creates its own shadow database |
@@ -612,6 +657,8 @@ the process immediately with a readable message.
 | `VEHICLE_DATA_DAILY_LIMIT_PUBLIC` | `100` | Separate ceiling for the public hero. Separate on purpose: a shared ceiling lets an attacker exhaust the staff budget and stop the workshop working |
 | `STORAGE_PATH` | `./storage` | PDF output; must be a mounted volume |
 | `LOG_LEVEL` | `info` | |
+| `SENTRY_DSN` | *(unset)* | Optional (§8.5, B12.6.1). Errors are sent to Sentry only when this is a real DSN; unset, error reporting stays Pino-with-`requestId`, to stdout |
+| `DOMAIN` | *(unset)* | Read only by `infra/Caddyfile`, not by the application. Unset, Caddy serves `localhost` under its own internal CA; set to the workshop's real domain and Caddy requests a Let's Encrypt certificate automatically |
 | `TZ` | *(unset)* | Deliberately not set. Containers run in UTC and every conversion is explicit in code. A container that happens to sit in the right timezone hides timezone bugs until it moves. The boot schema **rejects any value other than `UTC`**, so this is enforced rather than remembered |
 | `INTERNAL_API_URL` | `http://backend:3001` | **Frontend only.** Server components call the backend directly over the Docker network; they cannot use the relative `/api` path that browser code uses. Never exposed to the client. |
 

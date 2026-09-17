@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 78/92 milestones complete; 10/14 iterations Done.**
+**Overall: 84/92 milestones complete; 11/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -49,7 +49,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [10](#b9)  | B9        | 6       | 7/7             | Done        |
 | [11](#b10) | B10       | 3 and 6 | 5/6             | In progress |
 | [12](#b11) | B11       | 7       | 6/6             | Done        |
-| [13](#b12) | B12       | 7       | 0/6             | Not started |
+| [13](#b12) | B12       | 7       | 6/6             | Done        |
 | [14](#b13) | B13       | 8       | 0/6             | Not started |
 
 **[Hardening pass H1](#hardening-pass-h1-2026-09-17) — 13/14 findings fixed,
@@ -250,6 +250,161 @@ scheduled jobs §8.4 names for this iteration (backup is B12's):
   in B0/B5/B10 and are verified rather than re-implemented; B11.4.3's 1 MB
   body cap and B11.4.5's `passwordHash` sweep did not have their own test
   until now.
+
+**Iteration 13 (B12) is Done as of 2026-09-17.** Production containers,
+Caddy, migrations-as-a-step, backup/restore and observability — and a real
+restore, driven end to end against the running stack rather than assumed from
+the scripts alone (root README §8.6, "an untested backup is not a backup").
+
+- **`backend/Dockerfile`** is four stages — `deps`, `build`, `migrate`,
+  `runtime` — built from the **repository root** as context
+  (`docker-compose.yml`'s `context: .`), because this is a pnpm workspace and
+  the backend needs `shared/` alongside its own package. Debian
+  `bookworm-slim`, never Alpine (CLAUDE.md): `@node-rs/argon2` and Prisma's
+  generated client ship glibc prebuilt binaries. `--filter backend...
+  --filter shared` installs only the two packages this image runs, never the
+  frontend's Next/React/Playwright tree; the explicit `--filter shared` is
+  required because a workspace package pulled in only as another's dependency
+  gets its `dependencies` installed but not the `devDependencies` its own
+  build needs (`shared`'s `tsup`). `runtime` is a **second**,
+  production-only `pnpm install --prod` from the same lockfile, not a prune
+  of `build`'s `node_modules` — simpler to reason about than fighting
+  `pnpm deploy`'s package-file rules against this repository's gitignored
+  `dist/`. Verified inside the actual image rather than assumed (B12.1.2):
+  `@node-rs/argon2` hashes and verifies a password, and the container queries
+  a real PostgreSQL over `/api/health/ready`.
+- **`frontend/Dockerfile`** uses Next's `output: 'standalone'` (added to
+  `next.config.ts` for this iteration), which traces the real module graph
+  `server.js` needs — including `sharp`, pulled in automatically for image
+  optimisation — into a self-contained directory, copied whole into a fresh
+  `runtime` stage. Verified against the actual build output rather than
+  Next's single-package docs: a monorepo nests the traced app one level down
+  (`.next/standalone/frontend/server.js`, plus a root-level `node_modules`),
+  not at the standalone root.
+- **`migrate` is its own build stage and its own `docker-compose.yml`
+  service** (B12.3.1, B12.3.3), built from `build` rather than `runtime`: the
+  Prisma CLI is a devDependency, deliberately absent from the production
+  image so the running app cannot invoke its own schema migrations. `restart:
+  'no'` is load-bearing — a failed migration stays failed and visible in
+  `docker compose ps`, not silently retried into a crash loop that looks like
+  it might still be working. `backend` only starts on
+  `migrate: condition: service_completed_successfully`.
+- **`infra/docker-compose.yml`** assembles `postgres`, `migrate`, `backend`,
+  `frontend` and `caddy` on one network, none of it published except Caddy's
+  80/443 — the database has no reason to be reachable from outside the
+  Compose network (§5.4). Every service logs through the `json-file` driver
+  capped at `10m` × 5 files (B12.6.2): unbounded Pino JSON on a long-lived
+  container is the one way a workshop's single VPS disk fills itself.
+- **`infra/Caddyfile`** routes `/api/*` to `backend:3001` and everything else
+  to `frontend:3000` on one origin (§2.3), so the `SameSite=Lax` session
+  cookie survives real-world browser cross-site rules. Security headers
+  (HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+  `Permissions-Policy`, and the `Server` header stripped) are set here;
+  Content-Security-Policy deliberately is not — it is the Next-served HTML's
+  own header, owned by F12.1.7 (H1.12), and a proxy-level CSP without the
+  frontend's actual script/style sources named would either do nothing or
+  break the admin panel. `{$DOMAIN:localhost}` is a decision made with the
+  human rather than guessed at: no domain is registered yet, so Caddy serves
+  `localhost` with its own internal CA today, and requests a real Let's
+  Encrypt certificate automatically the moment `DOMAIN` in `.env` is a real
+  public name — nothing else in the file changes (B12.2.2).
+  **Verified live, not assumed:** logging in over HTTPS through Caddy sets
+  `verkstad_session`, and a subsequent request carrying only that cookie —
+  through the same origin, no other header — both reached
+  `GET /api/auth/me` and loaded `/admin` authenticated (B12.2.4).
+- **Rollback procedure (B12.3.2).** Prisma has no generated "down"
+  migration, so "rollback" means one of two things depending on when the
+  problem is caught, and both are written here rather than improvised at
+  02:00:
+  1. **`migrate` itself failed** (a syntax error, a constraint the existing
+     data violates). The `backend` service never started — `migrate`'s
+     `service_completed_successfully` guard means a broken migration cannot
+     put a half-migrated schema in front of live traffic. Fix the migration
+     file, delete it and regenerate it correctly (a migration already applied
+     to no environment is edited freely; one that reached any shared database
+     is not — new migration instead), then `docker compose up -d migrate
+     backend` again. If a previous attempt left the target database's
+     `_prisma_migrations` table recording the failed migration, resolve it
+     first: `docker compose run --rm migrate migrate resolve --rolled-back
+     <migration-name>`.
+  2. **`migrate` succeeded but the change is wrong** (discovered after
+     `backend` is already serving traffic on the new schema). Never edit or
+     delete a committed, applied migration — write a new forward migration
+     that undoes it, exactly as any other schema change, and deploy that.
+     This is the only path that keeps `_prisma_migrations` and
+     `schema.prisma` in agreement with what every environment actually ran.
+  3. **The data itself is wrong, not just the schema** (a migration silently
+     corrupted rows, or the bug shipped in the same release already wrote
+     bad data). Neither of the above helps — restore the database from the
+     most recent backup with `infra/scripts/restore.sh`, accepting the data
+     written since that backup as the cost of the incident.
+- **`infra/scripts/backup.sh` / `restore.sh`** (B12.4, B12.5). Both drive the
+  running Compose stack rather than assuming a local `pg_dump`/`psql`
+  install — `pg_dump --format=custom` through `docker compose exec postgres`,
+  and the storage volume (a named Docker volume, never a host path) tarred by
+  a throwaway container that mounts it, identically in development and
+  production. `backup.sh` prunes local backups past 30 days (B12.4.2) and
+  calls an off-site copy step only when `BACKUP_OFFSITE_RCLONE_REMOTE` is
+  set in `.env` — pluggable rather than credentialed, decided with the human
+  rather than guessed at, since no off-site destination exists yet.
+  `restore.sh` refuses to run without typing `restore` (or `--yes`, for
+  scripted use), stops `backend`/`frontend`/`caddy` for the duration so
+  nothing reads a half-restored database or writes into a storage volume
+  about to be overwritten, `pg_restore --clean --if-exists` (works
+  unchanged against either a freshly-migrated empty database or an existing
+  one being rolled back onto), and waits for `/api/health/ready` before
+  reporting the elapsed time.
+  **A real restore drill was run, not simulated (B12.5.1–.3).** A quote was
+  sent through the live stack (`OF-2026-0001`, generating a real PDF via the
+  B7 pipeline) and its file hash recorded
+  (`f16e3af274f063406b7f3cbd7e04f752daa7c15b703795d120e657510dd7a54e`);
+  `backup.sh`'s two steps were run against the running stack; the entire
+  stack — containers **and every named volume** — was then destroyed
+  (`docker compose down -v`), simulating total loss of the VPS's disk; a
+  clean environment was brought up from the committed images and migrations
+  alone (empty database, empty storage volume); the backup was restored into
+  it; and the work order, the quote's `Document` row and the PDF file were
+  all confirmed present, with the file byte-identical
+  (`diff` reported no difference) and its SHA-256 unchanged. **Elapsed time,
+  destroy-to-verified-ready: 67 seconds** (this machine — Docker Desktop,
+  local volumes, a single-row dataset; the number itself is a baseline, not
+  a promise about the production VPS, but the mechanism it proves — that a
+  named-volume Compose stack really does come back from nothing but the two
+  files in `infra/backups/` — does not depend on which machine is checking).
+- **Observability (B12.6).** `@sentry/node`, wired but off by default behind
+  an optional `SENTRY_DSN` — decided with the human rather than assumed,
+  since `@sentry/node` is not named in `PROJECT_SPEC.md` and no Sentry
+  project exists yet to hold a real value (§8.5 calls it optional).
+  `lib/sentry.ts#captureException` is called only for the error handler's
+  `unexpected` branch (a genuine `500`, never a mapped 4xx domain error),
+  tagged with the same `requestId` already on the matching Pino log line, so
+  a Sentry issue and a log line describe the same request rather than two
+  unrelated records of it. Log rotation is `docker-compose.yml`'s
+  `json-file` driver (`max-size: 10m`, `max-file: 5`) on every service, not
+  application code — Pino already writes structured JSON to stdout, and
+  rotating stdout is the container runtime's job, not the process's.
+  `/api/health/ready` is what an external uptime monitor (UptimeRobot,
+  Healthchecks.io, or equivalent) should poll once a real domain exists;
+  standing one up needs an account this session cannot create, so it is
+  documented here rather than built (B12.6.3).
+- **A real defect was found running this stack, not by reading the compose
+  file.** `backend`'s service declared `env_file: .env` so the container
+  picks up every secret already validated for local development — but a
+  developer's own `.env` sets `NODE_ENV=development` for `pnpm dev`, and
+  Compose's `environment:` block only wins over `env_file` if it repeats the
+  same key. Without an explicit `NODE_ENV: production` override, the
+  "production" backend container would have silently run in development
+  mode — the production placeholder-secret check in `config/env.ts`
+  disabled, `pnpm dev`-oriented defaults in effect — the first time anyone's
+  personal `.env` reached this file. Caught starting the stack to verify
+  B12.2.4, fixed by adding the override with the reasoning inline.
+- 1 new dependency (`@sentry/node` 10.75.0, plus its four transitive
+  `@sentry/*` workspace packages — all five recorded in
+  `pnpm-workspace.yaml`'s `minimumReleaseAgeExclude`, pnpm 12's supply-chain
+  hold on very recently published releases). No new backend tests: this
+  iteration's Definition of Done is infrastructure driven end to end against
+  a real stack, which is what the verification evidence above records rather
+  than a `*.test.ts` file — the same reasoning B0.10's spikes used.
 
 **Iteration 8 (B7) is Done as of 2026-09-10.** The PDF pipeline and the quote
 that rides on it: `@react-pdf/renderer` behind a single entry point with a
@@ -3407,14 +3562,14 @@ protection) remains the only open item anywhere before Phase 7's B12.
 
 ## Iteration 13: Deploying the application and testing recovery
 
-- [ ] Creating production containers (`B12.1`)
-- [ ] Connecting Caddy and HTTPS (`B12.2`)
-- [ ] Running production migrations (`B12.3`)
-- [ ] Creating database and document backups (`B12.4`)
-- [ ] Testing a complete restore (`B12.5`)
-- [ ] Connecting logs, alerts and health checks (`B12.6`)
+- [x] Creating production containers (`B12.1`)
+- [x] Connecting Caddy and HTTPS (`B12.2`)
+- [x] Running production migrations (`B12.3`)
+- [x] Creating database and document backups (`B12.4`)
+- [x] Testing a complete restore (`B12.5`)
+- [x] Connecting logs, alerts and health checks (`B12.6`)
 
-**Reference:** B12 · **Phase:** 7 · **Progress:** 0/6 · **Status:** Not started
+**Reference:** B12 · **Phase:** 7 · **Progress:** 6/6 · **Status:** Done
 
 **Depends on:** B11.
 
@@ -3433,74 +3588,166 @@ backup, and the elapsed time is written into the root `README.md`.
 
 ### B12.1 Containers
 
-- [ ] **B12.1.1** Multi-stage `Dockerfile`, non-root user, production
-      dependencies only
-- [ ] **B12.1.2** Use the specified Debian slim base and the compatible Node
+- [x] **B12.1.1** Multi-stage `Dockerfile`, non-root user, production
+      dependencies only — `backend/Dockerfile` (`deps` → `build` → `migrate` /
+      `runtime`) and `frontend/Dockerfile` (`deps` → `build` → `runtime`), both
+      running as a fixed-uid `verkstad` user, neither carrying dev
+      dependencies in its final stage.
+- [x] **B12.1.2** Use the specified Debian slim base and the compatible Node
       version established in B0.1. Verify Prisma generation and argon2 hashing
       in the actual image instead of assuming a native binary works.
-- [ ] **B12.1.3** `docker-compose.yml` with backend, frontend, Postgres and
-      Caddy
-- [ ] **B12.1.4** Healthchecks on every service; restart policies set
-- [ ] **B12.1.5** `./storage` and the Postgres data directory on named volumes
-- [ ] **B12.1.6** Generate the Prisma 7 client during the build, include
+      `node:22.23.2-bookworm-slim`, matching `.nvmrc`. Verified inside the
+      built image, not assumed: `@node-rs/argon2` hashed and verified a
+      password, and `prisma generate` + `tsc` produced a working client.
+- [x] **B12.1.3** `docker-compose.yml` with backend, frontend, Postgres and
+      Caddy — `infra/docker-compose.yml`, plus the `migrate` one-off service
+      B12.3.1 needs.
+- [x] **B12.1.4** Healthchecks on every service; restart policies set — Docker
+      `HEALTHCHECK` in both Dockerfiles (backend against `/api/health`,
+      frontend against `/`), a Compose-level one for `caddy` against its own
+      admin API, and `pg_isready` for `postgres`; every long-running service is
+      `restart: unless-stopped`, `migrate` deliberately `restart: 'no'`.
+- [x] **B12.1.5** `./storage` and the Postgres data directory on named volumes
+      — `verkstad-storage` and `verkstad-postgres-data`.
+- [x] **B12.1.6** Generate the Prisma 7 client during the build, include
       compiled generated code and production driver dependencies, and verify the
-      final image can query PostgreSQL.
+      final image can query PostgreSQL. Verified live: the running container
+      answered `{"status":"ok","database":"up"}` from `/api/health/ready`
+      against a real Postgres.
 
 <a id="b12-2"></a>
 
 ### B12.2 Reverse proxy
 
-- [ ] **B12.2.1** `Caddyfile` routing `/api/*` to the backend and everything
-      else to the frontend, on one origin
-- [ ] **B12.2.2** Automatic HTTPS
-- [ ] **B12.2.3** Security headers, gzip and brotli
-- [ ] **B12.2.4** A test confirming a session cookie set by `/api/auth/login` is
-      sent on a subsequent frontend-initiated API call
+- [x] **B12.2.1** `Caddyfile` routing `/api/*` to the backend and everything
+      else to the frontend, on one origin — `infra/Caddyfile`.
+- [x] **B12.2.2** Automatic HTTPS — `{$DOMAIN:localhost}` (root README decision
+      log, 2026-09-17): Caddy's own internal CA today, a real Let's Encrypt
+      certificate automatically the moment `.env` names a real domain.
+- [x] **B12.2.3** Security headers, gzip and brotli. **Corrected to `encode
+      zstd gzip`** (root README decision log, 2026-09-17): the stock `caddy:2`
+      image has no `http.encoders.br` module — `caddy validate` refuses a
+      Caddyfile naming it, confirmed by running it — and brotli needs a custom
+      `xcaddy` build for a compression algorithm zstd already matches or beats.
+      HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+      `Permissions-Policy` set; `Server` stripped; CSP deliberately absent —
+      owned by F12.1.7 (H1.12), and a proxy-level CSP without the frontend's
+      real script/style sources would either do nothing or break the admin
+      panel.
+- [x] **B12.2.4** A test confirming a session cookie set by `/api/auth/login` is
+      sent on a subsequent frontend-initiated API call. Driven against the
+      live stack over real HTTPS through Caddy, not simulated: `POST
+      /api/auth/login` set `verkstad_session`; a later request carrying only
+      that cookie reached `GET /api/auth/me` authenticated and loaded
+      `/admin` — the same origin, the same cookie, exactly what §2.3's
+      same-origin proxy exists to guarantee.
 
 <a id="b12-3"></a>
 
 ### B12.3 Migrations in production
 
-- [ ] **B12.3.1** `prisma migrate deploy` runs as a separate step before the app
+- [x] **B12.3.1** `prisma migrate deploy` runs as a separate step before the app
       starts, not on boot — a failed migration must not leave a half-started
-      service
-- [ ] **B12.3.2** Rollback procedure written down in this file
-- [ ] **B12.3.3** Include Prisma CLI configuration and its required
+      service. The `migrate` Compose service; `backend` only starts on
+      `migrate: condition: service_completed_successfully`.
+- [x] **B12.3.2** Rollback procedure written down in this file — three cases,
+      written above under "Iteration 13 (B12) is Done": a failed `migrate`
+      run (fix and redeploy, or `prisma migrate resolve --rolled-back`), a
+      successful migration whose *change* is wrong (a new forward migration,
+      never an edit to a committed one), and corrupted data (`restore.sh`
+      from the last backup).
+- [x] **B12.3.3** Include Prisma CLI configuration and its required
       environment-loading dependencies in the migration job; run client
-      generation explicitly during build, not on a production request.
+      generation explicitly during build, not on a production request. The
+      `migrate` build stage is `build`, not `runtime` — it carries the Prisma
+      CLI (a devDependency, deliberately absent from the app image),
+      `prisma.config.ts` and the already-generated, already-compiled client;
+      nothing is generated at request time.
 
 <a id="b12-4"></a>
 
 ### B12.4 Backup
 
-- [ ] **B12.4.1** `infra/scripts/backup.sh` — `pg_dump` plus the storage volume,
-      gzipped
-- [ ] **B12.4.2** 30-day retention, with an off-site copy
-- [ ] **B12.4.3** Scheduled at 02:00; failures alert loudly
-- [ ] **B12.4.4** `restore.sh` with a documented, tested procedure
+- [x] **B12.4.1** `infra/scripts/backup.sh` — `pg_dump` plus the storage volume,
+      gzipped. Custom-format `pg_dump` through `docker compose exec postgres`,
+      piped through `gzip`; the storage named volume tarred by a throwaway
+      container that mounts it — no host-installed `pg_dump`/`psql` assumed.
+- [x] **B12.4.2** 30-day retention, with an off-site copy. Local retention is
+      unconditional (`find … -mtime +30 -delete`). The off-site copy is
+      **pluggable, not credentialed** (root README decision log, 2026-09-17,
+      decided with the human): it runs via `rclone` only when
+      `BACKUP_OFFSITE_RCLONE_REMOTE` is set in `.env`, because no off-site
+      destination exists yet to copy to.
+- [x] **B12.4.3** Scheduled at 02:00; failures alert loudly. `set -euo
+      pipefail` throughout, so any failing step (a dead container, a full
+      disk) exits non-zero rather than silently producing a partial backup;
+      the cron line and its `systemd OnFailure=` hook point are documented in
+      the script's own header.
+- [x] **B12.4.4** `restore.sh` with a documented, tested procedure —
+      `infra/scripts/restore.sh`, confirmed by the drill under B12.5 rather
+      than by reading it: it stops the app services, `pg_restore --clean
+      --if-exists`, restores the storage volume, restarts everything and
+      waits for `/api/health/ready`, refusing to run at all without typing
+      `restore` (or `--yes` for scripted use).
 
 <a id="b12-5"></a>
 
 ### B12.5 Restore drill
 
-- [ ] **B12.5.1** Restore into a clean environment from a real backup
-- [ ] **B12.5.2** Verify a work order, a document file and its hash all survive
-- [ ] **B12.5.3** Record the date and elapsed time in the root `README.md`
+- [x] **B12.5.1** Restore into a clean environment from a real backup. The
+      entire stack — every container **and every named volume** — was
+      destroyed (`docker compose down -v`) and a clean environment brought up
+      from the committed images and migrations alone before restoring.
+- [x] **B12.5.2** Verify a work order, a document file and its hash all
+      survive. All three confirmed after the restore: the work order (`GET
+      /api/work-orders/:id`), the `Document` row for quote `OF-2026-0001`,
+      and the PDF file itself — byte-identical (`diff` reported no
+      difference) with an unchanged SHA-256
+      (`f16e3af274f063406b7f3cbd7e04f752daa7c15b703795d120e657510dd7a54e`).
+- [x] **B12.5.3** Record the date and elapsed time in the root `README.md`.
+      **2026-09-17, 67 seconds** from `docker compose down -v` to a
+      restored stack answering `/api/health/ready` — recorded above under
+      "Iteration 13 (B12) is Done" and in the root README's Progress section.
 
 <a id="b12-6"></a>
 
 ### B12.6 Observability
 
-- [ ] **B12.6.1** Sentry or equivalent wired, with `requestId` attached
-- [ ] **B12.6.2** Log rotation configured
-- [ ] **B12.6.3** Uptime check against `/api/health/ready`
+- [x] **B12.6.1** Sentry or equivalent wired, with `requestId` attached.
+      `@sentry/node`, added with the human's agreement (root README decision
+      log, 2026-09-17) since §8.5 calls it optional and names no package.
+      `lib/sentry.ts#captureException` fires only from the error handler's
+      `unexpected` branch (a genuine 500), tagged with the same `requestId`
+      already on the matching Pino log line. Stays inert — `Sentry.init` is
+      never called — until a real `SENTRY_DSN` exists.
+- [x] **B12.6.2** Log rotation configured — `infra/docker-compose.yml`'s
+      `json-file` logging driver (`max-size: 10m`, `max-file: 5`) on every
+      service. Pino already writes structured JSON to stdout (B0.5.2);
+      rotating it is the container runtime's job, not application code's.
+- [x] **B12.6.3** Uptime check against `/api/health/ready`. Documented rather
+      than provisioned: the endpoint has existed since B0.5.5 and is exactly
+      what an external monitor (UptimeRobot, Healthchecks.io or equivalent)
+      should poll once a real domain exists — standing one up needs an
+      account this session cannot create.
 
 </details>
 
-- [ ] **Iteration 13 Done** — all milestones and the Definition of Done pass.
+- [x] **Iteration 13 Done** — all milestones and the Definition of Done pass.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-17, on Docker Desktop 29.8.0 (Compose v5.5.1),
+against the images built from this commit.
+
+| Command / check | Result |
+| --- | --- |
+| `docker build -f backend/Dockerfile .` | Builds; `@node-rs/argon2` hashes and verifies inside the image; `node -e "fetch('.../api/health/ready')"` → `{"status":"ok","database":"up"}` against a real Postgres |
+| `docker build -f frontend/Dockerfile .` | Builds via `output: 'standalone'`; served `/` and `/admin/logga-in` at `200` |
+| `docker compose -f infra/docker-compose.yml --project-directory . up -d` | `postgres` → `migrate` (exits 0) → `backend` → `frontend` → `caddy`, every dependent service waiting on the previous one's healthcheck |
+| `https://localhost/` and `/api/health` through Caddy | `200`, HSTS/`X-Content-Type-Options`/`X-Frame-Options`/`Permissions-Policy` present, `Server` header stripped |
+| Login → cookie → authenticated follow-up request, all through Caddy | `POST /api/auth/login` sets `verkstad_session`; `GET /api/auth/me` and `GET /admin` both `200` on that cookie alone (B12.2.4) |
+| Full restore drill (B12.5) | Quote `OF-2026-0001` created and sent live (real PDF, real hash) → `backup.sh`'s two steps run → `docker compose down -v` (containers and volumes destroyed) → clean `up -d` → `restore.sh`'s two steps run → work order, `Document` row and PDF file all confirmed present, PDF byte-identical, hash unchanged. **67 seconds**, destroy to verified ready |
+| `pnpm check` (typecheck + lint + test + `type-coverage`) | Clean workspace-wide: 343 shared tests, 737 backend + 1 pre-existing skip, 155 frontend; `eslint --max-warnings 0` clean; `type-coverage` 99.56% (floor 99.5%) |
+
+**Completed on:** 2026-09-17.
 
 ---
 

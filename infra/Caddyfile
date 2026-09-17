@@ -1,0 +1,42 @@
+# Reverse proxy for the production stack (B12.2, PROJECT_SPEC.md §2.3).
+#
+# One origin, `/api/*` to the backend and everything else to the frontend —
+# not cosmetic. Session cookies are `SameSite=Lax` (§5.2); a separate API
+# subdomain would make the browser treat login as cross-site and drop the
+# cookie in real-world conditions. Routing through one Caddy host removes
+# that failure mode entirely, along with all CORS configuration.
+#
+# {$DOMAIN:localhost} — set DOMAIN in the repository root `.env` to the
+# workshop's real domain once one exists; until then this serves `localhost`
+# with Caddy's own internal CA, which is enough to verify the proxy and the
+# cookie behaviour below without a public domain (B12.2, decided with the
+# human rather than guessed at — no domain is registered yet). Caddy issues
+# and renews a real Let's Encrypt certificate automatically the moment DOMAIN
+# is a real, publicly resolvable name; nothing else here changes (B12.2.2).
+{$DOMAIN:localhost} {
+	encode zstd gzip
+
+	# Security headers (B12.2.3). Content-Security-Policy is deliberately
+	# absent: it is the Next-served HTML's own header, owned by F12.1.7
+	# (root README, Hardening pass H1, H1.12) and set in `next.config.ts`,
+	# not here — a CSP added at the proxy without the frontend's own script/
+	# style sources named would either do nothing or break the admin panel.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Caddy's own header, not application data; stripped so a response
+		# never names its software and version to the internet.
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy backend:3001
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
