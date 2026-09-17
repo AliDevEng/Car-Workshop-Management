@@ -165,8 +165,10 @@ const authPlugin: FastifyPluginCallback = (app, _options, done) => {
 
   // `onRequest` rather than `preHandler`: the session must be resolved before
   // the CSRF check, which binds its token to the session id.
-  app.addHook('onRequest', async (request) => {
-    const resolved = await loadSession(app, request);
+  app.addHook('onRequest', async (request, reply) => {
+    // `reply` is handed through so a touched session can re-set its cookie in
+    // the same response (§5.1's sliding expiry — see `loadSession`).
+    const resolved = await loadSession(app, request, reply);
     request.user = resolved?.user ?? null;
     request.session = resolved?.session ?? null;
   });

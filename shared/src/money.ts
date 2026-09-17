@@ -9,17 +9,47 @@ import { Decimal } from 'decimal.js';
 export type Ore = number & { readonly __brand: 'Ore' };
 
 /**
- * True for a value that can be stored as öre: a whole number, within the range
- * JavaScript represents exactly. The predicate is separate from `ore()` so a
- * Zod schema can reject the value at the API boundary and produce a Swedish
- * field-level message, instead of letting a `RangeError` become a 500.
+ * The range a money **column** can hold. §3.2 fixes the Prisma type as `Int`,
+ * which is a PostgreSQL `int4`: ±21 474 836,47 kr, "far beyond any line item
+ * here".
+ *
+ * Stated as a constant rather than left implicit, because the gap between what
+ * JavaScript can represent exactly (`Number.MAX_SAFE_INTEGER`) and what the
+ * column accepts is four and a half orders of magnitude wide — and everything
+ * inside that gap passed validation, reached Postgres, and came back as a
+ * `500 INTERNAL_ERROR` instead of the §3.7 field-level message the caller
+ * should have got. Found by entering a price of 50 000 000 kr.
+ */
+export const ORE_MAX = 2_147_483_647;
+export const ORE_MIN = -2_147_483_648;
+
+/**
+ * True for a value that can be **stored** in a money column: a whole number
+ * within `int4`. The predicate is separate from `ore()` so a Zod schema can
+ * reject the value at the API boundary and produce a Swedish field-level
+ * message, instead of letting a database error become a 500.
  */
 export function isValidOre(value: number): boolean {
+  return Number.isSafeInteger(value) && value >= ORE_MIN && value <= ORE_MAX;
+}
+
+/**
+ * True for a value the arithmetic below may carry.
+ *
+ * Deliberately wider than `isValidOre`: a *document total* is the sum of many
+ * stored line values, and a hundred lines each within `int4` can legitimately
+ * sum past it. Rounding that sum mid-calculation, or throwing from `addOre`,
+ * would corrupt or crash a perfectly ordinary read — §3.3 requires totals to be
+ * the exact sum of the already-rounded lines. The bound a total has to clear is
+ * applied where a total is *persisted* (a quote freezes its numbers, §6.6),
+ * not where it is computed.
+ */
+export function isComputableOre(value: number): boolean {
   return Number.isSafeInteger(value);
 }
 
 function assertSafeInteger(value: number, label: string): void {
-  if (!isValidOre(value)) {
+  if (!isComputableOre(value)) {
     throw new RangeError(`${label} must be a safe integer, got ${value}`);
   }
 }
@@ -111,6 +141,19 @@ export function sumLines(lines: readonly LineTotals[]): LineTotals {
     grossOre = addOre(grossOre, line.grossOre);
   }
   return { netOre, vatOre, grossOre };
+}
+
+/**
+ * True when every value in a set of totals fits a money column.
+ *
+ * Used where a document **freezes** its numbers — a quote's `netOre`/`vatOre`/
+ * `grossOre`/`roundingOre` are stored `Int` columns (§4.2). A work order
+ * computes its totals on read and so never needs this; a quote does, and
+ * without it a large-enough order produced a `500` from Postgres at the moment
+ * of sending rather than a Swedish message at the moment of quoting.
+ */
+export function isStorableTotal(values: readonly number[]): boolean {
+  return values.every((value) => isValidOre(value));
 }
 
 export interface OresRounding {

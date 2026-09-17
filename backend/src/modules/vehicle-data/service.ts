@@ -27,6 +27,7 @@ import { writeAuditLog } from '../../lib/audit.js';
 import { toIsoDateTime, toIsoDateTimeOrNull } from '../../lib/dto-dates.js';
 import { fieldError } from '../../lib/field-error.js';
 import type { Database } from '../../lib/prisma.js';
+import { isPrismaKnownRequestError } from '../../lib/prisma-errors.js';
 import { getVehicleDetail } from '../vehicles/service.js';
 import {
   applyVehicleDataResult,
@@ -145,9 +146,23 @@ function degradedResponse(
  * `upsert`, not a plain `create` guarded by the caller's earlier read: two
  * public lookups for the same never-before-seen plate can race between that
  * read and this write, and a plain `create` would let the second one crash on
- * the unique index instead of quietly joining the first. `upsert` compiles to
- * one atomic `INSERT ... ON CONFLICT`, the same reasoning §6.2's exclusion
- * constraint and §4.4's sequence apply to their own check-then-act traps.
+ * the unique index instead of quietly joining the first.
+ *
+ * **Measured under Prisma 7's query compiler, `upsert` does not close that
+ * race on its own.** The doc comment here used to claim it compiles to one
+ * atomic `INSERT ... ON CONFLICT DO UPDATE`, the same reasoning §6.2's
+ * exclusion constraint and §4.4's sequence apply to their own check-then-act
+ * traps — true of the old Rust query engine, but with an empty `update: {}`
+ * (there is nothing to change on a row a concurrent winner just created) the
+ * compiler emits a plain `INSERT` with no `ON CONFLICT` clause at all, so the
+ * loser's own insert raises a genuine `P2002` and rolls its transaction back.
+ * `postgresErrorCode`'s own comment in `lib/prisma-errors.ts` records the same
+ * engine surfacing one Postgres condition through more than one Prisma
+ * code — this is that trap's sibling. The catch below closes the race
+ * `upsert` was supposed to: the loser refetches the winner's row, already
+ * committed by the time a `P2002` can reach here, and finishes the same write
+ * against it instead of failing the caller for something that is not an
+ * error from where they are standing.
  */
 async function persistLookupResult(
   db: Database,
@@ -159,44 +174,71 @@ async function persistLookupResult(
   fetchedAt: Date,
   data: VehicleDataResult,
 ): Promise<void> {
-  await db.$transaction(async (tx) => {
-    const vehicleId =
-      existing?.id ??
-      (
-        await tx.vehicle.upsert({
-          where: { registrationNumber },
-          create: {
-            registrationNumber,
-            registrationNumberDisplay:
-              formatRegNrForDisplay(registrationNumber),
-            isNonStandardPlate: isNonStandardPlate(registrationNumber),
-            make: data.make,
-            model: data.model,
-          },
-          // A concurrent winner already created the row; this call has
-          // nothing to add beyond the `applyVehicleDataResult` write below.
-          update: {},
-          select: { id: true },
-        })
-      ).id;
+  try {
+    await db.$transaction(async (tx) => {
+      const vehicleId =
+        existing?.id ??
+        (
+          await tx.vehicle.upsert({
+            where: { registrationNumber },
+            create: {
+              registrationNumber,
+              registrationNumberDisplay:
+                formatRegNrForDisplay(registrationNumber),
+              isNonStandardPlate: isNonStandardPlate(registrationNumber),
+              make: data.make,
+              model: data.model,
+            },
+            // A concurrent winner already created the row; this call has
+            // nothing to add beyond the `applyVehicleDataResult` write below.
+            update: {},
+            select: { id: true },
+          })
+        ).id;
 
-    await applyVehicleDataResult(tx, vehicleId, data, fetchedAt);
-    await insertVehicleDataSnapshot(tx, {
-      vehicleId,
-      providerName: runtime.provider.name,
-      fetchedAt,
-      data,
-    });
+      await applyVehicleDataResult(tx, vehicleId, data, fetchedAt);
+      await insertVehicleDataSnapshot(tx, {
+        vehicleId,
+        providerName: runtime.provider.name,
+        fetchedAt,
+        data,
+      });
 
-    await writeAuditLog(tx, {
-      userId: actorId,
-      action: 'vehicle_data.fetched',
-      entityType: 'Vehicle',
-      entityId: vehicleId,
-      after: { make: data.make, model: data.model, fetchedAt },
-      ipHash,
+      await writeAuditLog(tx, {
+        userId: actorId,
+        action: 'vehicle_data.fetched',
+        entityType: 'Vehicle',
+        entityId: vehicleId,
+        after: { make: data.make, model: data.model, fetchedAt },
+        ipHash,
+      });
     });
-  });
+  } catch (error) {
+    // Only the no-`existing` path calls `upsert` at all, so only it can lose
+    // this particular race; `existing !== null` means whatever `P2002` this is,
+    // it is not the one this catch knows how to fix, and it is rethrown.
+    if (
+      existing === null &&
+      isPrismaKnownRequestError(error) &&
+      error.code === 'P2002'
+    ) {
+      const winner = await findVehicleForLookup(db, registrationNumber);
+      if (winner !== null) {
+        await persistLookupResult(
+          db,
+          runtime,
+          registrationNumber,
+          winner,
+          actorId,
+          ipHash,
+          fetchedAt,
+          data,
+        );
+        return;
+      }
+    }
+    throw error;
+  }
 }
 
 export async function lookupVehicleDataPublic(

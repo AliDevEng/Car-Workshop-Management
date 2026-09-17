@@ -5,6 +5,7 @@ import {
   assertQuoteTransition,
   calculateWorkOrderTotals,
   isQuoteExpired,
+  isStorableTotal,
   ore,
   parseDecimal,
   stockholmDate,
@@ -29,7 +30,7 @@ import {
 import { toDecimalString } from '../../lib/dto-decimal.js';
 import { toIsoDateOrNull } from '../../lib/dto-dates.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import type { Database } from '../../lib/prisma.js';
+import type { AnyDbClient, Database } from '../../lib/prisma.js';
 import { renderPdf } from '../../pdf/renderer.js';
 import { QuoteDocument } from '../../pdf/templates/quote.js';
 import {
@@ -258,12 +259,29 @@ function freezeTotals(lines: WorkOrderForQuote['lines']): {
     })),
   );
 
-  return {
+  const frozen = {
     netOre: computed.totals.netOre,
     vatOre: computed.totals.vatOre,
     grossOre: computed.totals.grossOre,
     roundingOre: computed.totals.roundingOre,
   };
+
+  // A quote **stores** its totals, unlike a work order, which computes them on
+  // read (decision log, 2026-09-10) — so this is the one place a document total
+  // has to fit a money column. A work order may legitimately total more than
+  // `int4` (a hundred lines each within it can sum past it, §3.3), and reading
+  // one must keep working; freezing one cannot. Without this check the request
+  // reached Postgres and came back as a `500 INTERNAL_ERROR` with no indication
+  // of which number was the problem.
+  if (!isStorableTotal(Object.values(frozen))) {
+    throw new ConflictError(
+      'Arbetsorderns summa är för stor för att sparas på en offert. ' +
+        'Dela upp arbetet på flera arbetsordrar.',
+      { details: { grossOre: frozen.grossOre } },
+    );
+  }
+
+  return frozen;
 }
 
 type CreateQuoteOptions = {
@@ -704,6 +722,30 @@ export async function expireOverdueQuotes(
   db: Database,
   now: Date = new Date(),
 ): Promise<{ expired: number }> {
+  return db.$transaction((tx) => expireOverdueQuotesInTransaction(tx, now));
+}
+
+/**
+ * The same sweep, inside a transaction the **caller** owns.
+ *
+ * Split out for the reason `createCustomerInTransaction` was (B5): the job
+ * runner in `jobs/lock.ts` holds a `pg_try_advisory_xact_lock` for the whole
+ * run, and that lock only means anything while its transaction is open — so a
+ * job cannot open transactions of its own without either nesting (which Prisma
+ * refuses) or dropping the lock that stops a second container running the same
+ * sweep. Its three siblings already work this way.
+ *
+ * The earlier per-quote transaction was written so a failure halfway would
+ * leave the quotes already handled expired. That is a smaller property than the
+ * lock, and it costs nothing to lose: the sweep is idempotent and runs again in
+ * twenty-four hours, whereas two containers expiring the same quotes at once
+ * writes two `quote.expired` rows into an append-only audit table.
+ */
+export async function expireOverdueQuotesInTransaction(
+  tx: AnyDbClient,
+  now: Date = new Date(),
+): Promise<{ expired: number }> {
+  const db = tx;
   const today = stockholmDate(now);
 
   // A `date` column comes back as UTC midnight, so this bound selects every
@@ -726,37 +768,28 @@ export async function expireOverdueQuotes(
       continue;
     }
 
-    // One transaction per quote rather than one for all of them: a job that
-    // fails halfway should leave the quotes it already handled expired, not
-    // roll back an evening's work over one bad row.
-    const changed = await db.$transaction(async (tx) => {
-      const before = await loadQuote(tx, candidate.id);
-      const result = await tx.quote.updateMany({
-        where: { id: candidate.id, status: 'SENT' },
-        data: { status: 'EXPIRED' },
-      });
-
-      // Somebody answered it between the scan and now, and their answer wins:
-      // `respondToQuote` recorded a real conversation, and this is a sweep.
-      if (result.count === 0) {
-        return false;
-      }
-
-      const after = await loadQuote(tx, candidate.id);
-      await writeAuditLog(tx, {
-        userId: null,
-        action: 'quote.expired',
-        entityType: 'Quote',
-        entityId: candidate.id,
-        before: auditSnapshot(before),
-        after: auditSnapshot(after),
-      });
-      return true;
+    const before = await loadQuote(tx, candidate.id);
+    const result = await tx.quote.updateMany({
+      where: { id: candidate.id, status: 'SENT' },
+      data: { status: 'EXPIRED' },
     });
 
-    if (changed) {
-      expired += 1;
+    // Somebody answered it between the scan and now, and their answer wins:
+    // `respondToQuote` recorded a real conversation, and this is a sweep.
+    if (result.count === 0) {
+      continue;
     }
+
+    const after = await loadQuote(tx, candidate.id);
+    await writeAuditLog(tx, {
+      userId: null,
+      action: 'quote.expired',
+      entityType: 'Quote',
+      entityId: candidate.id,
+      before: auditSnapshot(before),
+      after: auditSnapshot(after),
+    });
+    expired += 1;
   }
 
   return { expired };

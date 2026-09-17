@@ -2,11 +2,13 @@ import {
   ConflictError,
   NotFoundError,
   WORK_ORDER_STATUS_LABELS,
+  isNegativeQuantity,
   isZeroQuantity,
   parseQuantity,
   type CreateWorkOrderLineInput,
   type ReorderWorkOrderLinesInput,
   type UpdateWorkOrderLineInput,
+  type WorkOrderLineType,
   type WorkOrderResponse,
   type WorkOrderStatus,
 } from 'shared';
@@ -110,12 +112,41 @@ function auditSnapshot(record: WorkOrderLineRecord): Record<string, unknown> {
 
 /**
  * A quantity of zero contributes nothing and cannot be deducted meaningfully;
- * it is a half-finished edit, not a line. Negative is allowed — a credited
- * line is a real thing (§3.2 keeps öre signed for exactly that reason).
+ * it is a half-finished edit, not a line. Negative stays allowed — a credited
+ * line is a real thing (§3.2 keeps öre signed for exactly that reason) — but
+ * **not on a line that names a catalogue article**, and that exception is the
+ * important half.
+ *
+ * `moveStock` derives the ledger's direction from the sign of the line's own
+ * quantity: completion writes `CONSUMPTION` of `−quantity`. A line of `−5`
+ * therefore writes a `CONSUMPTION` of **+5** and the shelf balance goes *up*
+ * when the job is finished. Measured, not reasoned: an article opening at 10 l
+ * finished a work order at 15 l. Nothing downstream catches it either —
+ * `jobs/stock-reconciliation.ts` compares the cache against the ledger and the
+ * two agree perfectly, because both were written from the same wrong sign.
+ *
+ * A part genuinely going back on the shelf already has a mechanism: reverting
+ * a completed order writes compensating `RETURN` movements (§6.4, B6.6.4). A
+ * negative consumption is not a second way to do that; it is the ledger telling
+ * a story that never happened, and §4.2 makes the ledger the truth.
  */
-function assertUsableQuantity(quantity: string): void {
-  if (isZeroQuantity(parseQuantity(quantity))) {
+function assertUsableQuantity(
+  quantity: string,
+  line: { readonly type: WorkOrderLineType; readonly articleId: string | null },
+): void {
+  const parsed = parseQuantity(quantity);
+
+  if (isZeroQuantity(parsed)) {
     throw fieldError('quantity', 'Ange ett antal skilt från noll.');
+  }
+
+  if (isNegativeQuantity(parsed) && line.type === 'PART' && line.articleId !== null) {
+    throw fieldError(
+      'quantity',
+      'Antalet kan inte vara negativt på en rad som är kopplad till en ' +
+        'artikel, eftersom lagret då skulle ökas när arbetsordern slutförs. ' +
+        'Ta bort raden, eller återför delen genom att återöppna arbetsordern.',
+    );
   }
 }
 
@@ -160,7 +191,10 @@ export async function addWorkOrderLine(
   workOrderId: string,
   input: CreateWorkOrderLineInput,
 ): Promise<WorkOrderResponse> {
-  assertUsableQuantity(input.quantity);
+  assertUsableQuantity(input.quantity, {
+    type: input.type,
+    articleId: input.articleId ?? null,
+  });
 
   return db.$transaction(async (tx) => {
     const workOrder = await loadWorkOrder(tx, workOrderId);
@@ -232,15 +266,34 @@ export async function updateWorkOrderLine(
   lineId: string,
   input: UpdateWorkOrderLineInput,
 ): Promise<WorkOrderResponse> {
-  if (input.quantity !== undefined) {
-    assertUsableQuantity(input.quantity);
-  }
-
   return db.$transaction(async (tx) => {
     const workOrder = await loadWorkOrder(tx, workOrderId);
     assertLinesWritable(workOrder.status);
 
     const before = await loadLine(tx, workOrderId, lineId);
+
+    // Checked against the **merged** line rather than the patch alone: a
+    // `PATCH` that only sets `quantity: '-5'` leaves the existing `type` and
+    // `articleId` in place, so a rule that reads the request body on its own
+    // sees `undefined` for both and lets exactly the case above through the
+    // back door. This is the same `undefined`-vs-`??` care B9's decision log
+    // records for `ServiceRule` intervals, one layer over.
+    if (input.quantity !== undefined) {
+      assertUsableQuantity(input.quantity, {
+        type: input.type ?? before.type,
+        articleId:
+          input.articleId === undefined ? before.articleId : input.articleId,
+      });
+    } else if (input.type !== undefined || input.articleId !== undefined) {
+      // Re-checked when the *line* changes shape rather than its quantity: a
+      // free-text `-5` line turned into a catalogue `PART` would otherwise
+      // arrive at completion carrying the sign the first rule refused.
+      assertUsableQuantity(toDecimalString(before.quantity), {
+        type: input.type ?? before.type,
+        articleId:
+          input.articleId === undefined ? before.articleId : input.articleId,
+      });
+    }
 
     if (input.articleId !== undefined) {
       await assertArticleExists(tx, input.articleId);

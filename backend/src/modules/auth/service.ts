@@ -124,6 +124,7 @@ export function clientIpHash(
 export async function loadSession(
   app: FastifyInstance,
   request: FastifyRequest,
+  reply?: FastifyReply,
 ): Promise<{ session: ActiveSession; user: AuthenticatedUser } | null> {
   const sessionId = readSessionCookie(request);
   if (sessionId === undefined) {
@@ -152,6 +153,23 @@ export async function loadSession(
   if (now - found.session.lastSeenAt.getTime() >= SESSION_TOUCH_INTERVAL_MS) {
     const expiresAt = new Date(now + SESSION_TTL_MS);
     await touchSession(app.prisma, found.session.id, expiresAt);
+
+    // **The cookie slides with the row, not only the row.** §5.1 asks for a
+    // "30-day expiry, sliding on activity", and the row's `expiresAt` was the
+    // only half that moved: `Max-Age` is written at login and a browser
+    // discards the cookie when it runs out regardless of how recently the
+    // session was used. The effect is a staff member who uses the system every
+    // day being signed out exactly thirty days after logging in, for no reason
+    // they can see, with a perfectly valid session row still in the table.
+    //
+    // Re-set on the same cadence as the touch rather than on every request:
+    // one `Set-Cookie` a minute per active session costs nothing, and writing
+    // it on every response would put a header on hot `GET`s that changes
+    // nothing.
+    if (reply !== undefined) {
+      setSessionCookie(app, reply, found.session.id);
+    }
+
     return { session: { ...found.session, expiresAt }, user: found.user };
   }
 

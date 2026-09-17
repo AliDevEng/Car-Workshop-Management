@@ -287,6 +287,16 @@ they meant 120 000, and the service engine will silently recommend nothing.
 - Validation: `1..2_000_000` km. A reading lower than the vehicle's previous
   highest reading is not rejected (clusters get replaced, imports happen) but is
   **flagged** on the work order for a human to confirm.
+- **A reading may not be dated in the future.** *Added 2026-09-17 (decision
+  log).* `Vehicle.lastKnownOdometerKm` mirrors the newest reading **by
+  `readAt`**, not the highest km, so that a back-dated correction cannot
+  overwrite the current value — and that is exactly what makes a mistyped year
+  permanent: a reading dated 2031 wins against every real reading taken between
+  now and 2031, so the cached value and the service engine's km baseline both
+  describe a reading that has not happened, and nothing later corrects it
+  because nothing later is newer. The tolerance above is about the *number*,
+  and was never an argument for an impossible date. A few minutes of clock skew
+  is allowed, because a tablet running fast is not the mechanic's mistake.
 
 ### 3.6 Time and dates
 
@@ -385,11 +395,16 @@ owner would force fake customer records.
 **Registration number normalisation** (`shared/regnr.ts`, used everywhere,
 including the unique index):
 - uppercase, strip whitespace and hyphens
-- validate `^[A-ZÅÄÖ]{3}[0-9]{2}[0-9A-ZÅÄÖ]$` — the modern Swedish format allows
-  a letter in the final position
+- validate `^[A-Z]{3}[0-9]{2}[0-9A-Z]$` — the modern Swedish format allows a
+  letter or a digit in the final position. *Corrected 2026-09-17 (decision
+  log, H1 finding 16): this used to read `^[A-ZÅÄÖ]{3}[0-9]{2}[0-9A-ZÅÄÖ]$`,
+  but a standard Swedish plate never carries Å, Ä or Ö — the code
+  (`shared/regnr.ts`'s `STANDARD_PATTERN`) never accepted them either. The
+  spec had the error, not the code; corrected here to match what ships.*
 - store both the normalised form (for lookup) and a display form (`ABC 12D`)
 - personalised plates and imports exist: if validation fails, allow the value
-  with a `isNonStandardPlate` flag rather than blocking the booking
+  with a `isNonStandardPlate` flag rather than blocking the booking — this is
+  exactly the escape hatch a plate that happens to contain Å/Ä/Ö would take
 
 **Article** — `sku` (unique), `name`, `description?`, `unit`, `salesPriceOre`,
 `purchasePriceOre?`, `vatRateBps` (default 2500), `stockQuantity` (Decimal),
@@ -626,6 +641,16 @@ The workshop is the data controller; this system must not make that harder.
   `anonymisedAt` is set, and work orders, quotes and protocols remain intact
   with their historical snapshots. This is the correct behaviour and it must not
   be "fixed" into a hard delete later.
+- **Erasure reaches the customer's `BookingRequest` rows too.** *Clarified
+  2026-09-17 (decision log).* The export endpoint below already treats
+  "everything held about one person" as the unit, and erasure has to mean the
+  same set: a request carries the name, telephone number, e-mail address and a
+  free-text message. The retention rule above is not a substitute — it only
+  ever looks at `REJECTED`/`SPAM` rows, and every request belonging to someone
+  who actually became a customer is `CONFIRMED`. A request is matched through
+  its `Booking`, never by name or number: a *pending* request from a stranger
+  who happens to share both is not theirs, and guessing would erase someone
+  else's.
 - `sourceIpHash` stores a salted SHA-256, never a raw IP.
 - An export endpoint returns everything held about one customer as JSON.
 
@@ -1040,8 +1065,16 @@ service to operate.
 | Stock reconciliation | 03:00 daily | Re-derive balances from ledger; log drift |
 | Inspection scan | 04:00 daily | Refresh recommendations, populate dashboard |
 | Retention/anonymisation | 04:30 daily | §5.5 |
-| Session cleanup | hourly | Delete expired sessions |
+| Quote expiry | 04:45 daily | Mark overdue `SENT` quotes `EXPIRED` (§6.6) |
+| Session cleanup | hourly | Delete expired sessions, and `IdempotencyKey` rows past 24 h |
 | Database backup | 02:00 daily | `pg_dump`, gzip, 30-day retention, off-site copy |
+
+**Quote expiry added 2026-09-17 (decision log).** It was always implied — B7
+chose a sweep over a status derived on read precisely so that the column and
+the list filter could not disagree — but it was never written into this table,
+and so fell between two iterations that each reasonably believed the other had
+it. The rule had existed and been tested since B7; nothing in the running
+process called it.
 
 Each job is guarded by a Postgres advisory lock, logs start/finish/duration, and
 never throws into the scheduler.

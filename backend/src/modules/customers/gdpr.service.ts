@@ -1,6 +1,10 @@
 import { NotFoundError, type Customer, type CustomerExport } from 'shared';
 import { writeAuditLog } from '../../lib/audit.js';
 import type { AnyDbClient, Database } from '../../lib/prisma.js';
+import {
+  anonymiseBookingRequest,
+  findBookingRequestsForCustomer,
+} from '../bookings/anonymise.js';
 import { gatherCustomerExport } from './gdpr.repository.js';
 import { CUSTOMER_SELECT, toCustomerDto } from './repository.js';
 import { auditSnapshot, CUSTOMER_NOT_FOUND } from './service.js';
@@ -73,6 +77,26 @@ export async function anonymiseCustomerInTransaction(
     return toCustomerDto(before);
   }
 
+  const now = new Date();
+
+  // §5.5's erasure reaches **everything held about this person**, and their
+  // booking requests hold as much of it as the `Customer` row does: the name
+  // they gave, their telephone number, their e-mail address and whatever they
+  // wrote in the free-text message.
+  //
+  // Only the retention rule used to touch these, and it only ever looks at
+  // `REJECTED`/`SPAM` rows 90 days old — so a `CONFIRMED` request, which is
+  // every request belonging to a customer who actually became one, kept its
+  // personal data for ever. Measured by anonymising a customer and reading the
+  // row straight back out.
+  //
+  // Before the customer row itself, so the audit entries read in the order the
+  // erasure happened rather than trailing after the record that prompted it.
+  const requests = await findBookingRequestsForCustomer(tx, id);
+  for (const request of requests) {
+    await anonymiseBookingRequest(tx, request, now, actorId);
+  }
+
   const after = await tx.customer.update({
     where: { id },
     data: {
@@ -83,7 +107,7 @@ export async function anonymiseCustomerInTransaction(
       phoneNormalised: '',
       address: null,
       notes: null,
-      anonymisedAt: new Date(),
+      anonymisedAt: now,
     },
     select: CUSTOMER_SELECT,
   });

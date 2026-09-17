@@ -45,6 +45,22 @@ export const skuSchema = z
  */
 export const oeNumberSchema = z.string().trim().min(1).max(64);
 
+/**
+ * How many OE numbers one article may carry.
+ *
+ * Bounded for the same reason `bookingRequestSchema` caps `serviceTypeIds` at
+ * ten: an unbounded array is a payload, and this one is GIN-indexed (B4's
+ * decision log), so every entry costs write amplification on every save.
+ * Fifty is far above the handful a real part carries — a filter that fits a
+ * dozen engines still lists a dozen numbers, not five thousand, which is what
+ * the endpoint accepted before this bound existed.
+ */
+export const OE_NUMBERS_MAX = 50;
+
+export const oeNumbersSchema = z.array(oeNumberSchema).max(OE_NUMBERS_MAX, {
+  message: `Ange högst ${String(OE_NUMBERS_MAX)} OE-nummer.`,
+});
+
 export const articleSchema = z.object({
   id: idSchema,
   sku: skuSchema,
@@ -65,7 +81,7 @@ export const articleSchema = z.object({
   /** Shelf location. */
   location: shortTextSchema.nullable(),
   /** What makes the partner-link buttons useful (§7.2). */
-  oeNumbers: z.array(oeNumberSchema),
+  oeNumbers: oeNumbersSchema,
   isActive: z.boolean(),
   ...timestampFields,
 });
@@ -98,7 +114,7 @@ export const createArticleInputSchema = z.object({
   vatRateBps: vatRateBpsSchema.default(VAT_RATE_BPS_STANDARD),
   minimumQuantity: quantityStringSchema.default('0'),
   location: shortTextSchema.optional(),
-  oeNumbers: z.array(oeNumberSchema).default([]),
+  oeNumbers: oeNumbersSchema.default([]),
 });
 export type CreateArticleInput = z.infer<typeof createArticleInputSchema>;
 

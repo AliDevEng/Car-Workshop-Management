@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  ConflictError,
   openingHoursSchema,
   workshopDetailsSchema,
   workshopOperationalSettingsSchema,
@@ -147,7 +148,27 @@ export async function getSettings(
   const workshop = await getWorkshopDetails(db);
   const openingHours = await getOpeningHours(db);
   const operational = await getOperationalSettings(db);
-  return { workshop, openingHours, operational };
+  const updatedAt = await readGroupTimestamps(db);
+  return { workshop, openingHours, operational, updatedAt };
+}
+
+/** The optimistic-lock token per group. `null` where no row exists yet. */
+async function readGroupTimestamps(
+  db: Database | Prisma.TransactionClient,
+): Promise<SettingsResponse['updatedAt']> {
+  const rows = await db.setting.findMany({
+    where: { key: { in: Object.values(SETTING_KEYS) } },
+    select: { key: true, updatedAt: true },
+  });
+  const byKey = new Map(rows.map((row) => [row.key, row.updatedAt]));
+  const read = (key: SettingKey): string | null =>
+    byKey.get(key)?.toISOString() ?? null;
+
+  return {
+    workshop: read(SETTING_KEYS.workshop),
+    openingHours: read(SETTING_KEYS.openingHours),
+    operational: read(SETTING_KEYS.operational),
+  };
 }
 
 /**
@@ -167,9 +188,13 @@ export async function updateSettings(
 ): Promise<SettingsResponse> {
   return db.$transaction(async (tx) => {
     const before = await getSettings(tx);
+    const expected = input.expectedUpdatedAt ?? {};
 
     if (input.workshop !== undefined) {
-      await writeGroup(tx, SETTING_KEYS.workshop, actorId, input.workshop);
+      await writeGroup(tx, SETTING_KEYS.workshop, actorId, input.workshop, {
+        expectedUpdatedAt: expected.workshop,
+        label: 'Verkstadens uppgifter',
+      });
     }
     if (input.openingHours !== undefined) {
       await writeGroup(
@@ -177,15 +202,17 @@ export async function updateSettings(
         SETTING_KEYS.openingHours,
         actorId,
         input.openingHours,
+        {
+          expectedUpdatedAt: expected.openingHours,
+          label: 'Öppettiderna',
+        },
       );
     }
     if (input.operational !== undefined) {
-      await writeGroup(
-        tx,
-        SETTING_KEYS.operational,
-        actorId,
-        input.operational,
-      );
+      await writeGroup(tx, SETTING_KEYS.operational, actorId, input.operational, {
+        expectedUpdatedAt: expected.operational,
+        label: 'Driftsinställningarna',
+      });
     }
 
     const after = await getSettings(tx);
@@ -204,15 +231,68 @@ export async function updateSettings(
   });
 }
 
-function writeGroup(
+type WriteGroupOptions = {
+  /** What the caller last read for this group, or `undefined` to write blind. */
+  readonly expectedUpdatedAt: string | null | undefined;
+  /** Names the group in the Swedish conflict message. */
+  readonly label: string;
+};
+
+/**
+ * Writes one group, refusing to overwrite a change the caller never saw.
+ *
+ * The check is a **compare-and-swap**, not a read-then-write: `updatedAt` goes
+ * into the `where` clause and PostgreSQL decides, exactly as `updateWithVersion`
+ * puts a work order's `version` there (B6's decision log — "the version is in
+ * the `where`, so PostgreSQL decides"). Reading the timestamp first and
+ * comparing it in JavaScript would leave the same window open between the read
+ * and the write that the whole mechanism exists to close, and the test that
+ * caught the original bug would still pass.
+ */
+async function writeGroup(
   tx: Prisma.TransactionClient,
   key: SettingKey,
   actorId: string,
   value: Prisma.InputJsonValue,
-): Promise<unknown> {
-  return tx.setting.upsert({
-    where: { key },
-    update: { valueJson: value, updatedByUserId: actorId },
-    create: { key, valueJson: value, updatedByUserId: actorId },
+  options: WriteGroupOptions,
+): Promise<void> {
+  const { expectedUpdatedAt } = options;
+
+  if (expectedUpdatedAt === undefined) {
+    await tx.setting.upsert({
+      where: { key },
+      update: { valueJson: value, updatedByUserId: actorId },
+      create: { key, valueJson: value, updatedByUserId: actorId },
+    });
+    return;
+  }
+
+  // The caller read no row at all, so they are claiming this group is still
+  // unwritten. `create` fails on the unique key if someone has written it
+  // since, which is the same answer by a different route.
+  if (expectedUpdatedAt === null) {
+    const created = await tx.setting.createMany({
+      data: [{ key, valueJson: value, updatedByUserId: actorId }],
+      skipDuplicates: true,
+    });
+    if (created.count === 0) {
+      throw settingsConflict(options.label);
+    }
+    return;
+  }
+
+  const updated = await tx.setting.updateMany({
+    where: { key, updatedAt: new Date(expectedUpdatedAt) },
+    data: { valueJson: value, updatedByUserId: actorId },
   });
+  if (updated.count === 0) {
+    throw settingsConflict(options.label);
+  }
+}
+
+function settingsConflict(label: string): ConflictError {
+  return new ConflictError(
+    `${label} har ändrats av någon annan sedan du öppnade sidan. ` +
+      'Ladda om och gör ändringen igen.',
+  );
 }

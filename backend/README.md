@@ -52,6 +52,20 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [13](#b12) | B12       | 7       | 0/6             | Not started |
 | [14](#b13) | B13       | 8       | 0/6             | Not started |
 
+**[Hardening pass H1](#hardening-pass-h1-2026-09-17) — 13/14 findings fixed,
+2026-09-17.** Not an iteration: a cross-cutting audit that probed twenty
+candidate failures against the running stack rather than reading for them.
+Fourteen reproduced; thirteen are fixed and covered by regression tests
+(including a Prisma-7 `upsert` race found only while re-verifying `pnpm check`
+for this pass, unrelated to the original twenty) and two belong to iterations
+that have not run yet (F12.1.7's page CSP, B10.5's persistent spend ceiling).
+Two further candidates were genuine open questions rather than defects and
+were decided, not built, after asking rather than guessing (§4.2's plate
+regex was a specification error, now corrected; `vatRateBps` stays
+unconstrained at the API; a phone-in booking route is real but new scope,
+recorded as backlog). It changes no milestone count — nothing in it was in
+anyone's checklist, which is exactly why none of it had been found.
+
 Entry points, schema, migrations and test configuration are implemented as of
 2026-09-08. B0.9 remains open because branch protection is a repository setting
 that cannot be applied from the working tree, and because the workflow has not
@@ -3580,6 +3594,226 @@ anything that is not.
 
 **Verification:** Pending — record commands/results or report links. **Completed
 on:** —
+
+---
+
+## Hardening pass H1 (2026-09-17)
+
+**Not a planned iteration.** A cross-cutting audit, asked for after Phase 5's
+frontend work, whose question was deliberately the opposite of the iteration
+plan's: not "what does the next step build", but "what has every step so far
+agreed to without anyone checking". Twenty candidate failures were chosen by
+reading the code and then **driven through the running stack** — a real
+Postgres, the real routes, real cookies — because what makes this class of bug
+survive is precisely that it is invisible to a unit test and to a screen.
+Fourteen reproduced; thirteen are fixed (eleven from the original sweep, plus
+the plate-regex spec correction and a Prisma-7 upsert race found while
+re-verifying `pnpm check` for this pass) and two are recorded below as
+accepted or already owned by a later iteration. Two further findings were
+genuine open questions rather than defects and were decided, not built, after
+asking rather than guessing per CLAUDE.md.
+
+Everything fixed here is covered by `backend/tests/hardening.test.ts`
+(27 route-level tests), `shared/tests/input-hardening.test.ts` (15 unit
+tests), or — for H1.15 — the pre-existing `tests/vehicle-data.test.ts`.
+**Each one failed before its fix**, which is the only thing that makes them
+regression tests rather than descriptions.
+
+### What was wrong
+
+- [x] **H1.1 — An amount larger than its column was a `500`, not a `400`.**
+      §3.2 fixes money as Prisma `Int`, so ±21 474 836,47 kr. `isValidOre`
+      checked `Number.isSafeInteger` instead, four and a half orders of
+      magnitude wider — so `POST /api/articles` with
+      `salesPriceOre: 2 147 483 648` passed validation, reached Postgres and
+      returned `INTERNAL_ERROR` with a request id and nothing a person could
+      act on. `ORE_MAX`/`ORE_MIN` are named constants now and the schema's
+      message states the limit in kronor. The same hole let
+      `defaultHourlyRateOre: 9 000 000 000` be stored **without any error at
+      all**, because `Setting` is a JSON blob with no column to overflow —
+      poisoning every line priced from it later.
+- [x] **H1.2 — A quote could not be created from a large work order at all.**
+      Three `FEE` lines of 10 000 000 kr each give a gross of 3 750 000 000
+      öre. A work order *computes* its totals on read and so may legitimately
+      exceed a single column (§3.3 makes a total the exact sum of its rounded
+      lines); a quote *stores* them (decision log, 2026-09-10). The two rules
+      were one predicate, so tightening H1.1 alone would have turned reading a
+      big work order into a serialisation failure — the same `500`, one layer
+      further out. Split into `isValidOre` (stored) and `isComputableOre`
+      (computed), with `isStorableTotal` checked where a quote freezes its
+      numbers, so the refusal arrives in Swedish at the moment of quoting.
+- [x] **H1.3 — The stock ledger could be driven backwards.** A `PART` line
+      naming a catalogue article accepted `quantity: '-5'`. `moveStock` derives
+      the ledger's direction from the sign, so completion wrote a `CONSUMPTION`
+      of **+5**: an article opening at 10 l finished the job at 15 l.
+      `jobs/stock-reconciliation.ts` cannot see it either — cache and ledger
+      agree perfectly, because both were written from the same wrong sign.
+      Negative stays legal on a line with no article (a credited labour line is
+      a real thing, and was the original intent); it is refused on one that
+      names an article — on create, on a quantity patch, and on a patch that
+      attaches an article to an existing negative line.
+- [x] **H1.4 — A NUL byte in any text field was a `500`.** PostgreSQL answers
+      SQLSTATE `22021` for a NUL in `text`, and nothing rejected one on the way
+      in. `nameSchema`, `shortTextSchema` and `noteSchema` now refuse C0/C1
+      control characters and bidirectional overrides — the second for a
+      different reason: an override renders a customer's name on a printed
+      quote in an order that is not the order it is stored in. Ångström,
+      Γιώργος, Łukasz and Şükrü all still pass, and a newline is still legal in
+      a note.
+- [x] **H1.5 — A future-dated odometer reading was permanent damage.**
+      `Vehicle.lastKnownOdometerKm` mirrors the newest reading **by `readAt`**
+      (decision log, 2026-09-09), which is correct and is exactly what makes a
+      year typed as 2031 unrecoverable: it wins that comparison against every
+      real reading until 2031, so the vehicle page and the service engine's km
+      baseline both describe a reading that has not happened. §3.5's tolerance
+      for a reading *lower* than the previous highest is about the number and
+      was never an argument for an impossible date. Refused now, with five
+      minutes of clock skew allowed so a drifting tablet is not punished; a
+      back-dated correction still works.
+- [x] **H1.6 — Settings were last-write-wins.** Two admins each editing a
+      different field of the same group both send a complete object built from
+      their own earlier read; both were answered `200` and one edit vanished.
+      Measured, not reasoned. `GET /api/settings` now returns an `updatedAt`
+      per group and `PATCH` echoes it back, enforced as a compare-and-swap in
+      the `where` clause — the same shape `updateWithVersion` gives a work
+      order, so PostgreSQL decides rather than a JavaScript comparison that
+      leaves open the very window the mechanism exists to close. Omitting the
+      token still writes, so the seed and B12's provisioning keep working
+      (§8.1's reasoning for the optional `Idempotency-Key`). Built now rather
+      than with F11 because the write endpoint has no UI yet, which makes this
+      the one moment the contract can change without breaking a screen.
+- [x] **H1.7 — An erasure request did not reach the customer's booking
+      requests.** §5.5 anonymises rather than deletes, and `Customer` was the
+      only row it touched: the linked `BookingRequest` kept the name, telephone
+      number, e-mail address and free-text message indefinitely, because the
+      90-day retention rule only ever looks at `REJECTED`/`SPAM` — and every
+      request belonging to someone who actually became a customer is
+      `CONFIRMED`. The blanking moved into `modules/bookings/anonymise.ts` so
+      the retention job and the erasure path share one definition of what
+      "erased" means. A *pending* request from a stranger with the same name
+      and number is deliberately left alone: the `Booking` join is the only
+      link that is a fact rather than a coincidence.
+- [x] **H1.8 — The quote-expiry sweep was never scheduled.** B7 decided the
+      `EXPIRED` status is written by a sweep rather than derived on read, and
+      recorded that "B11 schedules it". B11 shipped four jobs and this was not
+      one of them, so `expireOverdueQuotes` was exported, unit-tested and never
+      called by the running process — a quote three months past its date still
+      read as outstanding on the work-order screen, which is the exact
+      disagreement the sweep was chosen to avoid. Now `jobs/quote-expiry.ts`,
+      lock key `8_110_005`, 04:45 Europe/Stockholm. The rule needed an
+      `InTransaction` half: the runner holds a `pg_try_advisory_xact_lock` for
+      the whole run, and a job that opens transactions of its own either nests
+      (Prisma refuses) or drops the lock that stops a second container sweeping
+      at the same time.
+- [x] **H1.9 — The 30-day session did not slide in the browser.** §5.1 asks for
+      a sliding expiry and only the row's `expiresAt` moved; `Max-Age` is
+      written at login, so a staff member using the system daily is signed out
+      exactly thirty days after logging in, with a perfectly valid session row
+      still in the table. The cookie is reissued now on the same one-minute
+      cadence as the touch — not on every response, which would put a
+      `Set-Cookie` on hot `GET`s that changes nothing.
+- [x] **H1.10 — The audit-log date filter could not be driven by a date
+      control.** `GET /api/audit-log?from=2026-09-01` was a `400` ("Invalid ISO
+      datetime"); only a full instant worked, and a date input produces nothing
+      else. A bare date is accepted now and read as the whole
+      **Europe/Stockholm** day through `shared/time.ts` — as UTC it would shift
+      both ends by an hour or two by season, and a bare `to` read as midnight
+      excludes almost the whole day the person asked for, which reads as "the
+      audit log is missing entries".
+- [x] **H1.11 — `oeNumbers` was unbounded.** 5 000 entries were accepted on one
+      article, each of them GIN-indexed, while the sibling `serviceTypeIds` has
+      been capped at ten since B5. Capped at 50.
+- [x] **H1.14 — §4.2's plate regex and `shared/regnr.ts` disagreed. Resolved
+      2026-09-17, human consulted.** The spec wrote a character class including
+      Å, Ä and Ö; the code's standard pattern never did, so `ÅBC12D` stored
+      with `isNonStandardPlate: true`. Swedish plates do not use those
+      letters, so the code was right and the specification was wrong — raised
+      rather than silently "fixed" in either direction, per CLAUDE.md, and
+      corrected in `PROJECT_SPEC.md` §4.2 once confirmed. A plate that does
+      carry one of those letters still stores fine, flagged non-standard.
+- [x] **H1.15 — A concurrent public lookup of a brand-new plate answered
+      `409`, not `200`.** Found re-verifying `pnpm check` for this pass, not
+      among the original twenty candidates. `persistLookupResult`'s own
+      comment assumed `upsert` compiles to one atomic
+      `INSERT ... ON CONFLICT DO UPDATE` — true of the old Rust query engine,
+      but under Prisma 7's query compiler an `upsert` whose `update` clause is
+      empty (nothing to change on a row a concurrent winner just created)
+      compiles to a plain `INSERT` with no `ON CONFLICT` at all, so the
+      loser's own insert raised a genuine `P2002` and rolled its transaction
+      back. `postgresErrorCode`'s own comment in `lib/prisma-errors.ts`
+      already records this engine surfacing one Postgres condition through
+      more than one Prisma code (B0.10.3) — this is that trap's sibling, and
+      `tests/vehicle-data.test.ts`'s "two simultaneous lookups... create
+      exactly one Vehicle row" existed precisely to catch it, and did. Fixed
+      by catching the `P2002` (`isPrismaKnownRequestError`, the same
+      structural check `lib/idempotency.ts` already uses for the same reason)
+      and retrying once against the winner's row, rather than widening a
+      comment's assumption to an engine it no longer holds for.
+
+### Confirmed, and deliberately not changed
+
+- [ ] **H1.12 — No Content-Security-Policy on Next-served HTML.**
+      `plugins/security.ts` correctly sets `contentSecurityPolicy: false`
+      because §5.4 puts the page CSP in `next.config.ts` `headers()` — which
+      has none. The system therefore has no CSP at all, which is §5.4's own
+      "common and completely ineffective mistake", half-executed. **Owned by
+      F12.1.7, still unticked**, so it is reported rather than built here:
+      jumping a planned step is what CLAUDE.md asks not to do.
+- [ ] **H1.13 — The vehicle-data daily ceiling is in-process memory.** A
+      restart or a redeploy refills a budget denominated in real money (§6.1,
+      §7.1). Harmless today — `VEHICLE_DATA_PROVIDER` is `mock`, and mock calls
+      cost nothing — and it becomes real the day **B10.5** goes live, so it
+      belongs to that iteration's design rather than to a patch here.
+
+### Decided after consulting the human, not built
+
+Two of the original twenty were genuine open questions, not defects — CLAUDE.md
+asks to ask rather than guess at either. Decided 2026-09-17.
+
+- [ ] **H1.16 — A work-order line's `vatRateBps` stays unconstrained (0–10000)
+      at the API**, though the frontend select is capped to the four Swedish
+      rates. §3.3 stores the rate per line precisely so a future rate change
+      does not rewrite history; constraining the API to the same four values
+      was considered and declined on that reasoning — an arbitrary rate is
+      arguably legitimate, and the UI already prevents the ordinary mistake.
+      No code change.
+- [ ] **H1.17 — There is still no route to create a booking directly for a
+      phone-in customer.** Bookings only exist via
+      `POST /api/booking-requests/:id/confirm`; §1.2 says customers phone in,
+      so a walk-in needs a fabricated request today. Confirmed as a real,
+      wanted gap rather than an oversight, and recorded here as backlog rather
+      than built now, since it is new scope with no Definition of Done yet and
+      CLAUDE.md asks not to skip ahead of the plan. For whoever picks it up: a
+      `POST /api/bookings` endpoint mirroring `confirmBookingRequest`'s
+      validation (customer/vehicle match-or-create, the same exclusion-
+      constraint conflict handling as B5.4.5) without a `BookingRequest` in
+      between.
+
+### Checked and found correct
+
+Worth recording, because each was a plausible failure and an absence is as
+useful to the next reader as a presence: concurrent completion of one work
+order without an `Idempotency-Key` (`200` + `409` on the optimistic lock, stock
+moved once); cross-user reuse of an idempotency key (`409`, not another
+caller's response body); a replay after the 24-hour sweep (refused by the state
+machine, not re-run); a deactivated user's next request (`401`, session row
+deleted); `%` and `_` in every search box (escaped in all three repositories);
+a stocktake or adjustment beyond `Decimal(12, 3)` (`400`, in Swedish); a
+document whose file is missing or altered on disk (`500` **by design** — §8.3
+wants an operator to see that, not the caller); and rescheduling a booking onto
+its own slot (allowed, because the exclusion constraint does not conflict a row
+with itself).
+
+### Verification
+
+`pnpm check` clean on 2026-09-17, re-run after H1.15's fix and the three
+decisions above: typecheck, `eslint --max-warnings 0`, 1 235 tests (343
+shared, 737 backend, 155 frontend), `type-coverage` 99.56 %. `shared` holds
+its 100 % statement/branch/function/line threshold. Every fixed item above was
+reproduced as a failing test first — H1.15's by the pre-existing
+`tests/vehicle-data.test.ts`, which failed identically on the untouched `HEAD`
+before this pass touched anything, confirming it was pre-existing and
+unrelated to H1.1–H1.11's changes rather than a regression introduced by them.
 
 ---
 

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { cursorQuerySchema, paginatedResponseSchema } from './common.js';
 import {
   idSchema,
+  dateOrDateTimeQuerySchema,
   isoDateTimeSchema,
   optionalIdSchema,
   shortTextSchema,
@@ -44,8 +45,14 @@ export const auditLogQuerySchema = cursorQuerySchema.extend({
   entityType: shortTextSchema.optional(),
   entityId: idSchema.optional(),
   userId: idSchema.optional(),
-  from: isoDateTimeSchema.optional(),
-  to: isoDateTimeSchema.optional(),
+  /**
+   * Inclusive bounds. A plain `YYYY-MM-DD` is accepted as well as a full
+   * instant, because a date control cannot produce anything else — see
+   * `dateOrDateTimeQuerySchema`. A bare date is read as the whole
+   * Europe/Stockholm day (§3.6), widened in the repository.
+   */
+  from: dateOrDateTimeQuerySchema.optional(),
+  to: dateOrDateTimeQuerySchema.optional(),
 });
 export type AuditLogQuery = z.infer<typeof auditLogQuerySchema>;
 

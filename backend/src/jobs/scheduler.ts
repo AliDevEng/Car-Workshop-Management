@@ -6,6 +6,7 @@ import { reconcileStockLedger } from './stock-reconciliation.js';
 import { refreshServiceRecommendations } from './recommendation-refresh.js';
 import { runRetentionSweep } from './retention.js';
 import { runHourlyCleanup } from './session-cleanup.js';
+import { runQuoteExpirySweep } from './quote-expiry.js';
 
 /**
  * Wiring the §8.4 job table to `node-cron` (B11.3.1, B11.3.8).
@@ -41,6 +42,7 @@ const LOCK_KEYS = {
   recommendationRefresh: 8_110_002n,
   retention: 8_110_003n,
   hourlyCleanup: 8_110_004n,
+  quoteExpiry: 8_110_005n,
 } as const;
 
 export type CronSchedules = {
@@ -48,6 +50,7 @@ export type CronSchedules = {
   readonly recommendationRefresh: string;
   readonly retention: string;
   readonly hourlyCleanup: string;
+  readonly quoteExpiry: string;
 };
 
 /** §8.4's table, as cron expressions in the workshop's own local time. */
@@ -56,6 +59,9 @@ export const DEFAULT_SCHEDULES: CronSchedules = {
   recommendationRefresh: '0 4 * * *',
   retention: '30 4 * * *',
   hourlyCleanup: '0 * * * *',
+  // After retention (04:30), so the two nightly passes over overlapping
+  // tables do not queue behind each other for a pool connection.
+  quoteExpiry: '45 4 * * *',
 };
 
 function jobsFor(logger: JobLogger): readonly ScheduledJob[] {
@@ -81,6 +87,15 @@ function jobsFor(logger: JobLogger): readonly ScheduledJob[] {
       lockKey: LOCK_KEYS.hourlyCleanup,
       run: (db) => runHourlyCleanup(db, logger).then(() => undefined),
     },
+    {
+      // B7 decided the `EXPIRED` status is written by a sweep and recorded
+      // that "B11 schedules it". B11 shipped four jobs and this was not one of
+      // them, so `expireOverdueQuotes` existed, was exported and was tested —
+      // and was never called by the running process. See `quote-expiry.ts`.
+      name: 'quote-expiry',
+      lockKey: LOCK_KEYS.quoteExpiry,
+      run: (db) => runQuoteExpirySweep(db, logger).then(() => undefined),
+    },
   ];
 }
 
@@ -95,6 +110,7 @@ export function startScheduledJobs(
     'recommendation-refresh': schedules.recommendationRefresh,
     retention: schedules.retention,
     'hourly-cleanup': schedules.hourlyCleanup,
+    'quote-expiry': schedules.quoteExpiry,
   };
 
   return jobs.map((job) => {

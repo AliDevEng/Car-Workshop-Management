@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   emailSchema,
+  isoDateTimeSchema,
   localTimeSchema,
   nameSchema,
   nonNegativeOreSchema,
@@ -133,6 +134,26 @@ export const settingsResponseSchema = z.object({
   workshop: workshopDetailsSchema,
   openingHours: openingHoursSchema,
   operational: workshopOperationalSettingsSchema,
+  /**
+   * The optimistic-lock token, one per group (§6.5's `version`, expressed with
+   * the column the store already has rather than a migration for a new one).
+   *
+   * `null` for a group no one has written yet, which is a fresh install serving
+   * the built-in defaults.
+   *
+   * It exists because a settings group is written **as a whole**: two admins
+   * each editing a different field of `workshop` both send a complete object
+   * built from their own earlier read, so the second write silently discards
+   * the first and both are answered `200`. Measured, not reasoned — two
+   * concurrent `PATCH`es setting `name` and `city` left only `city`. §6.5
+   * already refuses to let that happen to a work order for exactly this
+   * reason; settings are the other shared record two people edit at once.
+   */
+  updatedAt: z.object({
+    workshop: isoDateTimeSchema.nullable(),
+    openingHours: isoDateTimeSchema.nullable(),
+    operational: isoDateTimeSchema.nullable(),
+  }),
 });
 export type SettingsResponse = z.infer<typeof settingsResponseSchema>;
 
@@ -141,6 +162,24 @@ export const updateSettingsInputSchema = z
     workshop: workshopDetailsSchema,
     openingHours: openingHoursSchema,
     operational: workshopOperationalSettingsSchema,
+    /**
+     * The `updatedAt` the caller last read, echoed back per group it is
+     * writing. A mismatch is a `409` and the UI offers to reload — the same
+     * affordance F9 built for a work-order version conflict.
+     *
+     * Optional, and omitting it means "write regardless". §8.1 makes
+     * `Idempotency-Key` optional on the same reasoning: a caller that has not
+     * asked for the protection must not be given a silent, half-working
+     * version of it — and the seed and B12's provisioning scripts write these
+     * rows with nothing to have read first.
+     */
+    expectedUpdatedAt: z
+      .object({
+        workshop: isoDateTimeSchema.nullable(),
+        openingHours: isoDateTimeSchema.nullable(),
+        operational: isoDateTimeSchema.nullable(),
+      })
+      .partial(),
   })
   .partial();
 export type UpdateSettingsInput = z.infer<typeof updateSettingsInputSchema>;

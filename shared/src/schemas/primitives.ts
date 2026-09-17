@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isValidOre } from '../money.js';
+import { isComputableOre, isValidOre } from '../money.js';
 import { isValidQuantityString } from '../quantity.js';
 import { isNormalisedRegNr } from '../regnr.js';
 import {
@@ -98,19 +98,42 @@ const oreBase = z.number().int({
 });
 
 /**
- * A signed amount in integer öre (§3.2). Signed because a rounding difference
- * and a credited line are both legitimately negative.
+ * The message a rejected amount carries. §3.2 fixes the column as `Int`, so
+ * the ceiling is 21 474 836,47 kr — named in kronor, because that is the unit
+ * the person reading the message typed in.
+ */
+const ORE_OUT_OF_RANGE =
+  'Beloppet ligger utanför det tillåtna intervallet (högst 21 474 836,47 kr).';
+
+/**
+ * A signed amount in integer öre that is **stored in a money column** (§3.2).
+ * Signed because a rounding difference and a credited line are both
+ * legitimately negative; bounded because the column is `int4`, and a value
+ * between `int4` and `Number.MAX_SAFE_INTEGER` used to pass validation and
+ * then fail in Postgres as a 500 rather than here as a 400.
  */
 export const oreSchema = oreBase.refine(isValidOre, {
-  message: 'Beloppet är för stort för att hanteras exakt.',
+  message: ORE_OUT_OF_RANGE,
 });
 
 /** A price. Negative prices are a data-entry error, not a discount. */
 export const nonNegativeOreSchema = oreBase
   .min(0, { message: 'Beloppet kan inte vara negativt.' })
-  .refine(isValidOre, {
-    message: 'Beloppet är för stort för att hanteras exakt.',
-  });
+  .refine(isValidOre, { message: ORE_OUT_OF_RANGE });
+
+/**
+ * An amount that is **computed rather than stored** — a line total, a document
+ * total. Wider than `oreSchema` on purpose: §3.3 makes a document total the
+ * exact sum of its already-rounded lines, and a hundred lines each inside
+ * `int4` can legitimately sum past it. Narrowing this would turn an ordinary
+ * `GET` on a large work order into a serialisation failure, which is the same
+ * 500 one layer further out. Where such a total is *frozen* into columns — a
+ * quote (§6.6) — the service checks `isStorableTotal` and refuses with a
+ * Swedish message instead.
+ */
+export const computedOreSchema = oreBase.refine(isComputableOre, {
+  message: 'Beloppet är för stort för att hanteras exakt.',
+});
 
 /**
  * VAT rate in basis points — `2500` is 25 % (§3.3). Stored per line so that a
@@ -126,9 +149,9 @@ export const VAT_RATE_BPS_STANDARD = 2500;
 
 /** The three line values, in the §3.3 order. Never recomputed from a total. */
 export const lineTotalsSchema = z.object({
-  netOre: oreSchema,
-  vatOre: oreSchema,
-  grossOre: oreSchema,
+  netOre: computedOreSchema,
+  vatOre: computedOreSchema,
+  grossOre: computedOreSchema,
 });
 export type LineTotalsDto = z.infer<typeof lineTotalsSchema>;
 
@@ -142,8 +165,8 @@ export type LineTotalsDto = z.infer<typeof lineTotalsSchema>;
  * document and a screen end up one öre apart.
  */
 export const documentTotalsSchema = lineTotalsSchema.extend({
-  roundingOre: oreSchema,
-  roundedGrossOre: oreSchema,
+  roundingOre: computedOreSchema,
+  roundedGrossOre: computedOreSchema,
 });
 export type DocumentTotalsDto = z.infer<typeof documentTotalsSchema>;
 
@@ -170,18 +193,62 @@ export const odometerKmSchema = z
 
 // --- Text and contact details ------------------------------------------------
 
+/**
+ * PostgreSQL `text` cannot hold a NUL byte: it answers SQLSTATE `22021`,
+ * "invalid byte sequence for encoding UTF8". Nothing rejected one on the way
+ * in, so a name containing ` ` — which a paste from a binary file or a
+ * probing client supplies without effort — reached the driver and came back as
+ * a `500 INTERNAL_ERROR` rather than the §3.7 field-level message.
+ *
+ * The rule is drawn one step wider than the byte that breaks the driver: no C0
+ * or C1 control character at all, except the tab and newline a multi-line note
+ * legitimately carries. A bidirectional override (`U+202A`–`U+202E`,
+ * `U+2066`–`U+2069`) is refused for a different reason — it renders a customer
+ * name on a printed quote in an order that is not the order it is stored in,
+ * which is a document nobody can reconcile afterwards.
+ */
+// Written as escapes, never as literal characters: B5's decision log records the
+// same rule for the spam heuristic's Cyrillic and CJK ranges, because a source
+// file re-saved in another encoding would otherwise change which inputs are
+// rejected, silently.
+const FORBIDDEN_TEXT_PATTERN =
+  // eslint-disable-next-line no-control-regex -- matching them is the point
+  /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/;
+
+const PRINTABLE_TEXT_MESSAGE = 'Texten innehåller tecken som inte kan sparas.';
+
+/** True when a string carries nothing a column or a document cannot render. */
+export function isPrintableText(value: string): boolean {
+  return !FORBIDDEN_TEXT_PATTERN.test(value);
+}
+
+/** A single-line value: the rule above, plus no line breaks of any kind. */
+function singleLine(schema: z.ZodString): z.ZodType<string, string> {
+  return schema
+    .refine(isPrintableText, { message: PRINTABLE_TEXT_MESSAGE })
+    .refine((value) => !value.includes('\n') && !value.includes('\t'), {
+      message: 'Texten får inte innehålla radbrytningar.',
+    });
+}
+
 /** A person, company, article or link name. */
-export const nameSchema = z
-  .string()
-  .trim()
-  .min(1, { message: 'Namnet får inte vara tomt.' })
-  .max(200, { message: 'Namnet är för långt.' });
+export const nameSchema = singleLine(
+  z
+    .string()
+    .trim()
+    .min(1, { message: 'Namnet får inte vara tomt.' })
+    .max(200, { message: 'Namnet är för långt.' }),
+);
 
 /** A single-line free-text field — a description, a location, a reason. */
-export const shortTextSchema = z.string().trim().min(1).max(500);
+export const shortTextSchema = singleLine(z.string().trim().min(1).max(500));
 
 /** A multi-line note. Generous, but bounded: an unbounded column is a payload. */
-export const noteSchema = z.string().trim().max(4000);
+export const noteSchema = z
+  .string()
+  .trim()
+  .max(4000)
+  .refine(isPrintableText, { message: PRINTABLE_TEXT_MESSAGE });
 
 export const emailSchema = z
   .email({ message: 'Ange en giltig e-postadress.' })
@@ -253,3 +320,24 @@ export const booleanQuerySchema = z.stringbool();
 
 /** A free-text search term. Trimmed, bounded, and never optional-but-empty. */
 export const searchQuerySchema = z.string().trim().min(1).max(100);
+
+/**
+ * A point in time in a **query string**, accepting either a full instant
+ * (`2026-09-01T00:00:00.000Z`) or a plain calendar date (`2026-09-01`).
+ *
+ * The plain date is not a convenience. A date filter in the admin panel is
+ * driven by a date control, which produces `YYYY-MM-DD` and nothing else — and
+ * `isoDateTimeSchema` alone rejected exactly that with `Invalid ISO datetime`,
+ * so `GET /api/audit-log?from=2026-09-01` was a `400` and the filter B11.1.4
+ * built could not be used from a UI at all.
+ *
+ * A bare date is widened to the **whole Europe/Stockholm day** by the endpoint,
+ * not here: which end of the day a bound means is the endpoint's question, and
+ * §3.6 keeps that conversion in `shared/time.ts` rather than in a schema. This
+ * is input-only, like the other coercions in this section, so the no-transform
+ * rule does not apply.
+ */
+export const dateOrDateTimeQuerySchema = z.union([
+  isoDateTimeSchema,
+  isoDateSchema,
+]);

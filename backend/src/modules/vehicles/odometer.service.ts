@@ -7,6 +7,7 @@ import {
   type OdometerSource,
 } from 'shared';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { fieldError } from '../../lib/field-error.js';
 import type { Database } from '../../lib/prisma.js';
 import { recomputeRecommendationsForVehicleInTransaction } from '../service-recommendations/service.js';
 import {
@@ -49,6 +50,38 @@ async function assertVehicleExists(
   }
 }
 
+/**
+ * How far ahead of the server's clock a reading may be dated.
+ *
+ * Not zero: a tablet's clock drifts, and refusing a reading because the device
+ * is ninety seconds fast would fail a mechanic for something they cannot see or
+ * fix. Five minutes absorbs that and nothing else.
+ */
+const READ_AT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+/**
+ * A reading cannot be dated in the future, and the reason is the cache rule
+ * rather than tidiness.
+ *
+ * `Vehicle.lastKnownOdometerKm` mirrors the **newest reading by `readAt`**, not
+ * the highest km (decision log, 2026-09-09) — which is correct, and is exactly
+ * what makes a future date permanent damage: a reading mistyped as 2031 wins
+ * that comparison against every real reading taken between now and 2031, so the
+ * cached value, the vehicle page and the service-rule engine's km baseline all
+ * describe a reading that has not happened. Nothing later corrects it, because
+ * nothing later is newer. §3.5 deliberately *accepts* a reading lower than the
+ * previous highest and only warns; that tolerance is about the number, and it
+ * has never been an argument for accepting an impossible date.
+ */
+function assertNotInTheFuture(readAt: Date): void {
+  if (readAt.getTime() > Date.now() + READ_AT_CLOCK_SKEW_MS) {
+    throw fieldError(
+      'readAt',
+      'Avläsningen kan inte vara gjord i framtiden. Kontrollera datumet.',
+    );
+  }
+}
+
 export type RecordReadingInput = {
   readonly vehicleId: string;
   readonly km: number;
@@ -75,12 +108,15 @@ export async function recordOdometerReadingInTransaction(
   tx: Prisma.TransactionClient,
   input: RecordReadingInput,
 ): Promise<{ reading: OdometerReading; warnings: string[] }> {
+  const readAt = input.readAt ?? new Date();
+  assertNotInTheFuture(readAt);
+
   const previousHighest = await highestRecordedKm(tx, input.vehicleId);
 
   const reading = await insertReading(tx, {
     vehicleId: input.vehicleId,
     km: input.km,
-    readAt: input.readAt ?? new Date(),
+    readAt,
     source: input.source,
     userId: input.userId,
     workOrderId: input.workOrderId ?? null,

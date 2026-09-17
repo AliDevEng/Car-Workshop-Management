@@ -1,9 +1,6 @@
-import { writeAuditLog } from '../lib/audit.js';
 import type { AnyDbClient } from '../lib/prisma.js';
-import {
-  ANONYMISED_PHONE,
-  anonymiseCustomerInTransaction,
-} from '../modules/customers/gdpr.service.js';
+import { anonymiseBookingRequest } from '../modules/bookings/anonymise.js';
+import { anonymiseCustomerInTransaction } from '../modules/customers/gdpr.service.js';
 import type { JobLogger } from './lock.js';
 
 /**
@@ -16,7 +13,6 @@ import type { JobLogger } from './lock.js';
 
 const REJECTED_OR_SPAM_RETENTION_DAYS = 90;
 const CUSTOMER_INACTIVITY_RETENTION_MONTHS = 36;
-const ANONYMISED_BOOKING_REQUEST_NAME = 'Raderad förfrågan';
 
 function daysAgo(from: Date, days: number): Date {
   return new Date(from.getTime() - days * 24 * 60 * 60 * 1000);
@@ -50,30 +46,12 @@ async function anonymiseStaleBookingRequests(
     select: { id: true, customerName: true, phone: true, email: true },
   });
 
+  // The blanking itself lives in `modules/bookings/anonymise.ts`, because
+  // §5.5's *other* rule — a customer's own erasure request — has to perform
+  // exactly the same one, and two copies of "what erased looks like" is two
+  // spellings of it in one table.
   for (const candidate of candidates) {
-    await db.bookingRequest.update({
-      where: { id: candidate.id },
-      data: {
-        customerName: ANONYMISED_BOOKING_REQUEST_NAME,
-        phone: ANONYMISED_PHONE,
-        email: null,
-        message: null,
-        anonymisedAt: now,
-      },
-    });
-
-    await writeAuditLog(db, {
-      userId: null,
-      action: 'booking_request.anonymised',
-      entityType: 'BookingRequest',
-      entityId: candidate.id,
-      before: {
-        customerName: candidate.customerName,
-        phone: candidate.phone,
-        email: candidate.email,
-      },
-      after: { customerName: ANONYMISED_BOOKING_REQUEST_NAME },
-    });
+    await anonymiseBookingRequest(db, candidate, now);
   }
 
   return candidates.length;
