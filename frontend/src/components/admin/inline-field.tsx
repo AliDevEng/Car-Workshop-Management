@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { DatePicker } from '@/components/form/date-picker';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -72,8 +73,8 @@ export function InlineField({
     [],
   );
 
-  async function commit(): Promise<void> {
-    const trimmed = text.trim();
+  async function commit(nextText = text): Promise<void> {
+    const trimmed = nextText.trim();
     if (trimmed === value) {
       // A genuine no-op: nothing typed differs from the server value, so
       // there is nothing this field could lose by adopting a prop update.
@@ -118,9 +119,7 @@ export function InlineField({
       // user retries or edits further.
       dirty.current = true;
       setStatus('error');
-      setError(
-        caught instanceof Error ? caught.message : 'Kunde inte sparas.',
-      );
+      setError(caught instanceof Error ? caught.message : 'Kunde inte sparas.');
     }
   }
 
@@ -147,6 +146,21 @@ export function InlineField({
           }}
           onBlur={() => {
             void commit();
+          }}
+        />
+      ) : type === 'date' ? (
+        <DatePicker
+          {...aria}
+          value={text === '' ? null : text}
+          optional={!required}
+          onChange={(next) => {
+            const nextText = next ?? '';
+            dirty.current = true;
+            setText(nextText);
+            if (status !== 'idle') {
+              setStatus('idle');
+            }
+            void commit(nextText);
           }}
         />
       ) : (

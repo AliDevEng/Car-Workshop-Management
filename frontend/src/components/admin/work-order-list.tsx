@@ -2,7 +2,7 @@
 
 import { ClipboardListIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import {
   WORK_ORDER_STATUSES,
   ore,
@@ -21,8 +21,8 @@ import {
   ErrorState,
   TableSkeleton,
 } from '@/components/admin/states';
+import { DatePicker } from '@/components/form/date-picker';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -337,15 +337,15 @@ export function WorkOrderListPage({
               >
                 Från datum
               </label>
-              <Input
+              <DatePicker
                 id="wo-date-from"
-                type="date"
-                value={dateFrom}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  setDateFrom(event.currentTarget.value);
+                value={dateFrom === '' ? null : dateFrom}
+                onChange={(value) => {
+                  setDateFrom(value ?? '');
                   resetPaging();
                 }}
-                className="w-40"
+                optional
+                className="w-48"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -355,15 +355,15 @@ export function WorkOrderListPage({
               >
                 Till datum
               </label>
-              <Input
+              <DatePicker
                 id="wo-date-to"
-                type="date"
-                value={dateTo}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  setDateTo(event.currentTarget.value);
+                value={dateTo === '' ? null : dateTo}
+                onChange={(value) => {
+                  setDateTo(value ?? '');
                   resetPaging();
                 }}
-                className="w-40"
+                optional
+                className="w-48"
               />
             </div>
           </div>

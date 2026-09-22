@@ -15,7 +15,7 @@ import {
 } from 'shared';
 import { isConflictError } from '@/components/admin/conflict';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
-import { Calendar } from '@/components/form/calendar';
+import { DatePicker } from '@/components/form/date-picker';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -26,7 +26,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -58,7 +57,9 @@ function defaultStartTime(timeOfDay: RequestedTimeOfDay | null): string {
 
 /** A small debounced text search, shared by the customer and vehicle
  * pickers below — the same pattern `ReassignOwnerDialog` already uses. */
-function useDebouncedSearch(initial = ''): readonly [string, string, (value: string) => void] {
+function useDebouncedSearch(
+  initial = '',
+): readonly [string, string, (value: string) => void] {
   const [input, setInput] = useState(initial);
   const [debounced, setDebounced] = useState(initial);
 
@@ -126,8 +127,7 @@ function CustomerPicker({
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Ingen befintlig kund hittades på {request.phone}. En ny kund skapas:
-          {' '}
+          Ingen befintlig kund hittades på {request.phone}. En ny kund skapas:{' '}
           {request.customerName}.
         </p>
       )}
@@ -342,7 +342,6 @@ export function ConfirmBookingRequestDialog({
   readonly onConfirmed?: (booking: BookingWithRelations) => void;
 }) {
   const [date, setDate] = useState<string | null>(request.requestedDate);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [startTime, setStartTime] = useState(
     defaultStartTime(request.requestedTimeOfDay),
   );
@@ -372,20 +371,23 @@ export function ConfirmBookingRequestDialog({
     (booking: BookingWithRelations) =>
       booking.status !== 'CANCELLED' &&
       booking.status !== 'NO_SHOW' &&
-      (assignedUserId === UNASSIGNED || booking.assignedUserId === assignedUserId),
+      (assignedUserId === UNASSIGNED ||
+        booking.assignedUserId === assignedUserId),
   );
   const proposedStartMs =
     localStart === null ? null : stockholmWallClockToUtc(localStart).getTime();
   const proposedEndMs =
     localEnd === null ? null : stockholmWallClockToUtc(localEnd).getTime();
-  const overlapping = relevantBookings.filter((booking: BookingWithRelations) => {
-    if (proposedStartMs === null || proposedEndMs === null) {
-      return false;
-    }
-    const bookingStart = new Date(booking.startsAt).getTime();
-    const bookingEnd = new Date(booking.endsAt).getTime();
-    return proposedStartMs < bookingEnd && bookingStart < proposedEndMs;
-  });
+  const overlapping = relevantBookings.filter(
+    (booking: BookingWithRelations) => {
+      if (proposedStartMs === null || proposedEndMs === null) {
+        return false;
+      }
+      const bookingStart = new Date(booking.startsAt).getTime();
+      const bookingEnd = new Date(booking.endsAt).getTime();
+      return proposedStartMs < bookingEnd && bookingStart < proposedEndMs;
+    },
+  );
 
   // A mechanic is optional (`UNASSIGNED` occupies nobody's calendar and so
   // cannot conflict, mirroring the exclusion constraint's own partial index).
@@ -406,7 +408,9 @@ export function ConfirmBookingRequestDialog({
           ...(customerOverride === null
             ? {}
             : { customerId: customerOverride.id }),
-          ...(vehicleOverride === null ? {} : { vehicleId: vehicleOverride.id }),
+          ...(vehicleOverride === null
+            ? {}
+            : { vehicleId: vehicleOverride.id }),
           ...(note.trim() === '' ? {} : { note: note.trim() }),
         },
       });
@@ -434,7 +438,8 @@ export function ConfirmBookingRequestDialog({
         <DialogHeader>
           <DialogTitle>Bekräfta bokning</DialogTitle>
           <DialogDescription>
-            Från {request.customerName}, inkommen {formatDate(request.submittedAt)}.
+            Från {request.customerName}, inkommen{' '}
+            {formatDate(request.submittedAt)}.
             {request.message === null ? '' : ` "${request.message}"`}
           </DialogDescription>
         </DialogHeader>
@@ -454,26 +459,14 @@ export function ConfirmBookingRequestDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">Datum</span>
-              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="secondary" className="justify-start tabular-nums">
-                    {date === null ? 'Välj datum' : formatDate(`${date}T12:00:00.000Z`)}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    value={date}
-                    onChange={(value: string) => {
-                      setDate(value);
-                      setDatePickerOpen(false);
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+              <DatePicker value={date} onChange={setDate} disablePast />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="confirm-booking-start-time" className="text-sm font-medium">
+              <label
+                htmlFor="confirm-booking-start-time"
+                className="text-sm font-medium"
+              >
                 Starttid
               </label>
               <Input
@@ -551,7 +544,8 @@ export function ConfirmBookingRequestDialog({
                     }
                   >
                     <span className="tabular-nums">
-                      {formatTime(booking.startsAt)}–{formatTime(booking.endsAt)}
+                      {formatTime(booking.startsAt)}–
+                      {formatTime(booking.endsAt)}
                     </span>{' '}
                     {booking.customer.name}
                   </li>
@@ -562,8 +556,8 @@ export function ConfirmBookingRequestDialog({
 
           {overlapping.length > 0 ? (
             <p role="alert" className="text-sm text-destructive">
-              Krockar med en befintlig bokning ovan. Bekräftelsen kan ändå
-              nekas av servern om tiden inte längre är ledig.
+              Krockar med en befintlig bokning ovan. Bekräftelsen kan ändå nekas
+              av servern om tiden inte längre är ledig.
             </p>
           ) : null}
 
@@ -574,7 +568,10 @@ export function ConfirmBookingRequestDialog({
           ) : null}
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="confirm-booking-note" className="text-sm font-medium">
+            <label
+              htmlFor="confirm-booking-note"
+              className="text-sm font-medium"
+            >
               Anteckning
             </label>
             <Textarea

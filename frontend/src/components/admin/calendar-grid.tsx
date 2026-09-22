@@ -117,14 +117,11 @@ export function CalendarGrid({
   }
 
   return (
-    <div
-      className="overflow-auto rounded-sharp border border-border"
-      style={{ maxHeight: '72vh' }}
-    >
+    <div className="overflow-x-auto rounded-sharp border border-border">
       <div className="flex" style={{ width: 'max-content' }}>
         <div className="sticky left-0 z-20 flex w-14 shrink-0 flex-col bg-card">
-          <div className="sticky top-0 z-10 h-11 border-b border-border bg-card" />
-          <div className="sticky top-11 z-10 h-7 border-b border-border bg-card" />
+          <div className="sticky top-16 z-10 h-11 border-b border-border bg-card" />
+          <div className="sticky top-[calc(4rem+2.75rem)] z-10 h-7 border-b border-border bg-card" />
           <div
             style={{
               display: 'grid',
@@ -161,9 +158,11 @@ export function CalendarGrid({
            * handler at all, rather than being silently swallowed by the
            * block underneath the cursor.
            */
-          function resolveDragTarget(
-            event: DragEvent<HTMLDivElement>,
-          ): { readonly rowIndex: number; readonly columnIndex: number; readonly past: boolean } {
+          function resolveDragTarget(event: DragEvent<HTMLDivElement>): {
+            readonly rowIndex: number;
+            readonly columnIndex: number;
+            readonly past: boolean;
+          } {
             const rect = event.currentTarget.getBoundingClientRect();
             const rowIndex = Math.min(
               Math.max(
@@ -197,14 +196,14 @@ export function CalendarGrid({
             >
               <div
                 className={cn(
-                  'sticky top-0 z-10 flex h-11 items-center justify-center border-b border-border bg-card text-sm font-medium',
+                  'sticky top-16 z-10 flex h-11 items-center justify-center border-b border-border bg-card text-sm font-medium',
                   weekend && 'text-status-oxide',
                 )}
               >
                 {dayHeaderLabel(day, dense)}
               </div>
               <div
-                className="sticky top-11 z-10 grid h-7 border-b border-border bg-card text-[0.6875rem] text-muted-foreground"
+                className="sticky top-[calc(4rem+2.75rem)] z-10 grid h-7 border-b border-border bg-card text-[0.6875rem] text-muted-foreground"
                 style={{
                   gridTemplateColumns: `repeat(${String(columns.length)}, minmax(0, 1fr))`,
                 }}
@@ -232,7 +231,9 @@ export function CalendarGrid({
                   }
                   event.preventDefault();
                   event.dataTransfer.dropEffect = 'move';
-                  setDragOverSlot(slotKey(day, target.columnIndex, target.rowIndex));
+                  setDragOverSlot(
+                    slotKey(day, target.columnIndex, target.rowIndex),
+                  );
                 }}
                 onDragLeave={() => {
                   setDragOverSlot(null);
@@ -262,17 +263,20 @@ export function CalendarGrid({
               >
                 {Array.from({ length: slotCount }, (_, rowIndex) =>
                   columns.map((column, columnIndex) => {
-                    const localTime = calendarSlotToLocalTime(
-                      rowIndex,
-                      bounds,
+                    const localTime = calendarSlotToLocalTime(rowIndex, bounds);
+                    const past = isPastLocalDateTime(
+                      `${day}T${localTime}`,
+                      now,
                     );
-                    const past = isPastLocalDateTime(`${day}T${localTime}`, now);
                     const key = slotKey(day, columnIndex, rowIndex);
 
                     return (
                       <div
                         key={key}
-                        style={{ gridColumn: columnIndex + 1, gridRow: rowIndex + 1 }}
+                        style={{
+                          gridColumn: columnIndex + 1,
+                          gridRow: rowIndex + 1,
+                        }}
                         className={cn(
                           'border-b border-border/40',
                           columnIndex > 0 && 'border-l border-border/40',

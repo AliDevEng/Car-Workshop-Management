@@ -3,11 +3,9 @@
 import { formatInTimeZone } from 'date-fns-tz';
 import { sv } from 'date-fns/locale';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { useState } from 'react';
 import { WORKSHOP_TIMEZONE, stockholmDate, type UserSummary } from 'shared';
-import { Calendar } from '@/components/form/calendar';
+import { DatePicker } from '@/components/form/date-picker';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -54,7 +52,6 @@ function rangeLabel(view: 'week' | 'day', anchorDate: string): string {
  * the project's own calendar, and a mechanic filter. */
 export function CalendarToolbar({
   view,
-  onViewChange,
   anchorDate,
   onAnchorDateChange,
   mechanics,
@@ -62,18 +59,16 @@ export function CalendarToolbar({
   onMechanicFilterChange,
 }: {
   readonly view: 'week' | 'day';
-  readonly onViewChange: (view: 'week' | 'day') => void;
   readonly anchorDate: string;
   readonly onAnchorDateChange: (date: string) => void;
   readonly mechanics: readonly UserSummary[];
   readonly mechanicFilter: string;
   readonly onMechanicFilterChange: (value: string) => void;
 }) {
-  const [jumpOpen, setJumpOpen] = useState(false);
   const stepDays = view === 'day' ? 1 : 7;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-end gap-3">
       <div className="flex items-center gap-1">
         <Button
           type="button"
@@ -109,30 +104,28 @@ export function CalendarToolbar({
         </Button>
       </div>
 
-      <Popover open={jumpOpen} onOpenChange={setJumpOpen}>
-        <PopoverTrigger asChild>
-          <Button type="button" variant="ghost" className="tabular-nums">
-            {rangeLabel(view, anchorDate)}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0">
-          <Calendar
-            value={anchorDate}
-            disablePast={false}
-            onChange={(value: string) => {
+      <div className="flex min-w-[220px] flex-col gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">
+          {view === 'day' ? 'Dag' : 'Vecka'}
+        </span>
+        <DatePicker
+          value={anchorDate}
+          onChange={(value) => {
+            if (value !== null) {
               onAnchorDateChange(value);
-              setJumpOpen(false);
-            }}
-          />
-        </PopoverContent>
-      </Popover>
+            }
+          }}
+          disablePast={false}
+          placeholder={rangeLabel(view, anchorDate)}
+        />
+      </div>
 
-      <div className="ml-auto flex items-center gap-2">
-        <Select
-          value={mechanicFilter}
-          onValueChange={onMechanicFilterChange}
-        >
-          <SelectTrigger aria-label="Filtrera på mekaniker" className="w-44">
+      <div className="ml-auto flex min-w-[180px] flex-col gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">
+          Mekaniker
+        </span>
+        <Select value={mechanicFilter} onValueChange={onMechanicFilterChange}>
+          <SelectTrigger aria-label="Filtrera på mekaniker" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -144,33 +137,6 @@ export function CalendarToolbar({
             ))}
           </SelectContent>
         </Select>
-
-        <div className="flex overflow-hidden rounded-sharp border border-border">
-          <Button
-            type="button"
-            variant={view === 'week' ? 'secondary' : 'ghost'}
-            size="sm"
-            className="rounded-none border-0"
-            aria-pressed={view === 'week'}
-            onClick={() => {
-              onViewChange('week');
-            }}
-          >
-            Vecka
-          </Button>
-          <Button
-            type="button"
-            variant={view === 'day' ? 'secondary' : 'ghost'}
-            size="sm"
-            className="rounded-none border-0 border-l border-border"
-            aria-pressed={view === 'day'}
-            onClick={() => {
-              onViewChange('day');
-            }}
-          >
-            Dag
-          </Button>
-        </div>
       </div>
     </div>
   );

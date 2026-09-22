@@ -2,8 +2,9 @@
 
 import { PlusIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { type ChangeEvent, type FormEvent, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
+import { DatePicker } from '@/components/form/date-picker';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,7 +16,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
 import { useCreateQuote } from '@/lib/api/quotes';
 
 /**
@@ -49,7 +49,9 @@ export function CreateQuoteDialog({
       notifySuccess('Offerten är skapad som utkast.');
       setOpen(false);
       setValidUntil('');
-      router.push(`/admin/arbetsordrar/${workOrderId}/offerter/${response.quote.id}`);
+      router.push(
+        `/admin/arbetsordrar/${workOrderId}/offerter/${response.quote.id}`,
+      );
     } catch (error) {
       notifyError(error);
     }
@@ -80,19 +82,23 @@ export function CreateQuoteDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)}>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(event) => void submit(event)}
+        >
           <Field>
             <FieldLabel htmlFor="quote-valid-until">Giltig till</FieldLabel>
             <FieldDescription>
               Lämna tomt för att använda verkstadens standardgiltighet.
             </FieldDescription>
-            <Input
+            <DatePicker
               id="quote-valid-until"
-              type="date"
-              value={validUntil}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                setValidUntil(event.currentTarget.value);
+              value={validUntil === '' ? null : validUntil}
+              onChange={(value) => {
+                setValidUntil(value ?? '');
               }}
+              optional
+              disablePast
             />
           </Field>
 

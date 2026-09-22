@@ -71,9 +71,8 @@ export function BookingsCalendarPage({
 }) {
   const [tab, setTab] = useState<BookingsTab>(initialTab);
   const [anchorDate, setAnchorDate] = useState(initialDate);
-  const [mechanicFilter, setMechanicFilter] = useState<string>(
-    MECHANIC_FILTER_ALL,
-  );
+  const [mechanicFilter, setMechanicFilter] =
+    useState<string>(MECHANIC_FILTER_ALL);
   const [selectedBooking, setSelectedBooking] =
     useState<BookingWithRelations | null>(null);
 
@@ -177,49 +176,58 @@ export function BookingsCalendarPage({
         description="Bekräfta förfrågningar och planera veckan."
         actions={
           unhandledQuery.data === undefined ? null : (
-            <Badge tone={unhandledQuery.data.unhandledCount > 0 ? 'hivis' : 'neutral'}>
+            <Badge
+              tone={
+                unhandledQuery.data.unhandledCount > 0 ? 'hivis' : 'neutral'
+              }
+            >
               {unhandledQuery.data.unhandledCount} obehandlade förfrågningar
             </Badge>
           )
         }
       />
 
-      <Tabs
-        value={tab}
-        onValueChange={(next: string) => {
-          setTab(next as BookingsTab);
-        }}
-      >
-        <TabsList>
-          <TabsTrigger value="vecka">Vecka</TabsTrigger>
-          <TabsTrigger value="dag">Dag</TabsTrigger>
-          <TabsTrigger value="forfragningar">
-            Förfrågningar
-            {unhandledQuery.data === undefined || unhandledQuery.data.unhandledCount === 0
-              ? ''
-              : ` (${String(unhandledQuery.data.unhandledCount)})`}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <section className="flex flex-col gap-4 rounded-sharp border border-border bg-card/45 p-3 lg:flex-row lg:items-end">
+        <Tabs
+          value={tab}
+          onValueChange={(next: string) => {
+            setTab(next as BookingsTab);
+          }}
+          className="shrink-0"
+        >
+          <TabsList>
+            <TabsTrigger value="vecka">Vecka</TabsTrigger>
+            <TabsTrigger value="dag">Dag</TabsTrigger>
+            <TabsTrigger value="forfragningar">
+              Förfrågningar
+              {unhandledQuery.data === undefined ||
+              unhandledQuery.data.unhandledCount === 0
+                ? ''
+                : ` (${String(unhandledQuery.data.unhandledCount)})`}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {calendarActive ? (
+          <div className="min-w-0 flex-1">
+            <CalendarToolbar
+              view={view}
+              anchorDate={anchorDate}
+              onAnchorDateChange={setAnchorDate}
+              mechanics={rosterQuery.data?.data ?? []}
+              mechanicFilter={mechanicFilter}
+              onMechanicFilterChange={setMechanicFilter}
+            />
+          </div>
+        ) : null}
+      </section>
 
       {tab === 'forfragningar' ? (
         <BookingRequestInbox
           {...(initialStatus === undefined ? {} : { initialStatus })}
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          <CalendarToolbar
-            view={view}
-            onViewChange={(nextView: 'week' | 'day') => {
-              setTab(nextView === 'day' ? 'dag' : 'vecka');
-            }}
-            anchorDate={anchorDate}
-            onAnchorDateChange={setAnchorDate}
-            mechanics={rosterQuery.data?.data ?? []}
-            mechanicFilter={mechanicFilter}
-            onMechanicFilterChange={setMechanicFilter}
-          />
-
+        <div className="flex min-w-0 flex-col gap-3">
           {calendarError !== null ? (
             <ErrorState
               message={calendarError.message}

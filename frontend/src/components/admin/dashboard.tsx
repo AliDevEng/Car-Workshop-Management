@@ -12,11 +12,12 @@ import {
   WrenchIcon,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, type ChangeEvent, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { BookingWithRelations, Dashboard } from 'shared';
 import { bookingStatus } from '@/components/admin/status';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { EmptyState, ErrorState } from '@/components/admin/states';
+import { DatePicker } from '@/components/form/date-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,7 +28,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ApiError } from '@/lib/api';
 import { useDashboard } from '@/lib/api/dashboard';
@@ -416,15 +416,15 @@ export function DashboardOverview() {
             <label className="sr-only" htmlFor="dashboard-date">
               Välj datum
             </label>
-            <Input
+            <DatePicker
               id="dashboard-date"
-              type="date"
-              value={resolvedDate ?? ''}
-              className="w-[164px] tabular-nums"
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                const nextValue = event.currentTarget.value;
-                setSelectedDate(nextValue === '' ? null : nextValue);
+              value={resolvedDate}
+              className="w-[210px]"
+              onChange={(nextValue) => {
+                setSelectedDate(nextValue);
               }}
+              optional
+              disablePast={false}
             />
             <Button
               type="button"

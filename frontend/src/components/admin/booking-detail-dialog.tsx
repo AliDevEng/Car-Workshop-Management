@@ -15,6 +15,7 @@ import { CreateWorkOrderDialog } from '@/components/admin/create-work-order-dial
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { bookingStatus } from '@/components/admin/status';
 import { StatusBadge } from '@/components/admin/status-badge';
+import { DatePicker } from '@/components/form/date-picker';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -170,13 +171,15 @@ export function BookingDetailDialog({
                 >
                   Datum
                 </label>
-                <Input
+                <DatePicker
                   id="booking-detail-date"
-                  type="date"
                   value={date}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                    setDate(event.currentTarget.value);
+                  onChange={(value) => {
+                    if (value !== null) {
+                      setDate(value);
+                    }
                   }}
+                  disablePast
                 />
               </div>
               <div className="flex flex-col gap-1.5">

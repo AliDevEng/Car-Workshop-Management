@@ -10,11 +10,11 @@ import {
   type ChecklistTemplate,
   type CreateServiceProtocolInput,
 } from 'shared';
+import { DatePicker } from '@/components/form/date-picker';
 import { OdometerInput } from '@/components/form/odometer-input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -23,7 +23,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useChecklistTemplate, useChecklistTemplates } from '@/lib/api/checklist-templates';
+import {
+  useChecklistTemplate,
+  useChecklistTemplates,
+} from '@/lib/api/checklist-templates';
 import { cn } from '@/lib/utils';
 
 /**
@@ -145,9 +148,13 @@ export function ServiceProtocolForm({
   readonly onSubmit: (input: CreateServiceProtocolInput) => void;
   readonly onCancel?: () => void;
 }) {
-  const [templateId, setTemplateId] = useState<string | null>(initialTemplateId);
+  const [templateId, setTemplateId] = useState<string | null>(
+    initialTemplateId,
+  );
   const [checklist, setChecklist] = useState<ChecklistDraftItem[]>([]);
-  const [odometerKm, setOdometerKm] = useState<number | null>(initialOdometerKm);
+  const [odometerKm, setOdometerKm] = useState<number | null>(
+    initialOdometerKm,
+  );
   const [nextServiceDueKm, setNextServiceDueKm] = useState<number | null>(
     initialNextServiceDueKm,
   );
@@ -187,7 +194,9 @@ export function ServiceProtocolForm({
     );
   }
 
-  const unansweredCount = checklist.filter((item) => item.result === null).length;
+  const unansweredCount = checklist.filter(
+    (item) => item.result === null,
+  ).length;
   const canSubmit =
     templateId !== null &&
     checklist.length > 0 &&
@@ -237,11 +246,14 @@ export function ServiceProtocolForm({
                 <SelectItem value={NO_TEMPLATE} disabled>
                   Välj checklistmall
                 </SelectItem>
-                {templatesQuery.data?.data.map((template: ChecklistTemplate) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name} ({SERVICE_TYPE_LABELS[template.serviceType]})
-                  </SelectItem>
-                ))}
+                {templatesQuery.data?.data.map(
+                  (template: ChecklistTemplate) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name} (
+                      {SERVICE_TYPE_LABELS[template.serviceType]})
+                    </SelectItem>
+                  ),
+                )}
               </SelectContent>
             </Select>
           </Field>
@@ -269,7 +281,9 @@ export function ServiceProtocolForm({
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {templateQuery.isPending ? (
-              <p className="text-sm text-muted-foreground">Laddar checklista …</p>
+              <p className="text-sm text-muted-foreground">
+                Laddar checklista …
+              </p>
             ) : (
               checklist.map((item) => (
                 <ChecklistItemRow
@@ -287,7 +301,8 @@ export function ServiceProtocolForm({
             )}
             {attempted && unansweredCount > 0 ? (
               <p role="alert" className="text-sm text-destructive">
-                {unansweredCount} punkt{unansweredCount === 1 ? '' : 'er'} saknar svar.
+                {unansweredCount} punkt{unansweredCount === 1 ? '' : 'er'}{' '}
+                saknar svar.
               </p>
             ) : null}
           </CardContent>
@@ -300,7 +315,9 @@ export function ServiceProtocolForm({
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field>
-            <FieldLabel htmlFor="protocol-next-km">Vid mätarställning</FieldLabel>
+            <FieldLabel htmlFor="protocol-next-km">
+              Vid mätarställning
+            </FieldLabel>
             <OdometerInput
               id="protocol-next-km"
               value={nextServiceDueKm}
@@ -310,13 +327,14 @@ export function ServiceProtocolForm({
           </Field>
           <Field>
             <FieldLabel htmlFor="protocol-next-date">Senast datum</FieldLabel>
-            <Input
+            <DatePicker
               id="protocol-next-date"
-              type="date"
-              value={nextServiceDueDate}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                setNextServiceDueDate(event.currentTarget.value);
+              value={nextServiceDueDate === '' ? null : nextServiceDueDate}
+              onChange={(value) => {
+                setNextServiceDueDate(value ?? '');
               }}
+              optional
+              disablePast={false}
             />
           </Field>
         </CardContent>

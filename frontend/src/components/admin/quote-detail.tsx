@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState } from 'react';
 import { UNIT_LABELS, ore, type QuoteLine, type QuoteListItem } from 'shared';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { DocumentPreview } from '@/components/admin/document-preview';
@@ -12,10 +12,10 @@ import { quoteStatus } from '@/components/admin/status';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { DetailSkeleton, ErrorState } from '@/components/admin/states';
 import { WorkOrderTotalsPanel } from '@/components/admin/work-order-totals-panel';
+import { DatePicker } from '@/components/form/date-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
 import { ApiError } from '@/lib/api';
 import {
   useQuote,
@@ -34,11 +34,13 @@ const RESPONSE_COPY: Readonly<
 > = {
   ACCEPTED: {
     title: 'Registrera accepterad offert',
-    description: 'Offerten markeras som accepterad av kunden. Detta går inte att ångra.',
+    description:
+      'Offerten markeras som accepterad av kunden. Detta går inte att ångra.',
   },
   DECLINED: {
     title: 'Registrera avböjd offert',
-    description: 'Offerten markeras som avböjd av kunden. Detta går inte att ångra.',
+    description:
+      'Offerten markeras som avböjd av kunden. Detta går inte att ångra.',
   },
 };
 
@@ -76,7 +78,9 @@ export function QuoteDetailPage({ quoteId }: { readonly quoteId: string }) {
         onRetry={() => {
           void quoteQuery.refetch();
         }}
-        {...(error.requestId === undefined ? {} : { requestId: error.requestId })}
+        {...(error.requestId === undefined
+          ? {}
+          : { requestId: error.requestId })}
       />
     );
   }
@@ -91,13 +95,13 @@ export function QuoteDetailPage({ quoteId }: { readonly quoteId: string }) {
     (version: QuoteListItem) => version.supersedesQuoteId === quote.id,
   );
 
-  async function saveValidUntil(): Promise<void> {
-    if (validUntilDraft === null || validUntilDraft === quote.validUntil) {
+  async function saveValidUntil(nextValue = validUntilDraft): Promise<void> {
+    if (nextValue === null || nextValue === quote.validUntil) {
       setValidUntilDraft(null);
       return;
     }
     try {
-      await updateQuote.mutateAsync({ validUntil: validUntilDraft });
+      await updateQuote.mutateAsync({ validUntil: nextValue });
       notifySuccess('Giltighetsdatumet är sparat.');
       setValidUntilDraft(null);
     } catch (caught) {
@@ -122,7 +126,9 @@ export function QuoteDetailPage({ quoteId }: { readonly quoteId: string }) {
     try {
       await respondToQuote.mutateAsync({ status });
       notifySuccess(
-        status === 'ACCEPTED' ? 'Svaret är registrerat: accepterad.' : 'Svaret är registrerat: avböjd.',
+        status === 'ACCEPTED'
+          ? 'Svaret är registrerat: accepterad.'
+          : 'Svaret är registrerat: avböjd.',
       );
       setPendingResponse(null);
     } catch (caught) {
@@ -177,7 +183,8 @@ export function QuoteDetailPage({ quoteId }: { readonly quoteId: string }) {
                   >
                     <span className="min-w-0 truncate">{line.description}</span>
                     <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {formatQuantityForInput(line.quantity)} {UNIT_LABELS[line.unit]}
+                      {formatQuantityForInput(line.quantity)}{' '}
+                      {UNIT_LABELS[line.unit]}
                       {' · '}
                       {formatCurrency(ore(line.totals.grossOre))}
                     </span>
@@ -212,19 +219,25 @@ export function QuoteDetailPage({ quoteId }: { readonly quoteId: string }) {
             <CardContent className="flex flex-col gap-4">
               {quote.status === 'DRAFT' ? (
                 <Field>
-                  <FieldLabel htmlFor="quote-valid-until">Giltig till</FieldLabel>
-                  <Input
+                  <FieldLabel htmlFor="quote-valid-until">
+                    Giltig till
+                  </FieldLabel>
+                  <DatePicker
                     id="quote-valid-until"
-                    type="date"
                     value={validUntil}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                      setValidUntilDraft(event.currentTarget.value);
+                    onChange={(value) => {
+                      if (value !== null) {
+                        setValidUntilDraft(value);
+                        void saveValidUntil(value);
+                      }
                     }}
-                    onBlur={() => void saveValidUntil()}
+                    disablePast
                   />
                 </Field>
               ) : (
-                <p className="text-sm">Giltig till {formatDateOnly(quote.validUntil)}</p>
+                <p className="text-sm">
+                  Giltig till {formatDateOnly(quote.validUntil)}
+                </p>
               )}
               {quote.sentAt === null ? null : (
                 <p className="text-xs text-muted-foreground">
@@ -280,8 +293,8 @@ export function QuoteDetailPage({ quoteId }: { readonly quoteId: string }) {
               {quote.status === 'DRAFT' || alreadyRevised ? null : (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    En skickad offert är skrivskyddad. Skapa en ny version för att
-                    ändra den.
+                    En skickad offert är skrivskyddad. Skapa en ny version för
+                    att ändra den.
                   </p>
                   <Button
                     type="button"
