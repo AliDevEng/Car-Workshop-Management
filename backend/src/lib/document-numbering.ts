@@ -30,7 +30,26 @@ export type DocumentNumberPrefix =
 const SEQUENCE_DIGITS = 4;
 
 /**
- * Reads the single value out of a raw result.
+ * §4.4's format, as a pure function of the three things that make it up.
+ *
+ * Separate from the draw below so that a caller which already holds sequence
+ * values — `perf/seed.ts` draws twenty thousand of them in one statement
+ * rather than twenty thousand round trips — spells the number the same way
+ * this module does, instead of reimplementing the padding beside it.
+ */
+export function formatDocumentNumber(
+  prefix: DocumentNumberPrefix,
+  year: number,
+  sequence: number,
+): string {
+  return `${prefix}-${String(year)}-${String(sequence).padStart(SEQUENCE_DIGITS, '0')}`;
+}
+
+/**
+ * Reads the single value out of a raw result. Exported so that a caller
+ * drawing many numbers at once — `perf/seed.ts` draws twenty thousand in one
+ * statement — narrows each row by this rule rather than writing a second,
+ * subtly different one beside it.
  *
  * Narrowed rather than asserted with a generic on `$queryRaw`: the generic is
  * a claim about a shape nothing checks, and the driver's own choice matters
@@ -38,7 +57,7 @@ const SEQUENCE_DIGITS = 4;
  * `@prisma/adapter-pg` and as a string through some others. Both are handled,
  * and anything else fails loudly rather than becoming `NaN` in a number.
  */
-function readSequenceValue(rows: unknown): number {
+export function readSequenceValue(rows: unknown): number {
   const first: unknown = Array.isArray(rows) ? rows[0] : undefined;
 
   if (typeof first !== 'object' || first === null || !('value' in first)) {
@@ -84,6 +103,5 @@ export async function nextDocumentNumber(
     SELECT next_document_number(${prefix}::text, ${year}::int) AS "value"
   `;
 
-  const sequence = readSequenceValue(rows);
-  return `${prefix}-${String(year)}-${String(sequence).padStart(SEQUENCE_DIGITS, '0')}`;
+  return formatDocumentNumber(prefix, year, readSequenceValue(rows));
 }

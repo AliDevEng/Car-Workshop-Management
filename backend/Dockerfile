@@ -94,6 +94,25 @@ CMD ["migrate", "deploy"]
 # against this repository's gitignored `dist/`.
 FROM base AS runtime
 ENV NODE_ENV=production
+
+# B13.3.5's memory budget is 512 MB, and nothing was enforcing it. V8 sizes its
+# old space from the **host's** total RAM when left alone, so under B13.4's
+# twenty concurrent users this process plateaued at 583 MiB RSS — stable, not a
+# leak, simply a heap with no reason to give pages back. On a single VPS shared
+# with Postgres, Caddy and the frontend, that is not a number to discover from
+# the OOM killer.
+#
+# 320 MiB of old space measured at 361 MiB RSS under the same load, with p95
+# unchanged — the headroom above the cap is the external memory (sockets,
+# buffers, the Prisma client) that no heap flag covers. Re-measure before
+# tightening it: too small a cap buys memory with major-GC pauses, which is
+# the one trade a latency budget cannot afford.
+#
+# Set on the image so the image is right on its own. `docker-compose.yml`
+# deliberately does not restate the number — but note that a value in a
+# developer's `.env` would beat this via `env_file`, exactly as B12 found for
+# `NODE_ENV`, so `NODE_OPTIONS` does not belong in `.env`.
+ENV NODE_OPTIONS=--max-old-space-size=320
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY shared/package.json shared/package.json
 COPY backend/package.json backend/package.json

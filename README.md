@@ -80,6 +80,7 @@ verkstad/
 │   │   ├── pdf/                Templates, fonts, renderer
 │   │   ├── jobs/               Scheduled tasks
 │   │   └── lib/                Logger, errors, prisma client, idempotency
+│   ├── perf/                   B13's dataset, query audit and load harness
 │   └── tests/
 │
 ├── frontend/
@@ -163,10 +164,11 @@ The [backend iteration tracker](backend/README.md#status) presents 14 iterations
 with 92 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **84/92 backend milestones are complete as of 2026-09-17**: nine
+is complete. **89/92 backend milestones are complete as of 2026-09-22**: nine
 of B0's ten, all six of B1's, all seven of B2's, all six of B3's, all six of
 B4's, all six of B5's, all eight of B6's, all six of B7's, all six of B8's,
-all seven of B9's, five of B10's six, all six of B11's, and all six of B12's.
+all seven of B9's, five of B10's six, all six of B11's, all six of B12's, and
+five of B13's six.
 B1, B2, B3, B4, B5, B6, B7, B8, B9, B11 and B12 are Done. B9's own Definition of Done (100% branch
 coverage on the pure engine; no recommendation ever becomes a work-order line
 without a recorded decision) is met in full; two of its sub-items stayed
@@ -194,6 +196,34 @@ file itself all survived, the file byte-identical with an unchanged SHA-256.
 verified-ready restored stack (backend/README.md's Iteration 13 entry has the
 full account, including the live cookie-propagation check through Caddy and
 the `NODE_ENV` leak this run of the stack found and fixed).
+**B13 is at 5/6 as of 2026-09-22 — every budget met, B13.6 open on purpose.**
+A 300 000-row dataset (5 000 customers, 8 000 vehicles, 20 000 work orders
+with 60 000 lines, 2 000 articles, 200 000 stock movements) seeded in
+**15–29 s**; a query audit that ran `EXPLAIN ANALYZE` on every list read
+through the function its own route calls; all five B13.3 budgets met —
+search **32.8 ms** p95 (budget 100), any list **35.0 ms** (200), work-order
+detail **22.0 ms** (150), PDF **712.8 ms** (3 000), memory **354.7 MiB**
+(512); and **7 551 requests over five minutes at twenty concurrent users
+with zero errors**, overall p95 108.1 ms. **Two real defects were found by
+measuring, not by reading:** the customer list asked for `vehicleCount` as a
+Prisma `_count`, which sequentially scanned and sorted the *entire* `Vehicle`
+table on every page — 51.65 ms of a 51.74 ms query, growing with the table
+rather than the page, and fixed to 0.45 ms by counting only the page's own
+ids; and **nothing bounded the backend's memory**, so the process plateaued
+at 583 MiB against a 512 MB budget until `backend/Dockerfile` gained a heap
+cap, verified to cost no latency (p95 improved from 115.5 to 108.1 ms).
+No index was added, and that is a conclusion: §8.2's deliberate set already
+serves every plan here. **B13.6 stays unticked because B13.6.3 cannot pass** —
+it requires B10's Phase 6 work, and B10.5's paid provider has no contract or
+API key — and because there is still no production VPS, so the Definition of
+Done's "on the production VPS" is not claimed. Two findings were recorded
+rather than changed, both decided with the human: §5.4's 300/min-per-IP
+ceiling (measured: 755 of 930 requests `429` from a single address) and the
+calendar's relation loading (the heaviest read, and safe because a
+two-mechanic workshop cannot hold ten times the bookings). The tooling lives
+in `backend/perf/` with its own README, and added **no dependency** —
+B13.4.1's "k6 or autocannon" was declined with the human for four recorded
+reasons.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
 83 milestones with numbered task checkboxes, acceptance criteria and completion

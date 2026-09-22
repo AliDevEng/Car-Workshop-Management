@@ -218,6 +218,28 @@ describe('customers', () => {
     );
   });
 
+  it('reports zero vehicles as 0, not as a missing count', async () => {
+    // B13.2 replaced Prisma's `_count` here with a grouped count over the
+    // page's own ids, because the `_count` compiled to a scan and sort of the
+    // whole `Vehicle` table — 51.65 ms of a 51.74 ms query. A grouped count
+    // returns **no row** for a customer with no vehicles, where `_count`
+    // returned a zero, so this is the case the change could break. Nothing
+    // covered it before.
+    const { id } = await createCustomer(harness, agent, {
+      ...validCustomer,
+      name: 'Utan Fordon',
+    });
+
+    const response = await supertest(harness.app.server)
+      .get(`/api/customers?q=${encodeURIComponent('Utan Fordon')}`)
+      .set('cookie', agent.cookies.join('; '))
+      .expect(200);
+    const page = customerListSchema.parse(jsonBody(response));
+    expect(page.data.find((customer) => customer.id === id)?.vehicleCount).toBe(
+      0,
+    );
+  });
+
   it('filters the list by customer type', async () => {
     await createCustomer(harness, agent, {
       type: 'PRIVATE',

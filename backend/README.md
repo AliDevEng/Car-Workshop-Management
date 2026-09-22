@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 84/92 milestones complete; 11/14 iterations Done.**
+**Overall: 89/92 milestones complete; 11/14 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -50,7 +50,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [11](#b10) | B10       | 3 and 6 | 5/6             | In progress |
 | [12](#b11) | B11       | 7       | 6/6             | Done        |
 | [13](#b12) | B12       | 7       | 6/6             | Done        |
-| [14](#b13) | B13       | 8       | 0/6             | Not started |
+| [14](#b13) | B13       | 8       | 5/6             | In progress |
 
 **[Hardening pass H1](#hardening-pass-h1-2026-09-17) — 13/14 findings fixed,
 2026-09-17.** Not an iteration: a cross-cutting audit that probed twenty
@@ -3755,14 +3755,14 @@ against the images built from this commit.
 
 ## Iteration 14: Verifying performance and release readiness
 
-- [ ] Creating a realistic performance dataset (`B13.1`)
-- [ ] Reviewing slow database queries (`B13.2`)
-- [ ] Measuring response-time and memory budgets (`B13.3`)
-- [ ] Testing concurrent user traffic (`B13.4`)
-- [ ] Fixing measured performance bottlenecks (`B13.5`)
+- [x] Creating a realistic performance dataset (`B13.1`)
+- [x] Reviewing slow database queries (`B13.2`)
+- [x] Measuring response-time and memory budgets (`B13.3`)
+- [x] Testing concurrent user traffic (`B13.4`)
+- [x] Fixing measured performance bottlenecks (`B13.5`)
 - [ ] Recording backend release readiness (`B13.6`)
 
-**Reference:** B13 · **Phase:** 8 · **Progress:** 0/6 · **Status:** Not started
+**Reference:** B13 · **Phase:** 8 · **Progress:** 5/6 · **Status:** In progress
 
 **Depends on:** B12; coordinate with F12.
 
@@ -3774,6 +3774,126 @@ anything that is not.
 
 **Definition of done:** every budget below is met on the production VPS.
 
+**Every budget is met, on this machine, and B13.6 stays open on purpose.**
+There is no production VPS: B12 shipped the Compose stack but no host is
+provisioned and no domain is registered, so "on the production VPS" cannot be
+satisfied here and is not claimed. B13.6.3 additionally requires B10's Phase 6
+work to be finished, and **B10.5 — the paid vehicle-data provider — has not
+run**; B0.9.3 (branch protection) is also still open. Those are the three
+things between this iteration and Done, and none of them is code this session
+can write. The numbers below are a baseline from a documented machine, in the
+same spirit as B12's 67-second restore drill: what the mechanism does here,
+not a promise about hardware nobody has bought yet.
+
+The tooling is `backend/perf/`, which has its own README covering how to run
+each step. Four entry points — `perf:seed`, `perf:explain`, `perf:budgets`,
+`perf:load` — and no new dependency: `fetch` and `performance` are in the
+runtime, and `tsx` already ran the seed. **B13.4.1 offered "k6 or autocannon"
+and both were declined, with the human, on 2026-09-21:** neither is named in
+`PROJECT_SPEC.md` (CLAUDE.md requires asking first), autocannon measures one
+endpoint per invocation so B13.3's five separate budgets would come from five
+unrelated populations, the session cookie and CSRF double-submit have to be
+acquired and then *maintained* across a five-minute run (§5.2, and H1.9's
+sliding reissue), and k6 would put a Go binary and a second JS dialect outside
+this repository's `tsconfig`, ESLint and `type-coverage` gates. B13.4.1's
+wording is corrected above rather than silently ignored.
+
+### What the measurements found
+
+Five real problems, each caught by running something rather than reading it.
+Three were in the tooling — worth recording, because a harness that lies is
+worse than no harness — and **two were in the system**.
+
+- **The customer list read the whole `Vehicle` table on every page.**
+  `listCustomers` asked for `vehicleCount` as a Prisma `_count`, which
+  compiles to a `LEFT JOIN` against a subquery grouped over *all* vehicles:
+  `Seq Scan on "Vehicle"` (8 004 rows) → `HashAggregate` (4 936 groups) →
+  a 540 kB `Sort`. **51.65 ms, of which the page itself was 0.09 ms** — and
+  growing with the table rather than with the page, so at B13's ten-times
+  volume it alone would have blown the 200 ms list budget. The repository's
+  own comment claimed the opposite ("Postgres answers it from the same
+  `Vehicle.customerId` index"), which is exactly the kind of confident note
+  only a query plan can correct. Now a second grouped query over the
+  twenty-five ids on the page: `Index Only Scan using "Vehicle_customerId_idx"`,
+  **0.45 ms**. Two round trips beat one that reads the whole table.
+  `tests/customers.test.ts` gained the case the change could break — a
+  customer with **zero** vehicles, where a grouped count returns no row at all
+  and `_count` returned a zero. Nothing had covered it.
+- **Nothing bounded the backend's memory, and the budget was already
+  exceeded.** Under B13.4's twenty users the process plateaued at **583 MiB**
+  RSS against B13.3.5's 512 MB — flat, sampled repeatedly, so not a leak:
+  simply a V8 old space sized from the *host's* RAM with no reason to give
+  pages back. On one VPS shared with Postgres, Caddy and the frontend that is
+  a number to find out from the OOM killer. `backend/Dockerfile`'s runtime
+  stage now sets `NODE_OPTIONS=--max-old-space-size=320`, which measured
+  **383.8 MiB** peak under the identical run with **p95 improving from
+  115.5 ms to 108.1 ms** — so the cap costs nothing in GC pauses, which was
+  the one thing that had to be checked rather than assumed. The value lives in
+  the image alone; `docker-compose.yml` carries a comment saying why it is not
+  restated there, and why `NODE_OPTIONS` must not go in `.env` (`env_file`
+  beats the image's own `ENV` — B12's `NODE_ENV` lesson).
+- **The seed took 134 s against a 120 s budget, because of the driver rather
+  than the database.** Measured instead of guessed: PostgreSQL inserts 50 000
+  `StockMovement` rows — every index maintained, all three foreign keys
+  checked — in **1.05 s**, while the same rows through `createMany` took about
+  **14 s**. So the four big tables now go through `perf/bulk-insert.ts`, one
+  array per column expanded by `unnest`, turning the 200 000-row ledger into
+  four statements. **29.3 s** for the whole dataset. Nothing is relaxed to get
+  there: same constraints, same indexes, same foreign-key checks — a
+  `session_replication_role` trick would have been faster still and would have
+  let the seed write rows the schema forbids, which is the integrity B13.5.3
+  is checked against.
+- **The seeded dataset wrote odometer values the API would have refused, and
+  `GET /api/work-orders?status=IN_PROGRESS` answered `500` for them.** 166 of
+  20 000 orders had a negative `odometerKmIn`, because the generator
+  subtracted up to 30 000 km from whatever the vehicle knew. The response
+  schema refused to serialise them — which is `fastify-type-provider-zod`
+  doing exactly what B0.5.7 built it for, and the honest lesson is that
+  bypassing the routes to load data does not license bypassing their
+  invariants. The generator now floors every reading, and
+  `tests/perf-stats.test.ts` parses the generated values with `shared`'s own
+  `odometerKmSchema` rather than a restatement of its range.
+- **The load harness's first two runs measured itself.** Twenty simultaneous
+  logins to one account were refused from the sixth on (§5.1 limits login on
+  the email *and* the IP, and only resets on success) — the limiter working,
+  not a bug in it. Then, with twenty accounts, **178 of 7 571 requests failed**:
+  every draw of `GET /api/service-rules`, `/api/audit-log` or `/api/users`
+  answered `403`, because the accounts were all `MECHANIC` and those three are
+  `ADMIN`-only (§5.3). Both are recorded in `perf/load-users.ts` and
+  `perf/scenarios.ts` because the failure mode is instructive: a load test
+  whose "errors" are correct refusals reports noise where the failures that
+  matter would appear. Twenty accounts now, half `ADMIN` and half `MECHANIC`
+  as `prisma/seed.ts` splits the real staff, and each scenario declares the
+  role it needs. Zero errors after that.
+
+### Two findings recorded rather than changed
+
+- **The §5.4 global ceiling is 300 requests per minute per IP, and a workshop
+  is one office router.** Measured both ways, deliberately: from a single
+  address, **755 of 930** budget requests answered `429` and the ceiling was
+  consumed in about thirty seconds; with one address per virtual user, 7 551
+  requests over five minutes and **zero** errors. So all staff share one
+  bucket in production, and the question — defect or correct ceiling — was put
+  to the human with the numbers rather than decided here. **Decided
+  2026-09-21: recorded, not changed.** Two staff cannot realistically reach
+  300 requests a minute in normal use, `plugins/security.ts` is untouched, and
+  §5.4 keeps owning the value. The measurement is here so that whoever meets a
+  `429` in a busy workshop finds this paragraph instead of re-deriving it.
+  Both runs stay reproducible: `PERF_FORWARDED_FOR` picks which one.
+- **The calendar is the heaviest read, and it is fine for the reason that
+  matters.** `GET /api/bookings` is the slowest endpoint in both runs (p95
+  94.7 ms sequential, 162.7 ms under load) and the only one the query audit
+  still flags: Prisma loads its relations with `id IN ($1..$576)` and Postgres
+  answers with a sequential scan over `Customer` and `Vehicle`, which at that
+  batch size is the cheaper plan and a correct choice. It is not paginated
+  either — §6.2 caps the window at 90 days instead. What makes this safe is
+  not the plan but the domain: the seeded dataset is a **fully booked**
+  two-mechanic workshop, eight slots a day every working day, so the 576 rows
+  a 42-day window returns is close to the physical maximum, and F8's grid
+  fetches a week (~96) rather than six. Ten times the *customers* does not
+  mean ten times the bookings, because a workshop with two lifts cannot hold
+  them. Left alone with the reasoning written down.
+
 <details>
 <summary>Implementation details — B13</summary>
 
@@ -3781,66 +3901,224 @@ anything that is not.
 
 ### B13.1 Seeded volume
 
-- [ ] **B13.1.1** Seed 5 000 customers, 8 000 vehicles, 20 000 work orders, 2
-      000 articles, 200 000 stock movements
-- [ ] **B13.1.2** Confirm the seed runs in under two minutes
+- [x] **B13.1.1** Seed 5 000 customers, 8 000 vehicles, 20 000 work orders, 2
+      000 articles, 200 000 stock movements. All five exactly, plus what makes
+      them mean anything: 60 000 work-order lines (a work order's totals are
+      computed from its lines on every read, so 20 000 *empty* orders would
+      measure a plan production never runs), 24 000 odometer readings, 3 000
+      bookings and 1 000 booking requests. `perf/dataset.ts` generates it as
+      pure functions — one seeded PRNG, no `Math.random`, no clock — so two
+      runs are byte-identical and a plan that changes between two measurements
+      changed because of an index. Internally consistent by construction and
+      by test: a work order's customer owns its vehicle, `balanceAfter` really
+      is the running ledger sum, `Article.stockQuantity` is derived **from the
+      ledger in SQL** by the same rule `jobs/stock-reconciliation.ts` uses to
+      look for drift, and every non-`DRAFT` order draws a real §4.4 number
+      from the same `document_number_ao_<year>` sequence the application
+      draws from, so the next work order created continues the series.
+- [x] **B13.1.2** Confirm the seed runs in under two minutes. **14.9–29.3 s**
+      across runs on this machine, the spread being how warm Postgres's cache
+      and the page cache are; the twenty argon2-hashed load-test accounts add
+      a few seconds more. The first version took **134 s** and failed this;
+      see the bulk-insert finding above for the measurement that fixed it.
+      Guarded rather than trusted: `perf:seed` refuses any database whose
+      name does not end in `_perf`, any `STORAGE_PATH` not named for
+      performance, and a non-empty document store — the last one because
+      dropping the database restarts the `OF-` sequence while last run's PDF
+      is still on disk, which §8.3 rightly refuses to overwrite.
 
 <a id="b13-2"></a>
 
 ### B13.2 Query audit
 
-- [ ] **B13.2.1** Prisma query logging enabled under load; find N+1 patterns
-- [ ] **B13.2.2** `EXPLAIN ANALYZE` on every list endpoint
-- [ ] **B13.2.3** Add missing indexes; confirm each one is actually used
+- [x] **B13.2.1** Prisma query logging enabled under load; find N+1 patterns.
+      `perf/explain.ts` builds a client with query events — its own, not
+      `lib/prisma.ts`'s, because the running server must not pay to serialise
+      every statement so a diagnostic can exist — and counts the statements
+      each read actually issues. **No N+1 anywhere.** The two highest counts
+      are both legitimate: `GET /api/dashboard` at 11 (seven parallel reads,
+      one of which is the calendar window's own three) and the work-order
+      history pair at 6, none of which grow with the number of rows returned,
+      which is the N+1 signature. The counts are in the run's first table so
+      the next reader can compare rather than re-derive.
+- [x] **B13.2.2** `EXPLAIN ANALYZE` on every list endpoint. Every list read in
+      the system is declared in `perf/probes.ts` **as the function its route
+      calls** — not as hand-written SQL, which would audit a second set of
+      queries nothing in production runs and would still look fine after a
+      `where` clause gained an `OR`. The captured statements are handed back
+      to `EXPLAIN (ANALYZE, BUFFERS)` with their real bound parameters, so the
+      plans are the ones Postgres chose for the values the application sent.
+- [x] **B13.2.3** Add missing indexes; confirm each one is actually used.
+      **No index was added, and that is the finding.** §8.2's deliberate set
+      already covers every plan here: each list paginates on `id DESC` and
+      gets an `Index Scan Backward` on the primary key, the trigram indexes
+      serve the `?q=` predicates, and `Vehicle_customerId_idx` serves the
+      count the customer-list fix now uses. The one query that read a whole
+      table was fixed by asking a different question, not by indexing the
+      answer — no index can help a subquery that is *meant* to aggregate every
+      row. The audit's flagging heuristic was tightened in the same pass:
+      judging by node presence reported 32 items of which one mattered, so it
+      now judges by rows actually touched and reports the calendar alone.
 
 <a id="b13-3"></a>
 
 ### B13.3 Budgets
 
-- [ ] **B13.3.1** Global search p95 under 100 ms
-- [ ] **B13.3.2** Any list endpoint p95 under 200 ms
-- [ ] **B13.3.3** Work order detail p95 under 150 ms
-- [ ] **B13.3.4** PDF generation p95 under 3 s
-- [ ] **B13.3.5** Steady-state memory under 512 MB
+Measured sequentially and unloaded, which is what a p95 budget for a
+two-person workshop states: the latency one person sees. B13.4 is the separate
+question of twenty at once. Thirty samples per endpoint, three discarded warm-
+ups, and `judge` refuses to pass a budget on fewer than twenty samples or on
+any run containing an error — an endpoint answering nothing but `403` is fast
+and has told us nothing.
+
+- [x] **B13.3.1** Global search p95 under 100 ms — **32.8 ms**. Terms are taken
+      from rows that exist (a surname, a plate, a make, a SKU prefix), because
+      a term matching nothing measures an index finding nothing.
+- [x] **B13.3.2** Any list endpoint p95 under 200 ms — **35.0 ms** across all
+      twenty-eight of them. Slowest: the calendar at 94.7 ms (see above),
+      then `?assignedUserId` at 45.5 ms and the dashboard at 42.3 ms.
+- [x] **B13.3.3** Work order detail p95 under 150 ms — **22.0 ms**, on orders
+      carrying three lines whose totals are computed per read.
+- [x] **B13.3.4** PDF generation p95 under 3 s — **712.8 ms**, over twenty real
+      quote sends. The measured call is the send, which spends a §4.4 number,
+      renders through B7's concurrency-one queue and stores the file in one
+      transaction; creating the draft first is setup and deliberately outside
+      the timing.
+- [x] **B13.3.5** Steady-state memory under 512 MB — **354.7 MiB** sequential,
+      **383.8 MiB** peak under load, with the heap cap. **583 MiB without it**,
+      which is the finding recorded above. Sampled from outside the process
+      (`docker stats` or the process table), because the number that matters is
+      the one the VPS sees; with neither configured the run reports "not
+      sampled" rather than printing a figure nobody measured.
 
 <a id="b13-4"></a>
 
 ### B13.4 Load test
 
-- [ ] **B13.4.1** k6 or autocannon script for a realistic mix
-- [ ] **B13.4.2** 20 concurrent users for 5 minutes with zero errors
-- [ ] **B13.4.3** Results recorded in this file
+- [x] **B13.4.1** ~~k6 or autocannon~~ **a dependency-free harness** for a
+      realistic mix. `perf/run-load.ts`, decided with the human on 2026-09-21
+      for the four reasons above. The mix is weighted by what a two-person
+      workshop actually does — the work-order screen and the search box all
+      day, the audit log almost never — and is declared **once**, in
+      `perf/scenarios.ts`, which both runs read: two lists would drift, and the
+      drift is invisible until the load test is quietly exercising something
+      the budgets never covered. Think time of 250–1 250 ms between requests is
+      not padding; twenty clients hammering with none is a different test (how
+      fast is the box) from the one B13.4.2 asks.
+- [x] **B13.4.2** 20 concurrent users for 5 minutes with zero errors —
+      **7 551 requests in 301.1 s (25.1/s), overall p95 108.1 ms, zero
+      errors**, each user a real logged-in session with its own cookie jar and
+      its own account. Two earlier runs failed this for reasons in the harness,
+      not the server (§5.1's login limiter, then §5.3's role guard); both are
+      recorded above, because each looked like a system failure and was the
+      security layer working.
+- [x] **B13.4.3** Results recorded in this file — the per-endpoint tables are
+      reproducible from the two commands in the Verification block below, and
+      the headline numbers are in B13.3 and B13.4.2. Nothing is pasted from a
+      run that cannot be re-run: `PERF_SEED` fixes the scenario sequence.
 
 <a id="b13-5"></a>
 
 ### B13.5 Fixing measured performance bottlenecks
 
-- [ ] **B13.5.1** Record each failed budget with its query plan, render timing
-      or memory measurement.
-- [ ] **B13.5.2** Apply targeted query, index or render-isolation fixes, then
-      rerun only the affected checks and required regression flows.
-- [ ] **B13.5.3** Verify concurrent stock and booking correctness remains intact
-      after performance changes.
+- [x] **B13.5.1** Record each failed budget with its query plan, render timing
+      or memory measurement. Two budgets failed and both are recorded with the
+      evidence above: B13.1.2's 134 s seed (with the 1.05 s-versus-14 s
+      comparison that located the cost in the driver) and B13.3.5's 583 MiB
+      (with the repeated flat samples that ruled out a leak). The customer-list
+      query plan is quoted node by node, because "51.65 ms of which the page
+      was 0.09 ms" is the whole argument.
+- [x] **B13.5.2** Apply targeted query, index or render-isolation fixes, then
+      rerun only the affected checks and required regression flows. Three
+      fixes, each re-measured on the configuration that will ship: the
+      customer-list count (51.65 ms → 0.45 ms, plan re-read to confirm the
+      index-only scan), the heap cap (583 → 383.8 MiB, **and** p95 re-measured
+      at 108.1 ms to prove it bought memory without buying GC pauses), and the
+      seed's bulk path (134 s → 29.3 s). No index was added — B13.2.3 explains
+      why that is a conclusion rather than an omission.
+- [x] **B13.5.3** Verify concurrent stock and booking correctness remains
+      intact after performance changes. The only production change to a code
+      path is `listCustomers`, which writes nothing — but the guarantees are
+      asserted rather than reasoned about: `pnpm check` clean, including B4's
+      50-parallel consumption test, `work-order-completion.test.ts`'s
+      idempotent double-`Slutför`, `work-order-locking.test.ts`'s optimistic
+      lock, and `bookings.test.ts`'s exclusion-constraint conflicts. The
+      dataset's own ledger consistency is independently checked by
+      `tests/perf-stats.test.ts`: every `balanceAfter` equals the running sum,
+      no balance goes negative, and every line claiming `stockDeducted` has a
+      matching `CONSUMPTION` row — so a reconciliation sweep over this data
+      reports no drift, and B13.5.3's question is answerable at all.
 
 <a id="b13-6"></a>
 
 ### B13.6 Recording backend release readiness
 
-- [ ] **B13.6.1** Record production build/commit, dataset sizes, hardware,
-      runtime versions and the load-test command.
-- [ ] **B13.6.2** Record p95 latency, memory, PDF timing and error counts; link
-      the detailed reports.
+**Blocked, and deliberately not ticked.** B13.6.1 and B13.6.2 are written
+below; B13.6.3 cannot pass and B13.6.4 must not run before it does.
+
+- [x] **B13.6.1** Record production build/commit, dataset sizes, hardware,
+      runtime versions and the load-test command — the Verification block
+      below.
+- [x] **B13.6.2** Record p95 latency, memory, PDF timing and error counts; link
+      the detailed reports — B13.3, B13.4.2 and the Verification block. The
+      "detailed reports" are the two commands themselves rather than pasted
+      output, which is the point of a harness that exits non-zero.
 - [ ] **B13.6.3** Verify B10 Phase 3 and Phase 6 work is finished, the B12
       restore drill passed and the final frontend/backend journeys agree.
+      **Blocked on B10.5**, the paid vehicle-data provider, which needs a
+      commercial contract and an API key that do not exist
+      (`VEHICLE_DATA_PROVIDER` is still `mock`). B10's Phase 3 subset is
+      complete and B12's restore drill passed on 2026-09-17; the frontend
+      journeys also still have F2.2's owner photographs, F8.6.3/F8.7.3–.4 and
+      F10.5.2 open. Nothing here is code this session can write.
 - [ ] **B13.6.4** Update all milestone counters and root README statuses only
-      after the complete backend acceptance gate passes.
+      after the complete backend acceptance gate passes. The counters are
+      updated for B13.1–B13.5 — which are complete and measured — and this
+      item stays open with B13.6.3, because the *acceptance gate* it refers to
+      has not passed. Marking it would be marking B13.6.3 by another name.
 
 </details>
 
 - [ ] **Iteration 14 Done** — all milestones and the Definition of Done pass.
+      **B13.6.3 blocks it:** B10.5's paid provider, and no production VPS.
 
-**Verification:** Pending — record commands/results or report links. **Completed
-on:** —
+**Verification:** 2026-09-22, against the **built** output (`node
+backend/dist/server.js`, not `tsx`) from commit `d9a894d` plus this
+iteration's changes, on Node 22.21.1, pnpm 12.3.4, PostgreSQL 16 in Docker
+Desktop 29.8.0, Windows 11 (Lenovo laptop, local SSD). The server ran with
+`NODE_ENV=production`, `TRUST_PROXY=true` and `LOG_LEVEL=warn` against
+`verkstad_perf` and a `storage-perf` document store.
+
+**This is a baseline from one laptop, not a promise about the VPS** — the same
+caveat B12's 67-second restore drill carries. What it establishes is the
+mechanism and the headroom: every budget is met with a factor of three or more
+to spare, on hardware also running the database, the load generator and a
+desktop.
+
+**The figures below are one recorded run, and re-runs vary** with how warm
+Postgres's cache and the page cache are — a later repeat of the budget suite
+answered 18.3 / 12.5 / 10.1 / 186.8 ms against the same data. The slower run is
+the one recorded, deliberately. What does not vary is the verdict: the harness
+exits non-zero on any budget, so a regression fails rather than needing these
+numbers compared by eye.
+
+| Command / check | Result |
+| --- | --- |
+| `perf:seed` | 300 000 rows in **29.3 s** (48.4 s incl. 20 argon2-hashed load accounts); budget 120 s. Refuses a non-`_perf` database, a non-perf `STORAGE_PATH`, a non-empty document store, and an already-populated database |
+| `perf:explain` | 27 list reads audited through their own repository functions. **No N+1**; highest query counts are the dashboard's 11 (seven parallel reads) and the history pair's 6, neither growing with rows. One plan flagged after the heuristic was tightened: the calendar's relation loading |
+| `perf:budgets` (`PERF_FORWARDED_FOR=true`) | **All five pass.** search p95 **32.8 ms**/100, any list **35.0 ms**/200, work-order detail **22.0 ms**/150, PDF send **712.8 ms**/3 000, memory **354.7 MiB**/512. Exits non-zero on any failure |
+| `perf:budgets` (single source address) | **755 of 930 requests `429`**, ceiling consumed in ~30 s — §5.4's 300/min per IP, measured deliberately and recorded rather than changed (decided with the human, 2026-09-21) |
+| `perf:load` (`PERF_FORWARDED_FOR=true`) | **7 551 requests in 301.1 s (25.1/s), overall p95 108.1 ms, zero errors**, 20 real sessions on 20 accounts (10 `ADMIN`, 10 `MECHANIC`). Peak memory **383.8 MiB**/512 |
+| `perf:load` before the heap cap | Same traffic, **583 MiB** peak — over budget, flat across repeated samples (not a leak), p95 115.5 ms. The cap fixed the memory *and* improved p95 |
+| `pnpm check` | Clean workspace-wide: typecheck, `eslint --max-warnings 0`, **1 273 tests** (343 shared, 775 backend + 1 pre-existing skip, 155 frontend), `type-coverage` **99.59 %** (floor 99.5 %) |
+
+**Reproducing it:** `backend/perf/README.md`. `PERF_SEED` fixes the scenario
+sequence, so a re-run walks the same mix; `PERF_FORWARDED_FOR` chooses whether
+the §5.4 ceiling is in play; `PERF_MEMORY_PID` or `PERF_MEMORY_CONTAINER`
+chooses how memory is sampled, and without either the run says "not sampled"
+rather than inventing a figure.
+
+**Completed on:** — (B13.1–B13.5 on 2026-09-22; B13.6 open).
 
 ---
 

@@ -99,13 +99,47 @@ export type ListCustomersOptions = {
 };
 
 /**
+ * How many vehicles each customer **on this page** has (F6.1.2).
+ *
+ * A second query, deliberately, and this is the one thing about this list
+ * worth knowing. Asking for it as a Prisma `_count` on the same query — which
+ * is what this did until B13.2 measured it — compiles to a `LEFT JOIN` against
+ * a grouped subquery over the *whole* `Vehicle` table, so a page of
+ * twenty-five customers cost a sequential scan of all 8 000 vehicles, a hash
+ * aggregate of 4 936 groups and a 540 kB sort: **51.65 ms, of which the page
+ * itself was 0.09 ms**, and growing with the table rather than with the page.
+ *
+ * Counting twenty-five ids instead is an index lookup on
+ * `Vehicle.customerId`, which is what the previous comment here claimed was
+ * already happening. Two round trips beat one that reads the whole table.
+ */
+async function countVehiclesPerCustomer(
+  db: Database,
+  customerIds: readonly string[],
+): Promise<Map<string, number>> {
+  if (customerIds.length === 0) {
+    return new Map();
+  }
+
+  const grouped = await db.vehicle.groupBy({
+    by: ['customerId'],
+    where: { customerId: { in: [...customerIds] } },
+    _count: { _all: true },
+  });
+
+  return new Map(
+    grouped.flatMap((row) =>
+      // `customerId` is nullable on `Vehicle` (§4.2), so `groupBy` types it as
+      // such even though `in` cannot match a null.
+      row.customerId === null ? [] : [[row.customerId, row._count._all]],
+    ),
+  );
+}
+
+/**
  * Cursor pagination on `id DESC` — a UUIDv7, so already both unique and
  * monotonic by creation time, which is why §8.1's composite cursor is not
  * needed here (same reasoning as `listUsers`).
- *
- * `vehicleCount` (F6.1.2) is a `_count` alongside the same query rather than
- * a second round trip per row — Postgres answers it from the same
- * `Vehicle.customerId` index `listVehicles` scans.
  */
 export async function listCustomers(
   db: Database,
@@ -119,7 +153,7 @@ export async function listCustomers(
 
   const rows = await db.customer.findMany({
     where,
-    select: { ...customerFields, _count: { select: { vehicles: true } } },
+    select: customerFields,
     orderBy: { id: 'desc' },
     take: options.limit + 1,
     ...(options.cursor === undefined
@@ -131,10 +165,15 @@ export async function listCustomers(
   const nextCursor =
     rows.length > options.limit ? (page.at(-1)?.id ?? null) : null;
 
+  const vehicleCounts = await countVehiclesPerCustomer(
+    db,
+    page.map((row) => row.id),
+  );
+
   return {
     data: page.map((row) => ({
       ...toCustomerDto(row),
-      vehicleCount: row._count.vehicles,
+      vehicleCount: vehicleCounts.get(row.id) ?? 0,
     })),
     nextCursor,
   };

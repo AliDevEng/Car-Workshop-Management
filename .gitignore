@@ -65,6 +65,10 @@ playwright/.cache/
 # Generated PDFs (STORAGE_PATH) and database dumps hold customer personal data.
 # They are backed up off-site (§8.6), never committed.
 storage/
+# B13's performance runs write their PDFs to their own store, kept apart from
+# `storage/` so a measurement cannot bury real development documents among
+# thousands of generated ones (`perf/config.ts` refuses to share one).
+storage-perf/
 infra/backups/
 pgdata/
 *.sql

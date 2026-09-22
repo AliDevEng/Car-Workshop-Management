@@ -11,6 +11,9 @@
     "jsx": "react-jsx",
     "noEmit": true
   },
-  "include": ["src", "tests", "prisma", "*.config.ts"],
+  // `perf` holds B13's measurement tooling. Typechecked and linted like
+  // everything else — it is excluded from `tsconfig.build.json` instead,
+  // because it must not reach the production image.
+  "include": ["src", "tests", "prisma", "perf", "*.config.ts"],
   "exclude": ["node_modules", "dist", "src/generated"]
 }

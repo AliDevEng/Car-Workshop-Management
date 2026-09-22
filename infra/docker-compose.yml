@@ -110,6 +110,11 @@ services:
       # container the moment `env_file` pulled it in — found running this
       # stack locally to verify B12, not assumed.
       NODE_ENV: production
+      # NODE_OPTIONS is deliberately **not** here: `backend/Dockerfile` sets
+      # the heap cap B13.3.5's memory budget needs, with the measurements
+      # behind the number, and restating it would give one value two homes.
+      # It must not appear in `.env` either — `env_file` would beat the
+      # image's own `ENV`, which is the trap B12 hit with `NODE_ENV`.
       HOST: 0.0.0.0
       DATABASE_URL: postgresql://${POSTGRES_USER:-verkstad}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verkstad}?schema=public
       TRUST_PROXY: 'true'
