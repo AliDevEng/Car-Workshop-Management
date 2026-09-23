@@ -1,7 +1,7 @@
 'use client';
 
 import { SearchIcon, UserRoundIcon } from 'lucide-react';
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import {
   isNormalisedRegNr,
   normaliseRegNr,
@@ -13,6 +13,10 @@ import {
   type UserSummary,
   type Vehicle,
 } from 'shared';
+import {
+  BookingSlotAvailabilityPanel,
+  useBookingSlotAvailability,
+} from '@/components/admin/booking-slot-availability';
 import { isConflictError } from '@/components/admin/conflict';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { DatePicker } from '@/components/form/date-picker';
@@ -38,42 +42,21 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   BOOKING_DURATION_OPTIONS_MINUTES,
   addMinutesToLocalDateTime,
-  calendarRangeForDay,
   formatDurationMinutes,
   isPastLocalDateTime,
 } from '@/lib/admin/calendar';
-import { useCalendar, useConfirmBookingRequest } from '@/lib/api/bookings';
+import { useDebouncedSearch } from '@/lib/admin/use-debounced-search';
+import { useConfirmBookingRequest } from '@/lib/api/bookings';
 import { useCustomers } from '@/lib/api/customers';
 import { useUserRoster } from '@/lib/api/users';
 import { useVehicles } from '@/lib/api/vehicles';
 import { formatDate, formatTime } from '@/lib/format/date';
 import { formatRegNr } from '@/lib/format/reg-nr';
 
-const SEARCH_DEBOUNCE_MS = 250;
 const UNASSIGNED = 'UNASSIGNED' as const;
 
 function defaultStartTime(timeOfDay: RequestedTimeOfDay | null): string {
   return timeOfDay === 'AFTERNOON' ? '13:00' : '08:00';
-}
-
-/** A small debounced text search, shared by the customer and vehicle
- * pickers below — the same pattern `ReassignOwnerDialog` already uses. */
-function useDebouncedSearch(
-  initial = '',
-): readonly [string, string, (value: string) => void] {
-  const [input, setInput] = useState(initial);
-  const [debounced, setDebounced] = useState(initial);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDebounced(input.trim());
-    }, SEARCH_DEBOUNCE_MS);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [input]);
-
-  return [input, debounced, setInput];
 }
 
 function CustomerPicker({
@@ -364,31 +347,13 @@ export function ConfirmBookingRequestDialog({
       : addMinutesToLocalDateTime(localStart, durationMinutes);
   const isPast = localStart !== null && isPastLocalDateTime(localStart);
 
-  const dayAvailability = useCalendar(
-    date === null ? { from: '', to: '' } : calendarRangeForDay(date),
-    { enabled: date !== null },
-  );
-  const relevantBookings = (dayAvailability.data?.data ?? []).filter(
-    (booking: BookingWithRelations) =>
-      booking.status !== 'CANCELLED' &&
-      booking.status !== 'NO_SHOW' &&
-      (assignedUserId === UNASSIGNED ||
-        booking.assignedUserId === assignedUserId),
-  );
-  const proposedStartMs =
-    localStart === null ? null : stockholmWallClockToUtc(localStart).getTime();
-  const proposedEndMs =
-    localEnd === null ? null : stockholmWallClockToUtc(localEnd).getTime();
-  const overlapping = relevantBookings.filter(
-    (booking: BookingWithRelations) => {
-      if (proposedStartMs === null || proposedEndMs === null) {
-        return false;
-      }
-      const bookingStart = new Date(booking.startsAt).getTime();
-      const bookingEnd = new Date(booking.endsAt).getTime();
-      return proposedStartMs < bookingEnd && bookingStart < proposedEndMs;
-    },
-  );
+  const mechanicFilter = assignedUserId === UNASSIGNED ? null : assignedUserId;
+  const availability = useBookingSlotAvailability({
+    date,
+    localStart,
+    localEnd,
+    assignedUserId: mechanicFilter,
+  });
 
   // A mechanic is optional (`UNASSIGNED` occupies nobody's calendar and so
   // cannot conflict, mirroring the exclusion constraint's own partial index).
@@ -525,37 +490,14 @@ export function ConfirmBookingRequestDialog({
             </p>
           ) : null}
 
-          {date !== null && relevantBookings.length > 0 ? (
-            <div className="flex flex-col gap-1 rounded-sharp border border-border p-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                {assignedUserId === UNASSIGNED
-                  ? 'Andra bokningar samma dag'
-                  : 'Mekanikerns övriga bokningar samma dag'}
-              </p>
-              <ul className="flex flex-col gap-1 text-sm">
-                {relevantBookings.map((booking: BookingWithRelations) => (
-                  <li
-                    key={booking.id}
-                    className={
-                      overlapping.some(
-                        (item: BookingWithRelations) => item.id === booking.id,
-                      )
-                        ? 'text-status-oxide'
-                        : 'text-muted-foreground'
-                    }
-                  >
-                    <span className="tabular-nums">
-                      {formatTime(booking.startsAt)}–
-                      {formatTime(booking.endsAt)}
-                    </span>{' '}
-                    {booking.customer.name}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          {date === null ? null : (
+            <BookingSlotAvailabilityPanel
+              availability={availability}
+              assignedUserId={mechanicFilter}
+            />
+          )}
 
-          {overlapping.length > 0 ? (
+          {availability.overlapping.length > 0 ? (
             <p role="alert" className="text-sm text-destructive">
               Krockar med en befintlig bokning ovan. Bekräftelsen kan ändå nekas
               av servern om tiden inte längre är ledig.

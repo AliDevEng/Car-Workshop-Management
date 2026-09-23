@@ -24,6 +24,10 @@ import {
 } from '../src/schemas/service-rule.js';
 import { stockMovementSchema } from '../src/schemas/stock.js';
 import { userSchema } from '../src/schemas/user.js';
+import {
+  vehicleMakeSchema,
+  vehicleModelSchema,
+} from '../src/schemas/vehicle-catalogue.js';
 import { vehicleDataResultSchema } from '../src/schemas/vehicle-data.js';
 import { vehicleSchema } from '../src/schemas/vehicle.js';
 import {
@@ -84,6 +88,8 @@ const _invariants: {
   stockMovement: true satisfies RoundTrips<typeof stockMovementSchema>,
   user: true satisfies RoundTrips<typeof userSchema>,
   vehicle: true satisfies RoundTrips<typeof vehicleSchema>,
+  vehicleMake: true satisfies RoundTrips<typeof vehicleMakeSchema>,
+  vehicleModel: true satisfies RoundTrips<typeof vehicleModelSchema>,
   vehicleDataResult: true satisfies RoundTrips<typeof vehicleDataResultSchema>,
   workOrder: true satisfies RoundTrips<typeof workOrderSchema>,
   workOrderLine: true satisfies RoundTrips<typeof workOrderLineSchema>,

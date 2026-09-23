@@ -37,7 +37,7 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 65/83 milestones complete; 8/13 iterations Done.**
+**Overall: 66/84 milestones complete; 8/13 iterations Done.**
 
 **2026-09-23 — all 41 findings in [`UI_UX_AUDIT.md`](UI_UX_AUDIT.md) are
 fixed and verified in a browser.** The count above is unchanged on purpose:
@@ -55,7 +55,7 @@ primitives every later iteration builds on, and one API contract — see
 | [F5](#f5)   | Dashboard                                 | 4     | F4, B4, B5, B6                     | 6/6             | Done        |
 | [F6](#f6)   | Customers and vehicles                    | 1     | F4, B3 (core)                      | 6/6             | Done        |
 | [F7](#f7)   | Inventory                                 | 2     | F4, B4                             | 6/6             | Done        |
-| [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6         | 5/7             | In progress |
+| [F8](#f8)   | Calendar and booking requests             | 3     | F4, B5, B10.1–B10.4, B10.6, B14    | 6/8             | In progress |
 | [F9](#f9)   | Work orders                               | 4     | F4, B4, B5, B6                     | 7/7             | Done        |
 | [F10](#f10) | Quotes and service protocols              | 5     | F9, B7, B8                         | 5/6             | In progress |
 | [F11](#f11) | Settings, service rules and partner links | 6     | F4, B9, B10; settings contracts    | 0/6             | Not started |
@@ -1988,7 +1988,7 @@ seconds, and an overlapping drop is refused with a clear message.
 B10.6 supplies partner links. Day-view work-order actions need B6; their
 activation and acceptance are owned by F9.7.
 
-**Milestone checklist — 5/7 complete:**
+**Milestone checklist — 6/8 complete:**
 
 - [x] **[F8.1](#f8-1)** — Request inbox
 - [x] **[F8.2](#f8-2)** — Confirmation dialog
@@ -1997,6 +1997,7 @@ activation and acceptance are owned by F9.7.
 - [x] **[F8.5](#f8-5)** — Calendar performance
 - [ ] **[F8.6](#f8-6)** ? — Calendar and booking acceptance
 - [ ] **[F8.7](#f8-7)** ? — Activate vehicle lookup and partner links
+- [x] **[F8.8](#f8-8)** — Booking a customer who rings in
 
 <a id="f8-1"></a>
 
@@ -2239,6 +2240,100 @@ endpoint, updating both call sites, and replacing the accidentally-correct
 mock with the right one — plus a new, deliberately **unmocked** test
 (`vehicle lookup hero against the real backend`) that exercises the real
 token endpoint and would have caught this on its own.
+
+<a id="f8-8"></a>
+
+### F8.8 Booking a customer who rings in
+
+**Acceptance:** A staff member can create a booking directly from the calendar
+— no public request involved — and pick the car from a browsable make/model
+list without typing it.
+
+**Why this is here and not in F3.** F3 is the *public* booking form. This is
+the other half of §6.2, and the half the workshop uses most: §1.2 says
+customers phone in, and until now the only route into the calendar was
+confirming a request that had arrived from the website. The backend side is
+[B14](../backend/README.md#b14); this milestone is its screen.
+
+- [x] **F8.8.1** "Ny bokning" in the page header, reachable from the calendar
+      *and* from the request inbox — the telephone rings while you are reading
+      the inbox. The dialog is mounted only while open, so each opening starts
+      from a clean form rather than the previous caller's half-typed number.
+- [x] **F8.8.2** `CreateBookingDialog`: time, mechanic, customer (new or
+      searched), vehicle (new, searched, or none) and a note.
+      **Time, name and telephone number are the whole requirement** — the car
+      is optional, and so is every field describing it. See the decision log,
+      2026-09-23, for why the customer cannot be optional as first proposed.
+- [x] **F8.8.3** `VehicleModelPicker` — make, then model, over the seeded
+      catalogue (`GET /api/vehicle-makes`, cached for the session since a
+      migration is what changes it). **"Övrigt" in either dropdown swaps it
+      for a free-text field**, because a 1987 Saab must not be harder to book
+      than a new Golf. Choosing a make clears the model: leaving "V70"
+      selected under Toyota is the kind of silent mismatch that reaches a
+      printed protocol. The component reports the resolved pair of strings, so
+      its caller never learns a catalogue exists.
+- [x] **F8.8.4** The phone-match hint names the customer the booking will
+      actually join, narrowed to an **exact normalised match**. The search
+      endpoint is a fuzzy `ILIKE` across both phone columns (§8.2) while the
+      server reuses a customer only on `phoneNormalised` equality — so the
+      loose match would have promised "bokningen läggs på den kunden" about
+      somebody the server was never going to pick. Debounced, or it was a
+      request per keystroke.
+- [x] **F8.8.5** `BookingSlotAvailability` extracted and now used by **both**
+      booking dialogs. It is advice, not a check — the guarantee is the
+      exclusion constraint (§6.2) — but it puts the collision in front of the
+      staff member *while the customer is still on the telephone*, instead of
+      at the end of a filled-in form. A `409` still renders inline where the
+      slot was chosen, the rule F8.2.4 set.
+- [x] **F8.8.6** `useDebouncedSearch` and `useDebouncedValue` moved to
+      `lib/admin/use-debounced-search.ts`; the confirmation dialog had the same
+      eight lines twice inside itself. Four search boxes across two screens
+      that settled at different speeds would be a bug nobody would think to
+      report.
+- [x] **F8.8.7** Verified live: `e2e/booking-by-phone.spec.ts`, 4/4 against the
+      real backend — the full dialog, the "Övrigt" path, the customer and
+      vehicle that result, and the minimum-fields rule. `bookings-calendar`
+      re-run (4/4) to prove the extraction did not regress the confirmation
+      dialog. `pnpm check` clean: typecheck, `eslint --max-warnings 0`,
+      **1 318 tests** (804 backend + 1 pre-existing skip, 171 frontend, 343
+      shared), `type-coverage` **99.59 %** against the 99.5 % floor.
+
+**Three defects were found by driving the running system, not by reading the
+code, and all three are fixed:**
+
+1. **The dialog opened already in an error state** — today at 08:00, so from
+   08:01 onwards it showed *"Den valda tiden har redan passerat"* in red with
+   the button disabled, before anything had been typed.
+   `defaultBookingStart` (in `lib/admin/calendar.ts`, six unit tests) now
+   offers the next whole slot and rolls to tomorrow once the day's last slot
+   has gone. Its first draft reproduced the same bug for a *past* anchor date,
+   returning today at the opening hour — the same passed time in a different
+   disguise.
+2. **The same-day bookings panel was unbounded**, pushing the customer and
+   vehicle fields below the fold: the panel that exists to help choose a time
+   hid the fields the time is chosen in. Capped and scrollable now, matching
+   the search lists in the same dialogs.
+3. **The free-text model was silently discarded whenever "Övrigt" was chosen
+   for the *make*.** `resolveVehicleMakeModel` asked only whether
+   `modelChoice` was `OTHER` — but when the make is `OTHER` the model dropdown
+   never renders, so `modelChoice` stayed `''` and the typed model never
+   reached the request. Every unlisted car went into the register as
+   *"Saab / Okänd modell"*: the exact escape hatch F8.8.3 exists to provide,
+   half broken. **The e2e test passed through three runs while this was
+   happening**, because it asserted the success toast rather than the row that
+   was written — the bug was found by reading `Vehicle` in the database.
+   Fixed by extracting `isFreeTextModel`, which the component's rendering and
+   the resolver's reading now share so they cannot disagree; nine unit tests
+   in `vehicle-model-picker.test.ts`, and the e2e case now opens the customer
+   and asserts *"Saab 9000 Turbo"* is really there.
+
+   Two lessons recorded rather than just fixed: **a success message is not
+   evidence that the right thing was saved**, and a fixture whose uniqueness
+   has only a hundred values is not unique — `uniquePlate` had a fixed `XYZ`
+   prefix with two varying digits, and a collision made the test silently
+   check a *previous* run's customer instead of this one's, because the
+   backend correctly refuses to reassign a car that already has an owner
+   (§6.3).
 
 **Iteration acceptance record**
 

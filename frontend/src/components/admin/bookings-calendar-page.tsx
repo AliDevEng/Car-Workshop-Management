@@ -1,10 +1,12 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
+import { PlusIcon } from 'lucide-react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   addStockholmDays,
+  stockholmDate,
   stockholmWallClockToUtc,
   type BookingWithRelations,
 } from 'shared';
@@ -18,9 +20,11 @@ import {
   CalendarToolbar,
   MECHANIC_FILTER_ALL,
 } from '@/components/admin/calendar-toolbar';
+import { CreateBookingDialog } from '@/components/admin/create-booking-dialog';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { PageHeader } from '@/components/admin/page-header';
 import { ErrorState, TableSkeleton } from '@/components/admin/states';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ApiError } from '@/lib/api';
 import {
@@ -102,6 +106,7 @@ export function BookingsCalendarPage({
     useState<string>(MECHANIC_FILTER_ALL);
   const [selectedBooking, setSelectedBooking] =
     useState<BookingWithRelations | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const queryClient = useQueryClient();
   const rosterQuery = useUserRoster();
@@ -240,6 +245,21 @@ export function BookingsCalendarPage({
          * inbox's own status filter — four times on one screen said nothing
          * the first one did not (UI_UX_AUDIT C5).
          */
+        actions={
+          /* The telephone is how most bookings actually arrive, so this sits
+             in the page header rather than behind the calendar — reachable
+             from the request inbox too, because the phone rings while you are
+             reading it. */
+          <Button
+            type="button"
+            onClick={() => {
+              setCreateOpen(true);
+            }}
+          >
+            <PlusIcon aria-hidden="true" className="size-4" />
+            Ny bokning
+          </Button>
+        }
       />
 
       <section className="flex flex-col gap-4 rounded-sharp border border-border bg-card/45 p-3 lg:flex-row lg:items-end">
@@ -313,6 +333,25 @@ export function BookingsCalendarPage({
           )}
         </div>
       )}
+
+      {createOpen ? (
+        /* Mounted only while open, like the confirmation dialog, so each
+           "Ny bokning" starts from a clean form instead of the previous
+           caller's half-typed telephone number. */
+        <CreateBookingDialog
+          open
+          onOpenChange={setCreateOpen}
+          initialDate={anchorDate}
+          {...(mechanicFilter === MECHANIC_FILTER_ALL
+            ? {}
+            : { initialAssignedUserId: mechanicFilter })}
+          onCreated={(booking: BookingWithRelations) => {
+            // Land on the day the booking was actually made for, which may
+            // not be the day the calendar was showing.
+            setAnchorDate(stockholmDate(new Date(booking.startsAt)));
+          }}
+        />
+      ) : null}
 
       {selectedBooking === null ? null : (
         <BookingDetailDialog

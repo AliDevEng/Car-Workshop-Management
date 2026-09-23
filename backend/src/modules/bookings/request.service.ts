@@ -6,11 +6,12 @@ import {
   RateLimitError,
   ValidationError,
   isNormalisedRegNr,
-  normalisePhone,
   normaliseRegNr,
+  type BookingCustomerInput,
   type BookingRequest,
   type BookingRequestListResponse,
   type BookingRequestStatus,
+  type BookingVehicleInput,
   type BookingWithRelations,
   type ConfirmBookingRequestInput,
   type PublicBookingRequestInput,
@@ -21,21 +22,20 @@ import {
   type AttemptLimiter,
 } from '../../lib/attempt-limiter.js';
 import { writeAuditLog } from '../../lib/audit.js';
-import { fieldError } from '../../lib/field-error.js';
 import { verifyFormToken } from '../../lib/form-token.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../lib/prisma.js';
-import { createCustomerInTransaction } from '../customers/service.js';
-import {
-  adoptOwnerlessVehicleInTransaction,
-  createVehicleInTransaction,
-} from '../vehicles/service.js';
 import { assertAssignableUser } from './assignment.js';
 import {
   insertBooking,
   toBookingWithRelationsDto,
   withOverlapConflict,
 } from './booking.repository.js';
+import { auditBookingCreated } from './booking.service.js';
+import {
+  resolveBookingCustomer,
+  resolveBookingVehicle,
+} from './participants.js';
 import {
   BOOKING_REQUEST_SELECT,
   countPendingBookingRequests,
@@ -345,128 +345,54 @@ export async function rejectBookingRequest(
 // --- Confirmation ------------------------------------------------------------
 
 /**
- * What a vehicle created from a booking request knows about itself, which is
- * the plate and nothing else.
+ * What the staff member ended up with in the customer field: the record they
+ * picked, or the details the stranger typed.
  *
- * Placeholders rather than a refusal: `make` and `model` are required columns
- * (§4.2), the confirmation dialog does not collect them, and leaving the
- * booking without a vehicle would strand the work order B6 hangs off it. A row
- * that says "unknown" is honest and a human corrects it on the vehicle page —
- * or B10's lookup fills it in.
+ * Building the union here rather than passing the whole request down is what
+ * lets {@link resolveBookingCustomer} serve both this path and the telephone
+ * one without knowing a `BookingRequest` exists.
  */
-const UNKNOWN_MAKE = 'Okänt fabrikat';
-const UNKNOWN_MODEL = 'Okänd modell';
-
-/**
- * The customer the booking belongs to: the one the staff member picked, the
- * one already on file for this phone number, or a new record.
- *
- * Matching on `phoneNormalised` is what makes a returning customer one row
- * rather than five (§8.2). Deterministically the oldest match, so two owners
- * confirming two requests from the same person do not attach them to different
- * duplicates; inactive customers are skipped, because reactivating someone by
- * accepting a booking is a decision a human should make.
- */
-async function resolveCustomer(
-  tx: Prisma.TransactionClient,
-  actorId: string,
-  ipHash: string | null,
+function customerInputFor(
   request: BookingRequestRecord,
   chosenId: string | undefined,
-): Promise<string> {
+): BookingCustomerInput {
   if (chosenId !== undefined) {
-    const chosen = await tx.customer.findUnique({
-      where: { id: chosenId },
-      select: { id: true },
-    });
-    if (chosen === null) {
-      throw fieldError('customerId', 'Kunden kunde inte hittas.');
-    }
-    return chosen.id;
+    return { mode: 'EXISTING', customerId: chosenId };
   }
-
-  const existing = await tx.customer.findFirst({
-    where: { phoneNormalised: normalisePhone(request.phone), isActive: true },
-    select: { id: true },
-    orderBy: { id: 'asc' },
-  });
-  if (existing !== null) {
-    return existing.id;
-  }
-
-  const created = await createCustomerInTransaction(tx, actorId, ipHash, {
+  return {
+    mode: 'NEW',
     type: 'PRIVATE',
     name: request.customerName,
     phone: request.phone,
     ...(request.email === null ? {} : { email: request.email }),
-  });
-  return created.id;
+  };
 }
 
 /**
- * The vehicle, if the request named one at all. A plate the workshop has seen
- * before is reused rather than duplicated — the unique index would refuse a
- * second row anyway, and the service history hangs off the existing one (§6.3).
+ * The same for the vehicle, and this is where **this path's** judgement about
+ * a plate lives.
+ *
+ * A plate a stranger typed is free text, and `Vehicle.registrationNumber` is
+ * the column §4.2's unique index lives on. Rejecting an unusable one would
+ * make the request **permanently unconfirmable** over a typo, so it is treated
+ * exactly like no plate at all — the booking is made, the text stays visible
+ * on the request, and a human attaches the right car. §4.2 is explicit that a
+ * plate must never block a booking.
+ *
+ * The telephone path decides the opposite, because there the typo is the staff
+ * member's own and they are sitting in front of the form.
  */
-async function resolveVehicle(
-  tx: Prisma.TransactionClient,
-  actorId: string,
-  ipHash: string | null,
+function vehicleInputFor(
   request: BookingRequestRecord,
   chosenId: string | undefined,
-  customerId: string,
-): Promise<string | null> {
+): BookingVehicleInput {
   if (chosenId !== undefined) {
-    const chosen = await tx.vehicle.findUnique({
-      where: { id: chosenId },
-      select: { id: true },
-    });
-    if (chosen === null) {
-      throw fieldError('vehicleId', 'Fordonet kunde inte hittas.');
-    }
-    await adoptOwnerlessVehicleInTransaction(
-      tx,
-      actorId,
-      ipHash,
-      chosen.id,
-      customerId,
-    );
-    return chosen.id;
+    return { mode: 'EXISTING', vehicleId: chosenId };
   }
-
-  // A plate a stranger typed is free text, and `Vehicle.registrationNumber`
-  // is the column §4.2's unique index lives on: `isNormalisedRegNr` is what
-  // `createVehicleInTransaction` would throw over, and a throw here would make
-  // the request **permanently unconfirmable** over a typo. So an unusable
-  // plate is treated exactly like no plate — the booking is made, the text
-  // stays visible on the request, and a human attaches the right car. §4.2 is
-  // explicit that a plate must never block a booking.
   if (request.regNr === null || !isNormalisedRegNr(request.regNr)) {
-    return null;
+    return { mode: 'NONE' };
   }
-
-  const existing = await tx.vehicle.findUnique({
-    where: { registrationNumber: request.regNr },
-    select: { id: true },
-  });
-  if (existing !== null) {
-    await adoptOwnerlessVehicleInTransaction(
-      tx,
-      actorId,
-      ipHash,
-      existing.id,
-      customerId,
-    );
-    return existing.id;
-  }
-
-  const created = await createVehicleInTransaction(tx, actorId, ipHash, {
-    registrationNumber: request.regNr,
-    customerId,
-    make: UNKNOWN_MAKE,
-    model: UNKNOWN_MODEL,
-  });
-  return created.id;
+  return { mode: 'NEW', registrationNumber: request.regNr };
 }
 
 /**
@@ -495,19 +421,17 @@ export async function confirmBookingRequest(
         await assertAssignableUser(tx, input.assignedUserId);
       }
 
-      const customerId = await resolveCustomer(
+      const customerId = await resolveBookingCustomer(
         tx,
         actorId,
         ipHash,
-        request,
-        input.customerId,
+        customerInputFor(request, input.customerId),
       );
-      const vehicleId = await resolveVehicle(
+      const vehicleId = await resolveBookingVehicle(
         tx,
         actorId,
         ipHash,
-        request,
-        input.vehicleId,
+        vehicleInputFor(request, input.vehicleId),
         customerId,
       );
 
@@ -541,22 +465,7 @@ export async function confirmBookingRequest(
         ipHash,
       });
 
-      await writeAuditLog(tx, {
-        userId: actorId,
-        action: 'booking.created',
-        entityType: 'Booking',
-        entityId: booking.id,
-        after: {
-          bookingRequestId: booking.bookingRequestId,
-          customerId: booking.customerId,
-          vehicleId: booking.vehicleId,
-          startsAt: booking.startsAt,
-          endsAt: booking.endsAt,
-          assignedUserId: booking.assignedUserId,
-          status: booking.status,
-        },
-        ipHash,
-      });
+      await auditBookingCreated(tx, actorId, ipHash, booking);
 
       return toBookingWithRelationsDto(booking);
     }),

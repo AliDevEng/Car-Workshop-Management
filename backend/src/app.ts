@@ -31,6 +31,7 @@ import { registerServiceProtocolRoutes } from './modules/service-protocols/route
 import { registerServiceRuleRoutes } from './modules/service-rules/routes.js';
 import { registerSettingsRoutes } from './modules/settings/routes.js';
 import { registerUserRoutes } from './modules/users/routes.js';
+import { registerVehicleCatalogueRoutes } from './modules/vehicle-catalogue/routes.js';
 import { registerVehicleDataRoutes } from './modules/vehicle-data/routes.js';
 import { registerVehicleRoutes } from './modules/vehicles/routes.js';
 import { registerWorkOrderRoutes } from './modules/work-orders/routes.js';
@@ -102,6 +103,7 @@ export async function buildApp(
   registerUserRoutes(app);
   registerCustomerRoutes(app);
   registerVehicleRoutes(app);
+  registerVehicleCatalogueRoutes(app);
   registerArticleRoutes(app);
   registerBookingRoutes(app);
   registerWorkOrderRoutes(app);

@@ -267,6 +267,68 @@ export function addMinutesToLocalDateTime(
   return stockholmWallClock(new Date(instant.getTime() + minutes * 60_000));
 }
 
+/**
+ * Where a new booking's form should start: the first slot on `anchorDate`
+ * that has not already gone.
+ *
+ * Opening the telephone-booking dialog at a flat 08:00 meant that from 08:01
+ * onwards it rendered "Den valda tiden har redan passerat" in red before the
+ * staff member had typed anything, with the submit button disabled — the form
+ * accusing its user of a mistake they had not made yet, on every call taken
+ * after breakfast.
+ *
+ * The rules, in order:
+ *   - a future day starts at the workshop's opening hour;
+ *   - today starts at the next whole slot after now, so a call at 09:12 offers
+ *     09:30;
+ *   - a day already past its last slot rolls to tomorrow morning, because
+ *     there is no honest time left to offer on it.
+ *
+ * `now` is injectable so the rollover can be asserted at a fixed instant
+ * rather than at whatever time the suite happens to run.
+ */
+export function defaultBookingStart(
+  anchorDate: string,
+  now: Date = new Date(),
+  bounds: CalendarGridBounds = DEFAULT_CALENDAR_GRID_BOUNDS,
+): { readonly date: string; readonly startTime: string } {
+  const openingTime = calendarHourLabel(bounds.startHour);
+  const today = stockholmDate(now);
+
+  // A past day cannot hold a new booking at all — the date picker refuses it
+  // too — so fall through to today's rules rather than returning this day at
+  // the opening hour, which would be the same already-passed time in a
+  // different disguise.
+  const day = isPastLocalDate(anchorDate, today) ? today : anchorDate;
+
+  if (day !== today) {
+    return { date: day, startTime: openingTime };
+  }
+
+  const nowLocal = stockholmWallClock(now);
+  if (!isPastLocalDateTime(`${day}T${openingTime}`, now)) {
+    return { date: day, startTime: openingTime };
+  }
+
+  // `stockholmWallClock` gives `YYYY-MM-DDTHH:MM`; the clock part is the last
+  // five characters, read by position for the same reason the rest of this
+  // module parses dates that way.
+  const minutesNow =
+    Number(nowLocal.slice(11, 13)) * 60 + Number(nowLocal.slice(14, 16));
+  const nextSlot =
+    Math.ceil((minutesNow - bounds.startHour * 60 + 1) / bounds.slotMinutes) *
+    bounds.slotMinutes;
+
+  if (nextSlot >= (bounds.endHour - bounds.startHour) * 60) {
+    return { date: addStockholmDays(day, 1), startTime: openingTime };
+  }
+
+  return {
+    date: day,
+    startTime: calendarSlotToLocalTime(nextSlot / bounds.slotMinutes, bounds),
+  };
+}
+
 /** The `{ from, to }` window `GET /api/bookings` needs for one view. */
 export interface CalendarRange {
   readonly from: string;

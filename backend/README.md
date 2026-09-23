@@ -33,7 +33,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 
 ## Status
 
-**Overall: 89/92 milestones complete; 11/14 iterations Done.**
+**Overall: 93/96 milestones complete; 12/15 iterations Done.**
 
 | Iteration  | Reference | Phase   | Milestones done | Status      |
 | ---------- | --------- | ------- | --------------- | ----------- |
@@ -51,6 +51,7 @@ particular, part of Iteration 11 (B10) is delivered during Phase 3.
 | [12](#b11) | B11       | 7       | 6/6             | Done        |
 | [13](#b12) | B12       | 7       | 6/6             | Done        |
 | [14](#b13) | B13       | 8       | 5/6             | In progress |
+| [15](#b14) | B14       | 3       | 4/4             | Done        |
 
 **[Hardening pass H1](#hardening-pass-h1-2026-09-17) — 13/14 findings fixed,
 2026-09-17.** Not an iteration: a cross-cutting audit that probed twenty
@@ -4119,6 +4120,176 @@ chooses how memory is sampled, and without either the run says "not sampled"
 rather than inventing a figure.
 
 **Completed on:** — (B13.1–B13.5 on 2026-09-22; B13.6 open).
+
+---
+
+<a id="b14"></a>
+
+## Iteration 15: Taking a booking over the telephone
+
+- [x] Creating the make/model catalogue (`B14.1`)
+- [x] Creating a booking without a request (`B14.2`)
+- [x] Sharing one customer/vehicle resolver between both booking paths (`B14.3`)
+- [x] Verifying the telephone booking journey (`B14.4`)
+
+**Reference:** B14 · **Phase:** 3 (retrofit) · **Progress:** 4/4 · **Status:** Done
+
+**Depends on:** B3 (customers, vehicles), B5 (the `Booking` model and its
+exclusion constraint).
+
+**Goal:** the customer rings and whoever answers writes them into the calendar,
+in one screen, without inventing a public request to describe the call.
+
+**Definition of done:** a booking can be created from a name, a telephone
+number and a time alone; a second call from the same number does not create a
+second customer; and the slot is still defended by the exclusion constraint
+rather than by a read-then-write.
+
+**Why this exists at all.** §6.2's rule — *"a public submission creates a
+request, never a booking"* — governs the public form and is unchanged. It was,
+however, the only **documented** route into the calendar, and §1.2 says plainly
+that customers phone in. The commonest case in the business therefore had no
+endpoint: the only way to get a booking into the calendar was to fabricate a
+`BookingRequest`, which would have corrupted the one number the two owners use
+to see what actually arrived from the website.
+
+<details>
+<summary>Implementation details — B14</summary>
+
+<a id="b14-1"></a>
+
+### B14.1 The make/model catalogue
+
+- [x] **B14.1.1** Prisma `VehicleMake` and `VehicleModel`; migration
+      `20260923073417_b14_vehicle_catalogue`. **No foreign key from `Vehicle`**
+      — `make` and `model` stay free text. A foreign key would make the list a
+      gate, which is the same mistake §4.2 refuses to make about plate formats.
+- [x] **B14.1.2** The ten makes most common in the Swedish passenger-car park,
+      eight models each, **seeded by the migration rather than `seed.ts`**.
+      `seed.ts` refuses to run against production by design, and the booking
+      form needs this list in every environment. The insert is idempotent on
+      the models' own unique keys, so a re-applied migration or a restored dump
+      is a no-op. `sortOrder` counts in tens so a row can be slotted between
+      two others without renumbering.
+- [x] **B14.1.3** The models are the ones the car park is *made of*, not this
+      year's brochure — a workshop sees fifteen-year-old cars, so V70 and
+      Avensis earn their place over recent launches.
+- [x] **B14.1.4** **No "Övrigt" row.** It would be copied verbatim into
+      `Vehicle.make` and the register would fill with cars whose make is the
+      word "other". The escape hatch is a free-text field in the UI.
+- [x] **B14.1.5** `GET /api/vehicle-makes`, `authenticated`, unpaginated, makes
+      nested with their models. One request rather than one per selection: the
+      whole catalogue is eighty rows, and a round trip per dropdown would make
+      the picker feel broken. Not `public` — the public form collects nothing
+      about the car beyond a plate (§5.5), so there is nothing here for a
+      stranger. Read-only: adding a make is a migration, which is the right
+      weight for a list the whole workshop picks from.
+
+<a id="b14-2"></a>
+
+### B14.2 Creating a booking directly
+
+- [x] **B14.2.1** `POST /api/bookings`, `authenticated` rather than `ADMIN` —
+      both owners answer the telephone, and a mechanic who could not write down
+      the appointment they just agreed to would keep a paper diary beside the
+      system, which is the problem this replaces.
+- [x] **B14.2.2** `createBookingInputSchema` in `shared`, with the customer and
+      the vehicle as **discriminated unions** (`EXISTING` / `NEW`, plus `NONE`
+      for the car). "Both given" and "neither given" are then unrepresentable,
+      rather than caught by a `refine` that has to describe them in prose.
+- [x] **B14.2.3** The required set is decided by the columns, not by
+      preference: a time, and either an existing customer or a name and a
+      telephone number. **The car is fully optional**, and when one is given
+      only the registration number is required. See the decision log,
+      2026-09-23.
+- [x] **B14.2.4** `bookingRequestId` is `null`, and a test asserts it. The
+      inbox counts what arrived from the website.
+- [x] **B14.2.5** Customer, vehicle and booking in one transaction, wrapped in
+      the same `withOverlapConflict` — **outside** the transaction, because a
+      `23P01` aborts the surrounding Postgres transaction and cannot be
+      recovered from inside one (B0.10.3). A refused slot rolls the customer
+      back too; a test counts the rows to prove it.
+
+<a id="b14-3"></a>
+
+### B14.3 One resolver, two paths
+
+- [x] **B14.3.1** `modules/bookings/participants.ts` holds
+      `resolveBookingCustomer` and `resolveBookingVehicle`, and **both**
+      `confirmBookingRequest` and `createBooking` now go through them. Two
+      implementations of "is this the same customer?" would eventually disagree
+      in front of a person.
+- [x] **B14.3.2** The one judgement that genuinely differs stays in each
+      caller, where it can be read: confirmation maps an unparseable plate to
+      `{ mode: 'NONE' }`, because a stranger's typo must never make a request
+      permanently unconfirmable (the B5 defect above); the telephone path
+      rejects it with a field error, because there the typo is the staff
+      member's own and they are looking at the form.
+- [x] **B14.3.3** `UNKNOWN_VEHICLE_MAKE` / `UNKNOWN_VEHICLE_MODEL` moved to
+      `modules/vehicles/service.ts`, so the two placeholder strings have one
+      spelling. `fillMissingVehicleFactsInTransaction` depends on that being
+      true.
+- [x] **B14.3.4** A make or model supplied for a plate that already exists as a
+      placeholder **fills it in**; a value a human has already entered is never
+      overwritten, and nothing missing means no write and therefore no audit
+      row claiming a vehicle changed when it did not. Without this, a car
+      created by a public request would keep saying "Okänt fabrikat" while the
+      staff member's catalogue selection was silently discarded — the only real
+      information in the call.
+- [x] **B14.3.5** `auditBookingCreated` is shared too, so a telephone booking
+      and a confirmed request write `booking.created` in the same shape. "When
+      was this customer booked in?" has to be one query.
+
+<a id="b14-4"></a>
+
+### B14.4 Verification
+
+- [x] **B14.4.1** `tests/booking-create.test.ts` — 17 cases covering the happy
+      path, no car at all, catalogue defaults, an existing customer and
+      vehicle, the audit row, and six refusals.
+- [x] **B14.4.2** The duplicate-customer rule is tested with the *same* number
+      written two ways (`070-555 11 22` and `+46705551122`), which is what
+      §8.2's normalised column is for.
+- [x] **B14.4.3** Authorisation is asserted at both layers: no CSRF token is a
+      `403` (the route must never join `CSRF_EXEMPT_ROUTES`), and a token with
+      no session is a `401`.
+
+</details>
+
+- [x] **Iteration 15 Done** — all milestones and the Definition of Done pass.
+
+**Verification:** 2026-09-23, on Node 22.21.1, pnpm 12.3.4, PostgreSQL 16
+(Docker), Windows 11. Driven in a real browser against the live stack, not only
+through the test harness.
+
+| Command / check | Result |
+| --- | --- |
+| `pnpm check` | Clean — typecheck, lint (0 warnings), **1 318 tests** (804 backend + 1 skipped, 171 frontend, 343 shared), `type-coverage` **99.59 %** |
+| `pnpm --filter backend exec vitest run tests/booking-create.test.ts` | 17 passed |
+| Existing booking suites | `bookings`, `booking-requests`, `booking-journey`, `authorisation`, `audit-coverage`, `vehicles` — 81 passed after the B14.3 refactor |
+| `prisma migrate dev` | `20260923073417_b14_vehicle_catalogue` applied; 10 makes × 8 models verified by `psql` |
+| `playwright test booking-by-phone.spec.ts` | 4 passed against the running dev stack |
+| `playwright test bookings-calendar.spec.ts` | 4 passed — the shared availability panel did not regress the confirmation dialog |
+
+**Three defects were found by driving the running system rather than by
+reading the code, and all three are fixed.** Two are in this iteration's
+screen and are recorded in full under
+[F8.8](../frontend/README.md#f8-8) — the dialog opening in an error state, and
+an unbounded same-day panel that hid the fields below it.
+
+The third is worth repeating here, because of what let it through:
+
+- **The free-text vehicle model was silently discarded** whenever "Övrigt" was
+  chosen for the *make*, so every unlisted car reached this API without a
+  `model` and was stored as *"Saab / Okänd modell"* — the escape hatch B14.1.4
+  exists to provide, half broken. **The e2e test passed through three runs
+  while this was happening**, because it asserted the success toast rather
+  than the row that was written. It was found by reading `Vehicle` in the
+  database. A success message is not evidence that the right thing was saved,
+  and the strengthened test now opens the customer and asserts the stored
+  make and model.
+
+**Completed on:** 2026-09-23
 
 ---
 

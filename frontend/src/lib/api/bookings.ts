@@ -14,6 +14,7 @@ import {
   type BookingWithRelations,
   type CalendarResponse,
   type ConfirmBookingRequestInput,
+  type CreateBookingInput,
   type RejectBookingRequestInput,
   type UpdateBookingInput,
 } from 'shared';
@@ -148,6 +149,37 @@ export function prefetchCalendar(
     queryKey: queryKeys.calendar(params),
     queryFn: () => apiFetch(calendarPath(params), calendarResponseSchema),
     staleTime: 15_000,
+  });
+}
+
+/**
+ * A booking taken over the telephone (F8.8, `POST /api/bookings`).
+ *
+ * Invalidates the customer and vehicle lists as well as the calendar: the call
+ * may have created either of them, and a register that does not show the
+ * customer the staff member just wrote down looks broken in the exact moment
+ * they would go looking for it.
+ *
+ * No optimistic update, unlike {@link useUpdateBooking}: there is no row to
+ * patch yet, the server assigns the id, and the exclusion constraint may
+ * refuse the slot — an optimistic booking that vanishes is worse than a
+ * half-second wait.
+ */
+export function useCreateBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateBookingInput) =>
+      apiFetch('/bookings', bookingWithRelationsSchema, {
+        method: 'POST',
+        body: input,
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.calendarRoot() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.customersRoot() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vehiclesRoot() }),
+      ]);
+    },
   });
 }
 

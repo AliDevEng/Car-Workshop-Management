@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { isPositiveInterval, isWithinDayRange } from '../time.js';
 import { cursorQuerySchema } from './common.js';
-import { customerSummarySchema } from './customer.js';
+import { customerSummarySchema, customerTypeSchema } from './customer.js';
 import {
   emailSchema,
   idSchema,
@@ -16,7 +16,7 @@ import {
   timestampFields,
 } from './primitives.js';
 import { userSummarySchema } from './user.js';
-import { vehicleSummarySchema } from './vehicle.js';
+import { modelYearSchema, vehicleSummarySchema } from './vehicle.js';
 
 /**
  * Booking requests and calendar bookings — PROJECT_SPEC.md §4.2 and §6.2.
@@ -225,6 +225,92 @@ export const confirmBookingRequestInputSchema = z
 export type ConfirmBookingRequestInput = z.infer<
   typeof confirmBookingRequestInputSchema
 >;
+
+// --- A booking taken over the telephone --------------------------------------
+
+/**
+ * `POST /api/bookings` — the other way a booking is born.
+ *
+ * §6.2's "a public submission creates a request, never a booking" is about the
+ * *public* form, and it stays true. The commonest case in a two-person
+ * workshop is not the form at all: the customer rings, and whoever answers
+ * opens the calendar and writes them in. That path had no endpoint, so the
+ * only way to get a booking into the calendar was to invent a public request
+ * first — which would have put a fabricated row in the inbox the owners use to
+ * see what actually came in from the website.
+ *
+ * What is required here is decided by the columns, not by preference:
+ * `Booking.customerId` is `NOT NULL` because the calendar is a promise to a
+ * person, and `Customer.phone` is `NOT NULL` because §4.2 makes the telephone
+ * the required contact channel. Everything else — the car included — is
+ * optional, because a caller who has not read their plate off the key ring yet
+ * must still get a time.
+ */
+
+/**
+ * Either an existing customer or the details to create one.
+ *
+ * A discriminated union rather than two optional fields: "both given" and
+ * "neither given" are then unrepresentable instead of being caught by a
+ * `refine` that has to describe them in prose.
+ */
+export const bookingCustomerInputSchema = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('EXISTING'),
+    customerId: idSchema,
+  }),
+  z.object({
+    mode: z.literal('NEW'),
+    /**
+     * Optional, defaulted to `PRIVATE` by the service rather than here: a
+     * `.default()` would make `z.input` and `z.output` disagree, and this
+     * schema is shared with the form that produces it.
+     */
+    type: customerTypeSchema.optional(),
+    name: nameSchema,
+    phone: phoneSchema,
+    email: emailSchema.optional(),
+  }),
+]);
+export type BookingCustomerInput = z.infer<typeof bookingCustomerInputSchema>;
+
+/**
+ * The car, which may genuinely be unknown. `NONE` is spelled out rather than
+ * left as an absent field so that "no car" is a decision the caller made,
+ * visible in the request body and in the test that asserts it.
+ *
+ * On `NEW`, only the registration number is required — it is the column the
+ * unique index lives on, so a vehicle cannot exist without one. `make` and
+ * `model` fall back to the same placeholders a confirmed public request
+ * already uses, and a human corrects them on the vehicle page.
+ */
+export const bookingVehicleInputSchema = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('NONE') }),
+  z.object({ mode: z.literal('EXISTING'), vehicleId: idSchema }),
+  z.object({
+    mode: z.literal('NEW'),
+    registrationNumber: registrationNumberInputSchema,
+    make: nameSchema.optional(),
+    model: nameSchema.optional(),
+    modelYear: modelYearSchema.optional(),
+  }),
+]);
+export type BookingVehicleInput = z.infer<typeof bookingVehicleInputSchema>;
+
+export const createBookingInputSchema = z
+  .object({
+    startsAt: isoDateTimeSchema,
+    endsAt: isoDateTimeSchema,
+    assignedUserId: idSchema.optional(),
+    customer: bookingCustomerInputSchema,
+    vehicle: bookingVehicleInputSchema,
+    note: noteSchema.optional(),
+  })
+  .refine((input) => isPositiveInterval(input.startsAt, input.endsAt), {
+    message: BOOKING_INTERVAL_MESSAGE,
+    path: ['endsAt'],
+  });
+export type CreateBookingInput = z.infer<typeof createBookingInputSchema>;
 
 // --- The calendar ------------------------------------------------------------
 

@@ -364,13 +364,19 @@ Customer ──▶ Vehicle ──▶ VehicleDataSnapshot
    │            │
    │            ├──▶ ServiceRecommendation ──▶ ServiceRule
    │            │
-   └──▶ BookingRequest ──▶ Booking ──▶ WorkOrder ──▶ WorkOrderLine ──▶ Article
+   └──▶ BookingRequest ┄┄▶ Booking ──▶ WorkOrder ──▶ WorkOrderLine ──▶ Article
                                           │                              │
                                           │                              ▼
                                           │                        StockMovement
                                           ├──▶ Quote ──▶ Document (PDF)
                                           └──▶ ServiceProtocol ──▶ Document (PDF)
+
+VehicleMake ──▶ VehicleModel        (reference data; no FK from Vehicle — §6.2)
 ```
+
+`BookingRequest ┄┄▶ Booking` is dashed because the link is optional in both
+directions: a request may be rejected, and a booking taken over the telephone
+has no request at all (§6.2).
 
 ### 4.2 Core entities
 
@@ -435,6 +441,19 @@ months.
 `CANCELLED` | `NO_SHOW`), `note?`.
 
 The split between request and booking is deliberate and covered in §6.2.
+`bookingRequestId` is **optional**, and that is load-bearing: a booking taken
+over the telephone has no request behind it, and inventing one to satisfy the
+column would corrupt the inbox count the two owners rely on (§6.2).
+
+**VehicleMake** — `name` (unique), `sortOrder`, `isActive`.
+**VehicleModel** — `makeId`, `name`, `sortOrder`, `isActive`, unique on
+`(makeId, name)`. *Added 2026-09-23 (decision log).*
+
+The browsable catalogue behind the booking form's two dropdowns. **Reference
+data, not a constraint** — `Vehicle.make` and `Vehicle.model` carry no foreign
+key to these rows, for the reason §6.2 gives. Seeded by its migration rather
+than by `prisma/seed.ts`, which refuses to run against production, and read-only
+over the API.
 
 **WorkOrder** — `number` (human-readable, sequential, see §4.4), `bookingId?`,
 `vehicleId`, `customerId`, `status` (`DRAFT` | `IN_PROGRESS` | `AWAITING_PARTS`
@@ -709,6 +728,50 @@ animation.
 what actually goes in the calendar. This avoids the entire class of problems
 around double-booking, bay availability, and jobs whose real duration is unknown
 until the car is on the lift.
+
+**Staff create bookings directly.** *Added 2026-09-23 (decision log).* The rule
+above governs the public form and is unchanged. It was, however, the only
+documented route into the calendar — and §1.2 says plainly that customers phone
+in, which makes the telephone the commonest case in this workshop, not an edge
+one. `POST /api/bookings` is therefore the staff-side path that rule always
+assumed existed. It writes no `BookingRequest`: the inbox is the record of what
+arrived from the website, and manufacturing a row there to describe a phone
+call would make its unhandled count meaningless.
+
+What it requires is decided by the columns, not by preference:
+
+- **A time.** A calendar entry without one is not a booking.
+- **A customer** — an existing record, or a name and a telephone number.
+  `Booking.customerId` is `NOT NULL` because the calendar is a promise to a
+  person, and `phone` is the required contact channel (§4.2). A caller has a
+  number by definition.
+- **The car is optional, and so is every field describing it.** A customer who
+  has not read their plate off the key ring still gets a time. When a car *is*
+  given, only the registration number is required — it is the column the unique
+  index lives on — and an absent make or model takes the same `Okänt fabrikat`
+  / `Okänd modell` placeholders a confirmed public request already uses.
+
+A known telephone number reuses the customer already on file, and a known plate
+reuses the vehicle (§8.2, §6.3) — a returning caller must not become a second
+row. Where that existing vehicle still carries the placeholders above, a make
+or model supplied now **fills them in**; a value a human has already entered is
+never overwritten, because correcting one is a decision for the vehicle page.
+
+The two paths differ in exactly one judgement, and deliberately: confirmation
+treats a registration number it cannot parse as *no car*, because a stranger's
+typo must never make a request permanently unconfirmable, while the staff path
+rejects it with a field error, because there the typo is the staff member's own
+and they are looking at the form.
+
+**A make/model catalogue exists to make that fast.** The ten makes most common
+in the Swedish car park, with eight models each, browsable as two dropdowns.
+It is **reference data, not a constraint**: `Vehicle.make` and `Vehicle.model`
+remain free text with no foreign key to it, and both dropdowns offer a
+free-text alternative. Blocking a booking over an unlisted model would be the
+same mistake this section refuses to make about plate formats. For the same
+reason the catalogue contains no "Övrigt" row — that value would be stored
+verbatim as a make — and it is read-only over the API: adding a make is a
+migration, which is the right weight for a list the whole workshop picks from.
 
 Anti-spam, layered, because an anonymous public form will be found by bots:
 

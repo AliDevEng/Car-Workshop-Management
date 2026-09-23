@@ -13,6 +13,7 @@ export * from './user.js';
 export * from './auth.js';
 export * from './customer.js';
 export * from './vehicle.js';
+export * from './vehicle-catalogue.js';
 export * from './odometer.js';
 export * from './article.js';
 export * from './stock.js';

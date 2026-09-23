@@ -119,7 +119,7 @@ Within a phase, backend and frontend iterations may interleave.
 | **0 — Foundation** | Monorepo, strict TS, Docker, database, CI | B0, B1, F0 | `pnpm dev` runs; a typed request reaches the API |
 | **1 — Core data** | Auth, customers, vehicles, admin shell | B2, B3, F1, F4, F6 | Staff can log in and manage customers and vehicles |
 | **2 — Inventory** | Articles, stock ledger, stocktake | B4, F7 | Full inventory CRUD with an auditable ledger |
-| **3 — Booking** | Requests, calendar, public site, vehicle lookup | B5, B10.1–B10.4, B10.6, F2, F3, F8 | Public site is live and takes booking requests |
+| **3 — Booking** | Requests, calendar, public site, vehicle lookup, telephone bookings | B5, B10.1–B10.4, B10.6, B14, F2, F3, F8 | Public site is live and takes booking requests; staff book a caller straight into the calendar |
 | **4 — Work** | Work orders, lines, stock deduction, dashboard | B6, F5, F9 | A job can be run end to end in the system |
 | **5 — Documents** | Quotes, service protocols, PDF | B7, B8, F10 | The workshop can hand over a printed protocol |
 | **6 — Intelligence** | Service rules, real vehicle-data provider, settings | B9, B10.5, F11 | Service advice works; the paid API goes live |
@@ -160,16 +160,30 @@ built to accommodate that section from the start.
 Update this table when a phase completes. Update the per-step checkboxes in
 `backend/README.md` and `frontend/README.md` **in the same commit as the code**.
 
-The [backend iteration tracker](backend/README.md#status) presents 14 iterations
-with 92 milestone checkboxes and expandable implementation details. Iteration 1
+**B14 added 2026-09-23 — taking a booking over the telephone.** Not part of
+the original plan, and the reason it was missing is worth recording: §6.2's
+"a public submission creates a request, never a booking" governs the *public*
+form, but it was also the only documented route into the calendar — so the
+commonest case in the business (§1.2: "Customers phone in for bookings") had
+no endpoint at all. `POST /api/bookings` is the staff-side path that rule
+always assumed existed, writing **no** `BookingRequest`, because the inbox is
+the record of what arrived from the website. It ships with a browsable
+make/model catalogue — ten makes, eight models each, seeded by its own
+migration — which is reference data with no foreign key from `Vehicle` and no
+"Övrigt" row; both dropdowns offer free text instead, because an unlisted car
+must not be harder to book than a listed one. See §6.2, §4.2 and four rows in
+the decision log below.
+
+The [backend iteration tracker](backend/README.md#status) presents 15 iterations
+with 96 milestone checkboxes and expandable implementation details. Iteration 1
 maps to B0; all original B-references remain stable. B10 is deliberately split
 across Phases 3 and 6, and stays In progress until its real-provider milestone
-is complete. **89/92 backend milestones are complete as of 2026-09-22**: nine
+is complete. **93/96 backend milestones are complete as of 2026-09-23**: nine
 of B0's ten, all six of B1's, all seven of B2's, all six of B3's, all six of
 B4's, all six of B5's, all eight of B6's, all six of B7's, all six of B8's,
-all seven of B9's, five of B10's six, all six of B11's, all six of B12's, and
-five of B13's six.
-B1, B2, B3, B4, B5, B6, B7, B8, B9, B11 and B12 are Done. B9's own Definition of Done (100% branch
+all seven of B9's, five of B10's six, all six of B11's, all six of B12's,
+five of B13's six, and all four of B14's.
+B1, B2, B3, B4, B5, B6, B7, B8, B9, B11, B12 and B14 are Done. B9's own Definition of Done (100% branch
 coverage on the pure engine; no recommendation ever becomes a work-order line
 without a recorded decision) is met in full; two of its sub-items stayed
 explicitly deferred rather than guessed at — the public hero's advice panel
@@ -226,17 +240,19 @@ B13.4.1's "k6 or autocannon" was declined with the human for four recorded
 reasons.
 
 The [frontend milestone tracker](frontend/README.md#status) breaks F0–F12 into
-83 milestones with numbered task checkboxes, acceptance criteria and completion
+84 milestones with numbered task checkboxes, acceptance criteria and completion
 records. Its phase hand-offs explicitly assign later integrations: lookup and
 partner links in F8.7, work-order history in F9.7, service advice in F11.6, and
 privacy actions in F12.7. Earlier iterations deliver their stated core scope;
 the frontend is complete only after these follow-ups also pass.
-**65/83 frontend milestones are complete as of 2026-09-17:** all seven of F0's,
+**66/84 frontend milestones are complete as of 2026-09-23:** all seven of F0's,
 all six of F1's, five of F2's six milestones, all six of F3's milestones,
 all six of F4's milestones, all six of F5's milestones, all six of F6's
-milestones, all six of F7's milestones, five of F8's seven milestones,
+milestones, all six of F7's milestones, six of F8's eight milestones,
 all seven of F9's, and five of F10's six. F0, F1, F3, F4, F5, F6, F7 and F9
-are Done. F2's public layout, service pages, SEO,
+are Done. **F8 gained an eighth milestone, F8.8**, the screen for B14's
+telephone booking — the calendar's "Ny bokning" dialog with the browsable
+make/model picker. F2's public layout, service pages, SEO,
 recorded performance budget and — as of this iteration — the live lookup hero
 are complete; only the about page's real owner photographs remain, so F2 stays
 Blocked on that alone. F3 replaces
@@ -581,6 +597,10 @@ past row.
 | 2026-09-23 | **The admin palette is applied to `<body>` at runtime, not only to the route group's wrapper `div`** | UI_UX_AUDIT G4. F0.2.5's scoped class is right, but Radix portals mount into `document.body`, *outside* that div, so every dialog, sheet, popover and select in the admin panel resolved the `:root` (public) tokens and rendered as an off-white panel on dark steel. The alternative — threading a `container` into every `Portal` — has to be remembered by each primitive ever added, and one that forgets fails identically. `AdminScopeBody` cannot be forgotten and also covers toasts. The wrapper keeps its class, so the first server-rendered paint is already themed |
 | 2026-09-23 | **The admin shell is a fixed-height application layout: only `<main>` scrolls** | UI_UX_AUDIT G2/G3. The shell was `flex min-h-screen`, so the sidebar stretched to the document height with its content at the top and scrolled away on every page; and the data table carried its own `max-h-[70vh]` inside a page that also scrolled, which is always more than 100vh. One `h-dvh` root with a single scrolling `<main>` fixes both, and gives list headers and the calendar's day headers a stable sticky containing block. Measured after: **zero vertical document overflow on every admin route at 390, 768, 1024 and 1440 px** |
 | 2026-09-23 | **`isWorkOrderLocked` moved into `shared/work-order-state.ts`** | The `COMPLETED \|\| CANCELLED` pair is the backend's own line lock (`bumpVersionForLineWrite`), and the work-order screen now needs it in two places (lines, and the header/odometer fields W4 revealed were still editable). Deliberately **not** `isTerminalStatus`, which is false for `CANCELLED` but *true* for `COMPLETED` — a same-shaped, differently-meant helper that would have been reached for next time |
+| 2026-09-23 | **`POST /api/bookings` added: staff may create a booking directly, without a `BookingRequest`** (§6.2 extended) | §6.2 said "public submission creates a request, never a booking", and that rule is unchanged — but it was the *only* documented way into the calendar, so the commonest case in this workshop had no path at all. A customer rings; whoever answers has to write them in. The alternative on offer was to fabricate a `BookingRequest` to describe the call, which would have made the inbox's unhandled count — the number the two owners use to see what arrived from the website — mean nothing |
+| 2026-09-23 | **The telephone booking's minimum is a time, a name and a telephone number. Not "only the car model", as first proposed** | Decided with the human. `Booking.customerId` is `NOT NULL` because §4.2 states the calendar is a promise to a person, and `Customer.phone` is `NOT NULL` because §4.2 makes the telephone the required contact channel. Making either nullable is a migration against a documented reason, and the second would also break §8.2's two-column phone search, which the whole customer lookup rests on. A caller has a telephone number by definition, so the cost of keeping both is nil. **The car is fully optional** — mode `NONE` — and when one is given only the registration number is required, because that is the column the unique index lives on |
+| 2026-09-23 | **The make/model catalogue is reference data with no foreign key from `Vehicle`, and no "Övrigt" row** | `Vehicle.make`/`model` stay free text. A foreign key would make the list a gate, which is the same mistake §4.2 refuses to make about plate formats — a 1987 Saab must not be harder to book than a new Golf. An "Övrigt" row would be copied verbatim into `Vehicle.make` and the register would fill with cars whose make is the word "other"; the escape hatch is a free-text field in the UI instead |
+| 2026-09-23 | **The catalogue's 80 rows are seeded by the migration, not by `prisma/seed.ts`** | `seed.ts` refuses to run against production by design (`NODE_ENV === 'production'` → exit 1), and the booking form needs this list in every environment. The insert is idempotent on the model's own unique keys, so a re-applied migration or a restored dump is a no-op |
 
 ---
 

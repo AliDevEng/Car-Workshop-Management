@@ -18,6 +18,8 @@ export const queryKeys = {
   vehicles: <Params extends object>(params: Readonly<Params>) =>
     [...queryKeys.vehiclesRoot(), params] as const,
   vehicle: (id: string) => [...queryKeys.vehiclesRoot(), id] as const,
+  /** The make/model catalogue. Reference data — one key, no parameters. */
+  vehicleMakes: () => ['vehicle-makes'] as const,
   odometerReadings: (vehicleId: string) =>
     [...queryKeys.vehiclesRoot(), vehicleId, 'odometer-readings'] as const,
   articlesRoot: () => ['articles'] as const,

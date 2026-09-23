@@ -6,6 +6,7 @@ import {
   calendarRowSpan,
   calendarSlotCount,
   calendarSlotToLocalTime,
+  defaultBookingStart,
   isPastLocalDate,
   isPastLocalDateTime,
   isWeekendLocalDate,
@@ -228,5 +229,63 @@ describe('calendarRangeForDay', () => {
     expect(range.days).toEqual(['2026-03-11']);
     expect(range.from).toBe('2026-03-10T23:00:00.000Z');
     expect(range.to).toBe('2026-03-11T23:00:00.000Z');
+  });
+});
+
+describe('defaultBookingStart', () => {
+  /** Stockholm is UTC+2 in June, so 07:00Z is 09:00 locally. */
+  const juneMorning = new Date('2026-06-10T07:12:00.000Z');
+
+  it('opens a future day at the workshop opening hour', () => {
+    expect(defaultBookingStart('2026-06-11', juneMorning)).toEqual({
+      date: '2026-06-11',
+      startTime: '07:00',
+    });
+  });
+
+  it('opens today at the next whole slot once the day has started', () => {
+    // 09:12 locally: 07:00 has gone, so the first honest offer is 09:30.
+    expect(defaultBookingStart('2026-06-10', juneMorning)).toEqual({
+      date: '2026-06-10',
+      startTime: '09:30',
+    });
+  });
+
+  it('offers the opening hour when the day has not started yet', () => {
+    // 05:30 locally, before 07:00.
+    const beforeOpening = new Date('2026-06-10T03:30:00.000Z');
+    expect(defaultBookingStart('2026-06-10', beforeOpening)).toEqual({
+      date: '2026-06-10',
+      startTime: '07:00',
+    });
+  });
+
+  it('lands exactly on a slot boundary rather than repeating it', () => {
+    // 09:30 locally on the nose: 09:30 itself is no longer offerable, so the
+    // next one is. An off-by-one here would propose a time already passing.
+    const onTheSlot = new Date('2026-06-10T07:30:00.000Z');
+    expect(defaultBookingStart('2026-06-10', onTheSlot).startTime).toBe(
+      '10:00',
+    );
+  });
+
+  it('rolls to tomorrow once the last slot has gone', () => {
+    // 20:30 locally, past the 19:00 end of the grid.
+    const evening = new Date('2026-06-10T18:30:00.000Z');
+    expect(defaultBookingStart('2026-06-10', evening)).toEqual({
+      date: '2026-06-11',
+      startTime: '07:00',
+    });
+  });
+
+  it('never proposes a date in the past, or a passed time on today', () => {
+    // The calendar can be parked on a past week; the dialog must not open on
+    // a day the date picker itself refuses — and falling back to *today at
+    // the opening hour* would be the same already-passed time in a different
+    // disguise, so a past anchor takes today's rules in full.
+    expect(defaultBookingStart('2026-06-01', juneMorning)).toEqual({
+      date: '2026-06-10',
+      startTime: '09:30',
+    });
   });
 });

@@ -219,6 +219,56 @@ model Vehicle {
   @@index([model(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
+/// A browsable make/model catalogue for the booking and vehicle forms.
+///
+/// **Reference data, not a constraint.** `Vehicle.make` and `Vehicle.model`
+/// stay free text and carry no foreign key here, for the same reason §4.2
+/// refuses to block a booking over a plate format: a car this table has never
+/// heard of must never stop a customer being booked in. The catalogue exists
+/// so that the ten makes a Swedish workshop actually sees are two clicks away
+/// instead of typed; anything else is entered by hand.
+///
+/// There is deliberately **no "Övrigt" row**. A row called Övrigt would be
+/// copied into `Vehicle.make` verbatim and the register would fill with cars
+/// whose make is the word "other". The escape hatch belongs in the UI, which
+/// offers a free-text field instead of a catalogue value.
+model VehicleMake {
+  id String @id @default(uuid(7))
+  /// Unique so the seed upserts on a second run rather than duplicating, the
+  /// same stable-key rule the rest of `seed.ts` follows.
+  name      String   @unique
+  /// Ascending by how common the make is in the Swedish car park, so the
+  /// picker's first entries are the ones most often needed.
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  models VehicleModel[]
+
+  @@index([sortOrder])
+}
+
+/// One model within a make. `onDelete: Cascade` because a model has no meaning
+/// without its make — unlike every other relation in this schema, nothing here
+/// has appeared on a document, so §4.3's "never hard-deleted" does not apply.
+model VehicleModel {
+  id     String      @id @default(uuid(7))
+  makeId String
+  make   VehicleMake @relation(fields: [makeId], references: [id], onDelete: Cascade)
+
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  /// Two models of one make cannot share a name; two makes may both have an
+  /// "S60"-shaped collision, so the make is part of the key.
+  @@unique([makeId, name])
+  @@index([makeId, sortOrder])
+}
+
 enum OdometerSource {
   WORK_ORDER_IN
   WORK_ORDER_OUT

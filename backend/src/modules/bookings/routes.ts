@@ -11,6 +11,7 @@ import {
   calendarQuerySchema,
   calendarResponseSchema,
   confirmBookingRequestInputSchema,
+  createBookingInputSchema,
   formTokenResponseSchema,
   publicBookingRequestInputSchema,
   publicBookingRequestResponseSchema,
@@ -20,7 +21,11 @@ import {
 import { issueFormToken } from '../../lib/form-token.js';
 import { currentUser } from '../../plugins/auth.js';
 import { clientIpHash } from '../auth/service.js';
-import { getCalendar, updateBooking } from './booking.service.js';
+import {
+  createBooking,
+  getCalendar,
+  updateBooking,
+} from './booking.service.js';
 import {
   confirmBookingRequest,
   createBookingRequestLimiters,
@@ -169,6 +174,36 @@ export function registerBookingRoutes(app: FastifyInstance): void {
       },
     },
     (request) => getCalendar(app.prisma, request.query),
+  );
+
+  /**
+   * A booking taken over the telephone (§6.2). `authenticated`, not
+   * `ADMIN`-only: both owners answer the phone, and a mechanic who cannot
+   * write down the appointment they just agreed to would keep a paper diary
+   * beside the system — which is the problem this replaces.
+   */
+  routes.post(
+    '/api/bookings',
+    {
+      config: authenticated,
+      schema: {
+        body: createBookingInputSchema,
+        response: {
+          201: bookingWithRelationsSchema,
+          400: apiErrorSchema,
+          409: apiErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const booking = await createBooking(
+        app.prisma,
+        currentUser(request).id,
+        clientIpHash(app, request),
+        request.body,
+      );
+      return reply.status(201).send(booking);
+    },
   );
 
   routes.patch(

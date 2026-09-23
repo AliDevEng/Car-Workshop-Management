@@ -32,6 +32,21 @@ import {
  * to.
  */
 
+/**
+ * What a vehicle known only by its plate calls itself.
+ *
+ * `make` and `model` are `NOT NULL` (§4.2) and a booking must never be blocked
+ * by a field nobody has asked the customer for yet, so a car created from a
+ * booking — public request or telephone call — starts out saying "unknown"
+ * and a human corrects it on the vehicle page, or B10's lookup fills it in.
+ *
+ * Exported so the two booking paths name the same two strings. They are also
+ * what {@link fillMissingVehicleFactsInTransaction} treats as "still empty",
+ * which only works while there is exactly one spelling of each.
+ */
+export const UNKNOWN_VEHICLE_MAKE = 'Okänt fabrikat';
+export const UNKNOWN_VEHICLE_MODEL = 'Okänd modell';
+
 function auditSnapshot(record: VehicleRecord): Record<string, unknown> {
   return {
     registrationNumber: record.registrationNumber,
@@ -225,6 +240,77 @@ export async function adoptOwnerlessVehicleInTransaction(
   const after = await tx.vehicle.update({
     where: { id: vehicleId },
     data: { customerId },
+    select: VEHICLE_SELECT,
+  });
+
+  await writeAuditLog(tx, {
+    userId: actorId,
+    action: 'vehicle.updated',
+    entityType: 'Vehicle',
+    entityId: vehicleId,
+    before: auditSnapshot(before),
+    after: auditSnapshot(after),
+    ipHash,
+  });
+}
+
+/**
+ * Fills in facts a vehicle does not have yet, inside the caller's transaction.
+ * Never overwrites one it does.
+ *
+ * Booking a car in by telephone is often the first time anybody types its make
+ * and model: the row may already exist because a public request named the
+ * plate, and it then says "Okänt fabrikat / Okänd modell". Attaching the
+ * booking to that row and discarding what the staff member just picked from
+ * the catalogue would silently throw away the only real information in the
+ * call.
+ *
+ * The guard is deliberately narrow — a `make` is replaced only when it is
+ * *exactly* {@link UNKNOWN_VEHICLE_MAKE}, and `modelYear` only when it is
+ * `null`. Anything a human has already entered wins, because correcting a
+ * real value is a decision for the vehicle page (§6.3), not a side effect of
+ * taking a booking.
+ */
+export async function fillMissingVehicleFactsInTransaction(
+  tx: Prisma.TransactionClient,
+  actorId: string,
+  ipHash: string | null,
+  vehicleId: string,
+  facts: {
+    readonly make?: string | undefined;
+    readonly model?: string | undefined;
+    readonly modelYear?: number | undefined;
+  },
+): Promise<void> {
+  const before = await tx.vehicle.findUnique({
+    where: { id: vehicleId },
+    select: VEHICLE_SELECT,
+  });
+  if (before === null) {
+    return;
+  }
+
+  const fields = {
+    ...(facts.make !== undefined && before.make === UNKNOWN_VEHICLE_MAKE
+      ? { make: facts.make }
+      : {}),
+    ...(facts.model !== undefined && before.model === UNKNOWN_VEHICLE_MODEL
+      ? { model: facts.model }
+      : {}),
+    ...(facts.modelYear !== undefined && before.modelYear === null
+      ? { modelYear: facts.modelYear }
+      : {}),
+  };
+
+  // Nothing was missing. No write, and therefore no audit row saying a
+  // vehicle changed when it did not.
+  if (Object.keys(fields).length === 0) {
+    return;
+  }
+
+  const after = await tx.vehicle.update({
+    where: { id: vehicleId },
+    data: fields,
     select: VEHICLE_SELECT,
   });
 
