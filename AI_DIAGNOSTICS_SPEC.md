@@ -7,7 +7,7 @@
 > This document describes what to build and how it should fit the existing
 > application. Before implementation starts, obtain approval to add the feature
 > as a new project iteration, update `PROJECT_SPEC.md`, and record the
-> architectural decisions in the root `README.md`. Follow `CLAUDE.md` and build
+> architectural decisions in `DECISIONS.md`. Follow `CLAUDE.md` and build
 > only the first approved, unticked step.
 
 ## 1. Product decision
@@ -773,4 +773,3 @@ The feature is done only when:
 - `pnpm check` passes without warnings;
 - the private diagnostic evaluation meets the agreed quality and safety bar;
 - production enablement has an explicit, current provider-terms approval.
-

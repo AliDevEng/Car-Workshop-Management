@@ -7,7 +7,8 @@ load-bearing.
 
 1. `PROJECT_SPEC.md` — what is built and why. The source of truth.
 2. `README.md` — phase map and progress.
-3. `backend/README.md` or `frontend/README.md` — the step you are on.
+3. `backend/IMPLEMENTATION_PLAN.md` or `frontend/IMPLEMENTATION_PLAN.md` —
+   the step you are on.
 
 If a README contradicts `PROJECT_SPEC.md`, the spec wins and the README is
 corrected in the same commit.
@@ -77,7 +78,7 @@ feature listed under non-goals (§1.4), or changing anything in the decision log
 Say so, and explain. The spec has reasons behind its choices, and some of them
 are less obvious than they look — but it is not sacred. If you have a better
 approach, propose it, get agreement, then update `PROJECT_SPEC.md` and add a row
-to the decision log in `README.md` before writing code.
+to `DECISIONS.md` before writing code.
 
 ## Traps specific to this project
 

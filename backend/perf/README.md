@@ -94,7 +94,7 @@ PERF_FORWARDED_FOR=true pnpm --filter backend perf:load
 
 Run either one **without** `PERF_FORWARDED_FOR` to measure what the ceiling
 itself does: the run then reports `429`s as the errors they are. Both numbers
-are worth having, and `backend/README.md`'s B13 record has both.
+are worth having, and `backend/IMPLEMENTATION_PLAN.md`'s B13 record has both.
 
 ## Configuration
 

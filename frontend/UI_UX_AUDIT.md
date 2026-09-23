@@ -828,7 +828,7 @@ for the before/after measurement.
 ### Decisions worth knowing about
 
 Four changes were larger than "apply the suggested fix", and each is recorded
-as a row in the root `README.md` decision log:
+as a row in `DECISIONS.md`:
 
 1. **D1 needed an API contract change**, agreed with the human first, as this
    document asked. `PROJECT_SPEC.md` §8.1 now states the rule for every
