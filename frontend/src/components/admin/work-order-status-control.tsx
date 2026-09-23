@@ -22,12 +22,46 @@ import { useChangeWorkOrderStatus } from '@/lib/api/work-orders';
 
 const STATUS_ACTION_LABELS: Readonly<Record<WorkOrderStatus, string>> = {
   DRAFT: 'Sätt som utkast',
-  IN_PROGRESS: 'Sätt som pågår',
+  IN_PROGRESS: 'Påbörja arbetet',
   AWAITING_PARTS: 'Vänta på delar',
-  READY_FOR_PICKUP: 'Klarmarkera för upphämtning',
+  READY_FOR_PICKUP: 'Klar för upphämtning',
   COMPLETED: 'Slutför arbetsorder',
   CANCELLED: 'Avbryt arbetsorder',
 };
+
+/**
+ * The same move means different things depending on where the order is.
+ * `IN_PROGRESS` from a draft is the normal next step; `IN_PROGRESS` from
+ * `COMPLETED` is reopening a finished job, and labelling that "Påbörja
+ * arbetet" invites it (UI_UX_AUDIT W3).
+ */
+function actionLabel(from: WorkOrderStatus, to: WorkOrderStatus): string {
+  if (to === 'IN_PROGRESS' && from === 'COMPLETED') {
+    return 'Återöppna arbetsorder';
+  }
+  return STATUS_ACTION_LABELS[to];
+}
+
+/**
+ * Which transition is *the* next step, and therefore the one primary button
+ * on the screen. Anything else is secondary; cancelling is separated out
+ * entirely below. Returning `undefined` (from `COMPLETED`, where every move
+ * is a correction rather than progress) leaves the screen with no primary
+ * action, which is the honest answer.
+ */
+function forwardTransition(
+  from: WorkOrderStatus,
+  transitions: readonly WorkOrderStatus[],
+): WorkOrderStatus | undefined {
+  if (from === 'COMPLETED') {
+    return undefined;
+  }
+  const preference: readonly WorkOrderStatus[] =
+    from === 'IN_PROGRESS'
+      ? ['READY_FOR_PICKUP', 'COMPLETED', 'AWAITING_PARTS']
+      : ['IN_PROGRESS', 'READY_FOR_PICKUP', 'COMPLETED'];
+  return preference.find((status) => transitions.includes(status));
+}
 
 /**
  * F9.2.2 — offers only the transitions `shared`'s state machine allows from
@@ -45,6 +79,11 @@ export function WorkOrderStatusControl({
 }) {
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [completing, setCompleting] = useState(false);
+  // Which transition is in flight, so only its own button spins. The
+  // mutation's `isPending` is shared by every button that uses it.
+  const [pendingStatus, setPendingStatus] = useState<WorkOrderStatus | null>(
+    null,
+  );
   const changeStatus = useChangeWorkOrderStatus(workOrder.id);
   // One key per target status, held across a failed retry — a revert from
   // `COMPLETED` writes compensating `RETURN` stock movements (§6.4), so a
@@ -56,6 +95,7 @@ export function WorkOrderStatusControl({
   async function applyTransition(status: WorkOrderStatus): Promise<void> {
     const key = pendingKeysRef.current[status] ?? crypto.randomUUID();
     pendingKeysRef.current[status] = key;
+    setPendingStatus(status);
     try {
       const response = await changeStatus.mutateAsync({
         input: { status, version: workOrder.version },
@@ -79,6 +119,8 @@ export function WorkOrderStatusControl({
       }
       // The key is kept: a retry of this exact attempt must replay.
       notifyError(error);
+    } finally {
+      setPendingStatus(null);
     }
   }
 
@@ -95,35 +137,75 @@ export function WorkOrderStatusControl({
   }
 
   const transitions = allowedTransitions(workOrder.status);
+  const forward = forwardTransition(workOrder.status, transitions);
+  const canCancel = transitions.includes('CANCELLED');
+  const others = transitions.filter(
+    (status) => status !== forward && status !== 'CANCELLED',
+  );
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Status</span>
-        <StatusBadge status={workOrderStatus(workOrder.status)} />
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <StatusBadge status={workOrderStatus(workOrder.status)} />
 
       {transitions.length === 0 ? (
         <p className="text-xs text-muted-foreground">
           Arbetsordern är avbruten. Inga fler ändringar kan göras.
         </p>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {transitions.map((status) => (
+        <>
+          {/*
+           * One primary action, the forward one. Cancellation is pushed to
+           * the far right as an outline button: filled red next to a small
+           * secondary "next step" made the destructive move the heaviest
+           * thing on the page, 8 px from the button a mechanic actually
+           * wants (UI_UX_AUDIT W3).
+           */}
+          {forward === undefined ? null : (
+            <Button
+              type="button"
+              size="sm"
+              isPending={pendingStatus === forward}
+              disabled={changeStatus.isPending && pendingStatus !== forward}
+              onClick={() => {
+                handleTransitionClick(forward);
+              }}
+            >
+              {actionLabel(workOrder.status, forward)}
+            </Button>
+          )}
+          {others.map((status) => (
             <Button
               key={status}
               type="button"
-              variant={status === 'CANCELLED' ? 'destructive' : 'secondary'}
+              variant="secondary"
               size="sm"
-              isPending={changeStatus.isPending}
+              // Only the clicked button spins. `changeStatus.isPending` on
+              // all of them made every transition look like it was running.
+              isPending={pendingStatus === status}
+              disabled={changeStatus.isPending && pendingStatus !== status}
               onClick={() => {
                 handleTransitionClick(status);
               }}
             >
-              {STATUS_ACTION_LABELS[status]}
+              {actionLabel(workOrder.status, status)}
             </Button>
           ))}
-        </div>
+          {canCancel ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto text-destructive hover:text-destructive"
+              isPending={pendingStatus === 'CANCELLED'}
+              disabled={changeStatus.isPending && pendingStatus !== 'CANCELLED'}
+              onClick={() => {
+                handleTransitionClick('CANCELLED');
+              }}
+            >
+              {STATUS_ACTION_LABELS.CANCELLED}
+            </Button>
+          ) : null}
+        </>
       )}
 
       <ConfirmDialog

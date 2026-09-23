@@ -73,9 +73,17 @@ function registrationFields(input: string): {
   };
 }
 
-/** A `date` column takes a `Date` at UTC midnight; the input is `YYYY-MM-DD`. */
-function toDateColumn(value: string): Date {
-  return new Date(`${value}T00:00:00.000Z`);
+/**
+ * A `date` column takes a `Date` at UTC midnight; the input is `YYYY-MM-DD`.
+ *
+ * `null` passes straight through: on the update contract a date field is
+ * nullable, where `undefined` means "leave alone" and `null` means "clear"
+ * (`shared`'s `updateVehicleInputSchema`).
+ */
+function toDateColumn(value: string): Date;
+function toDateColumn(value: string | null): Date | null;
+function toDateColumn(value: string | null): Date | null {
+  return value === null ? null : new Date(`${value}T00:00:00.000Z`);
 }
 
 async function assertCustomerExists(

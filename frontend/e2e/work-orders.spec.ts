@@ -63,12 +63,23 @@ test.describe('work orders (F9)', () => {
     await page.goto('/admin/arbetsordrar');
     await page.getByRole('button', { name: 'Ny arbetsorder' }).click();
     await page.getByLabel('Sök fordon').fill(plate);
-    await page.getByText(plate.slice(0, 3), { exact: false }).first().waitFor();
+    // Scoped to the dialog: the work-order list behind it renders its rows
+    // twice — a table above `md` and cards below it — so an unscoped text
+    // query now matches the hidden copy as well (UI_UX_AUDIT L2).
+    await page
+      .getByRole('dialog')
+      .getByText(plate.slice(0, 3), { exact: false })
+      .first()
+      .waitFor();
     await page.locator('.max-h-40 button').first().click();
     await page.getByLabel('Beskrivning').fill('E2E: service och bromsbyte');
     await page.getByRole('button', { name: 'Skapa arbetsorder' }).click();
     await expect(page).toHaveURL(/\/admin\/arbetsordrar\/.+/);
-    await expect(page.getByRole('heading', { name: 'Utkast' })).toBeVisible();
+    // A draft's title is 'Arbetsorder (utkast)', not the bare 'Utkast' the
+    // list and the breadcrumb already say (UI_UX_AUDIT W7).
+    await expect(
+      page.getByRole('heading', { name: 'Arbetsorder (utkast)' }),
+    ).toBeVisible();
 
     // A labour line.
     await page.getByRole('button', { name: 'Lägg till rad' }).click();
@@ -113,7 +124,7 @@ test.describe('work orders (F9)', () => {
 
     // `DRAFT` cannot jump straight to `COMPLETED` (`shared/work-order-state.ts`);
     // the status control only offers the transitions the state machine allows.
-    await page.getByRole('button', { name: 'Sätt som pågår' }).click();
+    await page.getByRole('button', { name: 'Påbörja arbetet' }).click();
     await expect(page.getByText('Status ändrad till Pågår.')).toBeVisible();
 
     // Complete: blocked without an out-odometer, then succeeds with one.
@@ -130,18 +141,31 @@ test.describe('work orders (F9)', () => {
     await confirmButton.click();
     await expect(page.getByText('Arbetsordern är slutförd.')).toBeVisible();
     await expect(page.getByText('Slutförd', { exact: true })).toBeVisible();
-    // Lines are locked once completed.
+    // Locked once completed, announced once as a banner at the top of the
+    // page rather than as a sentence inside the lines card — and the lock now
+    // covers the description and odometer too, which used to stay editable
+    // (UI_UX_AUDIT W4).
     await expect(
-      page.getByText('Arbetsordern är låst och rader kan inte längre ändras.'),
+      page.getByText(
+        /Arbetsordern är låst. Rader, beskrivning och mätarställning kan inte längre ändras/,
+      ),
     ).toBeVisible();
+    // `.first()`: the order's own description, which comes before the
+    // lines' own 'Beskrivning' inputs — those are disabled too, and were
+    // already locked before W4; this one was not.
+    await expect(page.getByLabel('Beskrivning').first()).toBeDisabled();
 
     // History: the vehicle and the customer both show exactly one completed
     // entry for this job (F9.7.1, F9.7.4).
-    await page.getByRole('link', { name: 'Visa fordon' }).click();
+    // The header carries two labelled chips now, not a name with a 'Visa
+    // fordon' link beneath it (UI_UX_AUDIT W6).
+    await page.getByRole('link', { name: /^Fordon:/ }).click();
     await expect(page).toHaveURL(/\/admin\/fordon\/.+/);
     await expect(page.getByText('Arbetsorderhistorik')).toBeVisible();
     await expect(page.getByText('Slutförd').first()).toBeVisible();
 
+    // From the *vehicle* page: its 'Ägare' card links to the customer by
+    // name. (The work-order header's own chip reads 'Kund: <name>'.)
     await page.getByRole('link', { name: customerName }).click();
     await expect(page).toHaveURL(/\/admin\/kunder\/.+/);
     await expect(page.getByText('Arbetsorderhistorik')).toBeVisible();
@@ -174,7 +198,7 @@ test.describe('work orders (F9)', () => {
 
       await pageB.goto(url);
       await expect(
-        pageB.getByRole('heading', { name: 'Utkast' }),
+        pageB.getByRole('heading', { name: 'Arbetsorder (utkast)' }),
       ).toBeVisible();
 
       // Tab A saves a header field first — the version it read is still
@@ -232,7 +256,9 @@ test.describe('work orders (F9)', () => {
 
     await login(page);
     await page.goto('/admin/bokningar?vy=forfragningar');
-    await page.getByText(bookingCustomer).click();
+    // By cell role: the inbox renders each row twice (table and card), and
+    // only the visible one is in the accessibility tree.
+    await page.getByRole('cell', { name: bookingCustomer }).click();
     await page.getByRole('button', { name: 'Bekräfta' }).click();
     await expect(
       page.getByRole('heading', { name: 'Bekräfta bokning' }),
@@ -268,6 +294,8 @@ test.describe('work orders (F9)', () => {
     await page.getByRole('button', { name: 'Starta arbete' }).last().click();
 
     await expect(page).toHaveURL(/\/admin\/arbetsordrar\/.+/);
-    await expect(page.getByText(bookingCustomer)).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: new RegExp(`^Kund: ${bookingCustomer}`) }),
+    ).toBeVisible();
   });
 });

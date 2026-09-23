@@ -76,7 +76,7 @@ export function SiteFooter({ info }: { readonly info: PublicWorkshopInfo }) {
             <span className="tabular-nums">{info.workshop.orgNumber}</span>
           </p>
           <Link
-            className="underline underline-offset-4 hover:text-white"
+            className="inline-flex min-h-11 items-center py-3 underline underline-offset-4 hover:text-white"
             href="/integritetspolicy"
           >
             Integritetspolicy

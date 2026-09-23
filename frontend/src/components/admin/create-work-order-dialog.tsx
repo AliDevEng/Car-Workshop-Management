@@ -9,6 +9,7 @@ import { OdometerInput } from '@/components/form/odometer-input';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -249,7 +250,7 @@ export function CreateWorkOrderDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
+        <DialogBody>
           {mode.kind === 'fromBooking' ? (
             <div className="rounded-sharp border border-border p-3">
               <p className="text-sm font-medium">
@@ -339,7 +340,7 @@ export function CreateWorkOrderDialog({
               placeholder="Valfritt, synlig internt"
             />
           </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <Button

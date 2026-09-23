@@ -24,6 +24,7 @@ import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -195,11 +196,12 @@ export function ArticleFormDialog({
         </DialogHeader>
 
         <form
-          className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1"
+          className="flex min-h-0 flex-1 flex-col gap-4"
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             void form.handleSubmit(submit)(event);
           }}
         >
+          <DialogBody>
           <FormField control={form.control} name="sku" label="Artikelnummer" required>
             {({ field, aria }: FormFieldControlProps<ArticleFormValues, 'sku'>) => (
               <Input {...aria} {...field} />
@@ -379,6 +381,7 @@ export function ArticleFormDialog({
               />
             )}
           </FormField>
+          </DialogBody>
 
           <DialogFooter>
             <Button

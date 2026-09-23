@@ -45,6 +45,16 @@ export interface ConvertingInputProps<T> extends Omit<
   readonly format: (value: T) => string;
   /** The confirmation line under the field. `null` hides it. */
   readonly preview?: (value: T) => string;
+  /**
+   * The unit the *typed* number is in, shown inside the field.
+   *
+   * The preview line below says what the value becomes ("Sparas som 5 000
+   * km"); it does not say what the box expects. An odometer field reading
+   * "500,0" with no unit invites a mechanic to type kilometres into a field
+   * measured in mil (UI_UX_AUDIT W8) — the one factor-of-ten mistake this
+   * project is most likely to make.
+   */
+  readonly suffix?: string;
   readonly messages: FailureMessages;
   /** Set when the field may be left blank; `empty` then clears the value. */
   readonly optional?: boolean;
@@ -57,6 +67,7 @@ export function ConvertingInput<T>({
   parse,
   format,
   preview,
+  suffix,
   messages,
   optional = false,
   className,
@@ -117,35 +128,51 @@ export function ConvertingInput<T>({
 
   return (
     <div className="flex flex-col gap-1">
-      <Input
-        {...inputProps}
-        value={text}
-        className={cn('tabular-nums', className)}
-        aria-describedby={
-          [
-            inputProps['aria-describedby'],
-            previewText === undefined ? undefined : previewId,
-          ]
-            .filter((part) => part !== undefined)
-            .join(' ') || undefined
-        }
-        onChange={(event) => {
-          handleChange(event.target.value);
-        }}
-        onFocus={(event) => {
-          setEditing(true);
-          inputProps.onFocus?.(event);
-        }}
-        onBlur={() => {
-          setEditing(false);
-          // Canonicalise what is on screen, so the submitted value and the
-          // visible one cannot disagree.
-          if (parsed.ok) {
-            setText(format(parsed.value));
+      <div className="relative">
+        <Input
+          {...inputProps}
+          value={text}
+          className={cn(
+            'tabular-nums',
+            suffix === undefined ? undefined : 'pr-12',
+            className,
+          )}
+          aria-describedby={
+            [
+              inputProps['aria-describedby'],
+              previewText === undefined ? undefined : previewId,
+            ]
+              .filter((part) => part !== undefined)
+              .join(' ') || undefined
           }
-          onBlur?.();
-        }}
-      />
+          onChange={(event) => {
+            handleChange(event.target.value);
+          }}
+          onFocus={(event) => {
+            setEditing(true);
+            inputProps.onFocus?.(event);
+          }}
+          onBlur={() => {
+            setEditing(false);
+            // Canonicalise what is on screen, so the submitted value and the
+            // visible one cannot disagree.
+            if (parsed.ok) {
+              setText(format(parsed.value));
+            }
+            onBlur?.();
+          }}
+        />
+        {suffix === undefined ? null : (
+          // `aria-hidden`: the accessible name already carries the unit, and
+          // a screen reader reading "mil" after every keystroke is noise.
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground"
+          >
+            {suffix}
+          </span>
+        )}
+      </div>
       {previewText === undefined ? null : (
         <p
           id={previewId}

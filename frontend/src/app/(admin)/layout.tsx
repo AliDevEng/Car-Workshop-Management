@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { AdminScopeBody } from '@/components/admin/admin-scope-body';
 import { Toaster } from '@/components/ui/sonner';
 
 export const metadata: Metadata = {
@@ -29,10 +30,16 @@ export const metadata: Metadata = {
  * the QueryProvider from F0.5, and the route protection from F4.2. Nothing
  * here renders customer data, so there is nothing yet for that protection to
  * guard.
+ *
+ * `AdminScopeBody` extends the same class to `<body>` at runtime, because
+ * Radix portals mount outside this `div` and would otherwise resolve the
+ * public palette — see that file for why it is a body class rather than a
+ * `container` prop on every portal.
  */
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="admin-scope min-h-screen">
+      <AdminScopeBody />
       {children}
       <Toaster />
     </div>

@@ -243,13 +243,20 @@ export function GlobalSearch() {
       <Button
         type="button"
         variant="secondary"
-        className="min-w-0 justify-start text-muted-foreground md:w-[340px]"
+        /*
+         * Icon-only below `sm`: the full placeholder plus the logout label
+         * made the admin header wider than a 390 px viewport, and the header
+         * is the one thing on every page (UI_UX_AUDIT G1).
+         */
+        className="min-w-0 shrink justify-start text-muted-foreground max-sm:size-9 max-sm:shrink-0 max-sm:justify-center max-sm:p-0 md:w-[340px]"
         onClick={() => {
           openSearch();
         }}
       >
         <SearchIcon aria-hidden="true" />
-        <span className="truncate">Sök kund, fordon eller artikel</span>
+        <span className="truncate max-sm:sr-only">
+          Sök kund, fordon eller artikel
+        </span>
         <kbd className="ml-auto hidden rounded-sharp border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground md:inline">
           /
         </kbd>

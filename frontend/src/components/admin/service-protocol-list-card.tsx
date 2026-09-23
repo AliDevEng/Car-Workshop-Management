@@ -87,6 +87,7 @@ export function ServiceProtocolListCard({
           <TableSkeleton rows={2} columns={3} />
         ) : (protocolsQuery.data?.data.length ?? 0) === 0 ? (
           <EmptyState
+            inline
             icon={ClipboardCheckIcon}
             message="Inga serviceprotokoll skapade än."
           />

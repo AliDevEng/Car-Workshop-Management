@@ -26,6 +26,7 @@ export function BookingBlock({
   onDragStart,
   onClick,
   clipped,
+  mechanicName,
 }: {
   readonly booking: BookingWithRelations;
   readonly style: CSSProperties;
@@ -34,6 +35,13 @@ export function BookingBlock({
   readonly onClick: () => void;
   /** The real interval reaches outside the visible grid (`calendarRowSpan`). */
   readonly clipped: boolean;
+  /**
+   * Shown on the block in the week view, where a column is a day rather than
+   * a mechanic and the column heading no longer says who the job belongs to
+   * (UI_UX_AUDIT C1). Absent in the day view, where it would repeat the
+   * column heading on every block.
+   */
+  readonly mechanicName?: string;
 }) {
   const { meaning } = bookingStatus(booking.status);
   const tone = STATUS_PRESENTATION[meaning].tone;
@@ -65,6 +73,9 @@ export function BookingBlock({
         <span className="truncate tabular-nums opacity-80">
           {booking.vehicle.registrationNumberDisplay}
         </span>
+      )}
+      {mechanicName === undefined ? null : (
+        <span className="truncate opacity-70">{mechanicName}</span>
       )}
     </button>
   );

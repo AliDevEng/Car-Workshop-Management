@@ -957,6 +957,14 @@ finns" rather than implying a vehicle needs nothing.
   The frontend `DataTable` must not offer a sort the API has not declared.
 - Every list endpoint returns `{ data, nextCursor }`. Every single-resource
   endpoint returns the object directly.
+- **A `PATCH` distinguishes "leave alone" from "clear", and every update
+  schema in `shared/` says so.** An absent field (`undefined`) leaves the
+  column as it is; an explicit `null` clears a nullable one. `.partial()`
+  alone is not enough: `JSON.stringify` drops `undefined`, so a cleared
+  optional field arrives as `{}` — a request that succeeds, reports "Sparat"
+  and changes nothing, with the old value back after a reload. Every
+  nullable column therefore appears on its update schema as
+  `.nullable().optional()`, and a non-nullable one stays merely optional.
 - Mutations that create money- or stock-affecting records accept an
   `Idempotency-Key` header; a replay within 24 hours returns the original
   result. Double-tapping "Slutför" on a laggy tablet must not deduct stock

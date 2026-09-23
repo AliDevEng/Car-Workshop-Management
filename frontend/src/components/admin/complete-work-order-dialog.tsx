@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { UNIT_LABELS, type WorkOrderDetail } from 'shared';
+import type { WorkOrderDetail } from 'shared';
 import { isConflictError } from '@/components/admin/conflict';
 import {
   notifyError,
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { useChangeWorkOrderStatus } from '@/lib/api/work-orders';
-import { formatQuantityForInput } from '@/lib/form/quantity-input';
+import { formatQuantity } from '@/lib/format/quantity';
 
 /**
  * F9.5 — completion.
@@ -141,8 +141,7 @@ export function CompleteWorkOrderDialog({
                   <li key={line.id} className="flex justify-between gap-2">
                     <span className="min-w-0 truncate">{line.description}</span>
                     <span className="shrink-0 tabular-nums">
-                      {formatQuantityForInput(line.quantity)}{' '}
-                      {UNIT_LABELS[line.unit]}
+                      {formatQuantity(line.quantity, line.unit)}
                     </span>
                   </li>
                 ))}

@@ -48,6 +48,7 @@ import { formatCurrency } from '@/lib/format/currency';
 import { formatDate, formatDateTime } from '@/lib/format/date';
 import { formatSignedQuantity } from '@/lib/format/quantity';
 import { formatQuantityForInput } from '@/lib/form/quantity-input';
+import { formatQuantity } from '@/lib/format/quantity';
 
 const MOVEMENTS_PAGE_SIZE = 20;
 
@@ -146,7 +147,6 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
   }
 
   const article = articleQuery.data;
-  const unitLabel = UNIT_LABELS[article.unit];
   const levelStatus = stockLevelStatus(article.stockQuantity, article.minimumQuantity);
   const articleNumberPartnerLinks = (partnerLinksQuery.data?.data ?? []).filter(
     (link: PartnerLink) => link.placeholderType === 'ARTICLE_NUMBER',
@@ -177,7 +177,11 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={<span>Admin / Lager / {article.name}</span>}
+        breadcrumb={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Lager', href: '/admin/lager' },
+          { label: article.name },
+        ]}
         title={article.name}
         description={`${article.sku} · ${UNIT_LABELS[article.unit]}`}
         actions={
@@ -197,7 +201,8 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
               <>
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="outline"
+                  className="ml-2 text-destructive hover:text-destructive"
                   onClick={() => {
                     setConfirmDeactivate(true);
                   }}
@@ -260,7 +265,7 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
               <CardContent className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-baseline gap-3">
                   <p className="text-3xl font-semibold tabular-nums">
-                    {formatQuantityForInput(article.stockQuantity)} {unitLabel}
+                    {formatQuantity(article.stockQuantity, article.unit)}
                   </p>
                   {levelStatus === null ? null : <StatusBadge status={levelStatus} />}
                 </div>
@@ -268,7 +273,7 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
                   <div>
                     <dt className="text-muted-foreground">Minsta saldo</dt>
                     <dd className="tabular-nums">
-                      {formatQuantityForInput(article.minimumQuantity)} {unitLabel}
+                      {formatQuantity(article.minimumQuantity, article.unit)}
                     </dd>
                   </div>
                   <div>
@@ -331,47 +336,6 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
                 )}
               </CardContent>
             </Card>
-
-            <Card className="rounded-soft">
-              <CardHeader>
-                <CardTitle>Partnerlänkar</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {articleNumberPartnerLinks.length === 0 ||
-                article.oeNumbers.length === 0 ? (
-                  <EmptyState
-                    icon={Link2Icon}
-                    message={
-                      article.oeNumbers.length === 0
-                        ? 'Lägg till ett OE-nummer för att få snabblänkar.'
-                        : 'Inga partnerlänkar är konfigurerade än.'
-                    }
-                  />
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {article.oeNumbers.map((oeNumber: string) => (
-                      <div key={oeNumber} className="flex flex-wrap items-center gap-2">
-                        <Badge tone="neutral" className="tabular-nums">
-                          {oeNumber}
-                        </Badge>
-                        {articleNumberPartnerLinks.map((link: PartnerLink) => (
-                          <Button key={link.id} asChild variant="secondary" size="sm">
-                            <a
-                              href={buildPartnerUrl(link, oeNumber)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {link.name}
-                              <ExternalLinkIcon aria-hidden="true" />
-                            </a>
-                          </Button>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
         }
         aside={
@@ -414,13 +378,58 @@ export function ArticleDetailPage({ articleId }: { readonly articleId: string })
               </CardHeader>
               <CardContent>
                 {article.oeNumbers.length === 0 ? (
-                  <EmptyState icon={HashIcon} message="Inga OE-nummer sparade." />
+                  <EmptyState inline icon={HashIcon} message="Inga OE-nummer sparade." />
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {article.oeNumbers.map((oeNumber: string) => (
                       <Badge key={oeNumber} tone="neutral">
                         {oeNumber}
                       </Badge>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Beside the OE numbers they are built from, and below
+                Prisuppgifter — which used to sit under an often-empty
+                Partnerlänkar card in the main column (UI_UX_AUDIT R4). */}
+            <Card className="rounded-soft">
+              <CardHeader>
+                <CardTitle>Partnerlänkar</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {articleNumberPartnerLinks.length === 0 ||
+                article.oeNumbers.length === 0 ? (
+                  <EmptyState
+                    inline
+                    icon={Link2Icon}
+                    message={
+                      article.oeNumbers.length === 0
+                        ? 'Lägg till ett OE-nummer för att få snabblänkar.'
+                        : 'Inga partnerlänkar är konfigurerade än.'
+                    }
+                  />
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {article.oeNumbers.map((oeNumber: string) => (
+                      <div key={oeNumber} className="flex flex-wrap items-center gap-2">
+                        <Badge tone="neutral" className="tabular-nums">
+                          {oeNumber}
+                        </Badge>
+                        {articleNumberPartnerLinks.map((link: PartnerLink) => (
+                          <Button key={link.id} asChild variant="secondary" size="sm">
+                            <a
+                              href={buildPartnerUrl(link, oeNumber)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {link.name}
+                              <ExternalLinkIcon aria-hidden="true" />
+                            </a>
+                          </Button>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 )}

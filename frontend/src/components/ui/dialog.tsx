@@ -61,7 +61,16 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+          /*
+           * A flex column with its own height cap, so a long form scrolls
+           * *inside* the dialog while the header and footer stay put. The
+           * base content had no max-height at all, which left every dialog
+           * to invent its own (70vh, 65vh, none) and put the submit button
+           * inside the scrolling region — on a phone you saw the fields and
+           * no button (UI_UX_AUDIT M1). `dvh`, not `vh`: on a phone the
+           * browser chrome is part of `vh`.
+           */
+          'fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-hidden rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
           className,
         )}
         {...props}
@@ -88,7 +97,29 @@ function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn('flex flex-col gap-2', className)}
+      className={cn('flex shrink-0 flex-col gap-2', className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * The only part of a dialog that scrolls.
+ *
+ * `min-h-0` is what makes it work: a flex child's default `min-height: auto`
+ * refuses to shrink below its content, so without it a long form pushes the
+ * footer out of the dialog instead of scrolling inside it. The negative
+ * margins with matching padding keep a focus ring on an edge control from
+ * being clipped by `overflow`.
+ */
+function DialogBody({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="dialog-body"
+      className={cn(
+        '-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1',
+        className,
+      )}
       {...props}
     />
   );
@@ -106,7 +137,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        '-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end',
+        '-mx-4 -mb-4 flex shrink-0 flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end',
         className,
       )}
       {...props}
@@ -155,6 +186,7 @@ function DialogDescription({
 
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,

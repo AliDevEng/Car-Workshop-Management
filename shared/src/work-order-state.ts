@@ -82,6 +82,22 @@ export function isTerminalStatus(status: WorkOrderStatus): boolean {
 }
 
 /**
+ * The order's content is frozen: lines, description and odometer readings
+ * can no longer be written.
+ *
+ * Deliberately **not** {@link isTerminalStatus}. That answers "can this
+ * status move anywhere", which is false for `CANCELLED` but *true* for
+ * `COMPLETED` — a completed order can still revert to `IN_PROGRESS`. The
+ * backend's own line lock (`bumpVersionForLineWrite`'s `status: { notIn }`
+ * guard) is this exact pair, and the screen must match it rather than a
+ * same-shaped but differently-meant helper. It lives here so the lock is
+ * stated once for both sides instead of being re-derived per component.
+ */
+export function isWorkOrderLocked(status: WorkOrderStatus): boolean {
+  return status === 'COMPLETED' || status === 'CANCELLED';
+}
+
+/**
  * Throws a `ConflictError` when the move is illegal. `409` is the right answer:
  * the request is well-formed, but the order is not in a state that allows it.
  *

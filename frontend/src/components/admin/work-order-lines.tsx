@@ -10,6 +10,7 @@ import {
 import { useRef, useState, type DragEvent } from 'react';
 import {
   WORK_ORDER_LINE_TYPE_LABELS,
+  isWorkOrderLocked,
   ore,
   type Ore,
   type UpdateWorkOrderLineInput,
@@ -32,6 +33,19 @@ import {
   useUpdateWorkOrderLine,
 } from '@/lib/api/work-orders';
 import { formatCurrency } from '@/lib/format/currency';
+import { cn } from '@/lib/utils';
+
+/**
+ * The one column definition the header row and every line share.
+ *
+ * Each row used to declare its own grid ending in an `auto` column, so the
+ * columns were sized by each row's own content and drifted a few pixels
+ * against each other down the list (UI_UX_AUDIT W2). Every column but the
+ * description is now a fixed width, which is what makes independent grids of
+ * equal width line up exactly.
+ */
+const LINE_GRID_COLUMNS =
+  'md:grid-cols-[16px_minmax(0,1fr)_112px_128px_112px_36px]';
 
 function WorkOrderLineRow({
   workOrderId,
@@ -132,51 +146,82 @@ function WorkOrderLineRow({
     currentArticlePriceOre !== undefined &&
     currentArticlePriceOre !== line.unitPriceOre;
 
+  const actions = locked ? null : (
+    // Hidden outright on a locked order rather than rendered disabled: three
+    // dead controls on every row read as "temporarily unavailable" and
+    // invite clicking, when the order can never accept them again.
+    <div className="flex items-center gap-1 md:flex-col md:items-stretch">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        disabled={reorderDisabled || index === 0}
+        aria-label="Flytta upp"
+        onClick={() => {
+          onMove(index, -1);
+        }}
+      >
+        <ArrowUpIcon aria-hidden="true" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        disabled={reorderDisabled || index === lineCount - 1}
+        aria-label="Flytta ner"
+        onClick={() => {
+          onMove(index, 1);
+        }}
+      >
+        <ArrowDownIcon aria-hidden="true" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Ta bort rad"
+        onClick={() => {
+          setConfirmDelete(true);
+        }}
+      >
+        <TrashIcon aria-hidden="true" />
+      </Button>
+    </div>
+  );
+
   return (
     <li
       draggable={!locked && !reorderDisabled}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      className="grid grid-cols-[28px_minmax(0,1fr)_120px_140px_auto] items-start gap-3 border-b border-border py-3 last:border-b-0"
+      className={cn(
+        'flex flex-col gap-2 border-b border-border py-3 last:border-b-0',
+        // Above `md` the row joins the shared column grid declared on the
+        // list, so every row and the header line up. Below it the columns
+        // cannot fit — 28 + 120 + 140 px of fixed width left the description
+        // at zero — so the row becomes a stacked card instead.
+        'md:grid md:items-start md:gap-3',
+        LINE_GRID_COLUMNS,
+      )}
     >
-      <div className="flex flex-col items-center gap-1 pt-1">
-        {locked ? null : (
-          <GripVerticalIcon
-            aria-hidden="true"
-            className="size-4 shrink-0 cursor-grab text-muted-foreground"
-          />
-        )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          disabled={locked || reorderDisabled || index === 0}
-          aria-label="Flytta upp"
-          onClick={() => {
-            onMove(index, -1);
-          }}
-        >
-          <ArrowUpIcon aria-hidden="true" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          disabled={locked || reorderDisabled || index === lineCount - 1}
-          aria-label="Flytta ner"
-          onClick={() => {
-            onMove(index, 1);
-          }}
-        >
-          <ArrowDownIcon aria-hidden="true" />
-        </Button>
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex items-center justify-between gap-2 md:hidden">
         <span className="text-xs text-muted-foreground">
           {WORK_ORDER_LINE_TYPE_LABELS[line.type]}
         </span>
+        {actions}
+      </div>
+
+      <div className="hidden justify-center pt-2 text-muted-foreground md:flex">
+        {locked ? null : (
+          <GripVerticalIcon
+            aria-hidden="true"
+            className="size-4 shrink-0 cursor-grab"
+          />
+        )}
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-1">
         <Input
           aria-label="Beskrivning"
           value={descriptionField.draft}
@@ -188,60 +233,60 @@ function WorkOrderLineRow({
             void commitDescription();
           }}
         />
-        {priceDiffers && currentArticlePriceOre !== undefined ? (
-          <p className="text-xs text-muted-foreground">
-            Artikelns nuvarande pris är{' '}
-            {formatCurrency(ore(currentArticlePriceOre))}. Radens pris behålls.
-          </p>
-        ) : null}
+        <p className="text-xs text-muted-foreground">
+          <span className="max-md:hidden">
+            {WORK_ORDER_LINE_TYPE_LABELS[line.type]}
+          </span>
+          {priceDiffers && currentArticlePriceOre !== undefined ? (
+            <>
+              <span className="max-md:hidden"> · </span>
+              Artikelns nuvarande pris är{' '}
+              {formatCurrency(ore(currentArticlePriceOre))}. Radens pris
+              behålls.
+            </>
+          ) : null}
+        </p>
       </div>
 
-      <QuantityInput
-        aria-label="Antal"
-        unit={line.unit}
-        value={quantityField.draft}
-        disabled={locked}
-        onChange={(value) => {
-          if (value !== null) {
-            quantityField.onChange(value);
-          }
-        }}
-        onBlur={() => {
-          void commitQuantity();
-        }}
-      />
-
-      <MoneyInput
-        aria-label="Á-pris exkl. moms"
-        value={priceField.draft}
-        disabled={locked}
-        onChange={(value) => {
-          if (value !== null) {
-            priceField.onChange(value);
-          }
-        }}
-        onBlur={() => {
-          void commitPrice();
-        }}
-      />
-
-      <div className="flex flex-col items-end gap-2">
-        <span className="tabular-nums font-medium">
-          {formatCurrency(ore(line.totals.grossOre))}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
+      <div className="grid grid-cols-2 gap-2 md:contents">
+        <QuantityInput
+          aria-label="Antal"
+          unit={line.unit}
+          value={quantityField.draft}
           disabled={locked}
-          aria-label="Ta bort rad"
-          onClick={() => {
-            setConfirmDelete(true);
+          onChange={(value) => {
+            if (value !== null) {
+              quantityField.onChange(value);
+            }
           }}
-        >
-          <TrashIcon aria-hidden="true" />
-        </Button>
+          onBlur={() => {
+            void commitQuantity();
+          }}
+        />
+
+        <MoneyInput
+          aria-label="Á-pris exkl. moms"
+          value={priceField.draft}
+          disabled={locked}
+          onChange={(value) => {
+            if (value !== null) {
+              priceField.onChange(value);
+            }
+          }}
+          onBlur={() => {
+            void commitPrice();
+          }}
+        />
       </div>
+
+      <span className="pt-2 text-right font-medium tabular-nums">
+        <span className="text-xs font-normal text-muted-foreground md:hidden">
+          Summa{' '}
+        </span>
+        {formatCurrency(ore(line.totals.grossOre))}
+      </span>
+
+      <div className="hidden md:block">{actions}</div>
 
       <ConfirmDialog
         open={confirmDelete}
@@ -273,14 +318,7 @@ export function WorkOrderLines({
 }) {
   const reorder = useReorderWorkOrderLines(workOrder.id);
   const draggedIdRef = useRef<string | null>(null);
-  // Deliberately not `isTerminalStatus` — that answers "can this status
-  // transition to anything else", which is false for `CANCELLED` but *true*
-  // for `COMPLETED` (it can still revert to `IN_PROGRESS`). The backend's own
-  // line lock (`bumpVersionForLineWrite`'s `status: { notIn: [...] }` guard)
-  // is this exact pair, not "terminal" — matching it precisely here rather
-  // than reusing a same-shaped but differently-meant helper.
-  const locked =
-    workOrder.status === 'COMPLETED' || workOrder.status === 'CANCELLED';
+  const locked = isWorkOrderLocked(workOrder.status);
   const lines = workOrder.lines;
 
   function commitOrder(nextLineIds: readonly string[]): void {
@@ -336,23 +374,38 @@ export function WorkOrderLines({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
+        {/* The lock is announced once, as a banner at the top of the page
+            (`work-order-detail.tsx`), not repeated here. */}
         <h2 className="text-sm font-medium">Rader</h2>
-        {locked ? (
-          <p className="text-xs text-muted-foreground">
-            Arbetsordern är låst och rader kan inte längre ändras.
-          </p>
-        ) : (
-          <AddWorkOrderLineDialog workOrderId={workOrder.id} />
-        )}
+        {locked ? null : <AddWorkOrderLineDialog workOrderId={workOrder.id} />}
       </div>
 
       {lines.length === 0 ? (
         <EmptyState
           icon={ListIcon}
+          inline
           message="Inga rader ännu. Lägg till den första."
         />
       ) : (
-        <ul className="flex flex-col">
+        <>
+          {/* Column headers, so "Antal" and "À-pris" are not guessed from
+              helper text under the inputs. Hidden below `md`, where the row
+              is a stacked card with its own labels. */}
+          <div
+            aria-hidden="true"
+            className={cn(
+              'hidden border-b border-border pb-2 text-xs font-medium text-muted-foreground md:grid md:gap-3',
+              LINE_GRID_COLUMNS,
+            )}
+          >
+            <span />
+            <span>Beskrivning</span>
+            <span>Antal</span>
+            <span>À-pris exkl. moms</span>
+            <span className="text-right">Summa</span>
+            <span />
+          </div>
+          <ul className="flex flex-col">
           {lines.map((line, index) => (
             <WorkOrderLineRow
               key={line.id}
@@ -376,7 +429,8 @@ export function WorkOrderLines({
               }}
             />
           ))}
-        </ul>
+          </ul>
+        </>
       )}
     </div>
   );

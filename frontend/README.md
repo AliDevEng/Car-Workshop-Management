@@ -39,6 +39,12 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 **Overall: 65/83 milestones complete; 8/13 iterations Done.**
 
+**2026-09-23 — all 41 findings in [`UI_UX_AUDIT.md`](UI_UX_AUDIT.md) are
+fixed and verified in a browser.** The count above is unchanged on purpose:
+that was a cross-cutting fix pass, not a milestone. It did change shared
+primitives every later iteration builds on, and one API contract — see
+[the record](#ui-ux-audit-pass) before building on the old shapes.
+
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
 | [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 7/7             | Done        |
@@ -2769,6 +2775,66 @@ recorded.
 | Completed on                | —                                                      |
 
 ---
+
+<a id="ui-ux-audit-pass"></a>
+
+## UI/UX audit pass — 2026-09-23
+
+**Not an iteration.** A cross-cutting fix pass over the 41 findings in
+[`UI_UX_AUDIT.md`](UI_UX_AUDIT.md), recorded here because it changed shared
+primitives every later iteration builds on, and one API contract.
+
+All 41 are fixed and verified in a browser against the live backend. The
+audit document holds the full fix record — what was changed, the four
+decisions that were larger than "apply the suggested fix", the two
+suggestions deliberately not followed, and the measurements taken afterwards.
+The four entries in the root `README.md` decision log carry the reasoning for
+the contract and layout changes.
+
+**The one API contract change**, agreed with the human before building, as
+the audit asked: `PROJECT_SPEC.md` §8.1 now settles `PATCH` semantics for
+every endpoint — **`undefined` leaves a field alone, `null` clears it** — and
+`updateCustomerInputSchema` / `updateVehicleInputSchema` mark every nullable
+column `.nullable().optional()`. Without it there was no way to express
+"clear this field": the frontend sent `undefined`, `JSON.stringify` dropped
+it, and clearing a customer's address PATCHed `{}` — a 200 that reported
+"Sparat" and changed nothing. Twelve new backend cases
+(`tests/customers.test.ts`, `tests/vehicles.test.ts`) assert both halves of
+the rule on every optional field of both records, reading the row back rather
+than trusting the response.
+
+**Shared primitives that changed**, so later work uses them rather than
+re-inventing the old shapes:
+
+| Primitive | What it gained |
+|---|---|
+| `admin-shell.tsx` | A fixed-height app layout: only `<main>` scrolls. The sticky context every list header and the calendar now rely on |
+| `page-header.tsx` | `breadcrumb` takes `{ label, href? }[]` and renders links, not a pre-formatted string |
+| `data-table.tsx` | `rowHref` (real links), `mobile` and `hideBelow` per column, cards below `md`, one scroll context |
+| `ui/dialog.tsx` | `DialogBody` — the only scrolling part; header and footer stay put |
+| `states.tsx` | `EmptyState inline` — the one-line variant for inside a card |
+| `field-grid.tsx` | New. Two-column detail forms, with `FieldGridFull` to opt out |
+| `inline-field.tsx` | `disabled` and `undoable` |
+| `converting-input.tsx` | `suffix` — the unit *inside* the field, which is what an odometer needs |
+| `shared/work-order-state.ts` | `isWorkOrderLocked`, stated once for both sides |
+
+**Two regression guards** were added, both in `pnpm check`:
+`src/lib/admin/user-facing-copy.test.ts` (no milestone id in rendered copy)
+and `e2e/admin-layout.spec.ts` (no sideways scroll, navigation reachable,
+admin palette on overlays, at four viewports).
+
+**What this does *not* close.** F12's own milestones stay unticked: this pass
+did not run `axe`, did not measure Lighthouse, did not do the motion or
+screen-reader passes, and did not touch F12.7's privacy actions. It removes a
+large part of what F12.4 (error and empty states), F12.5 (copy) and F12.6
+(cross-device) would otherwise have found, and F12.4.1's admin 404 now exists
+— but each milestone still owns its own acceptance criteria.
+
+**One finding left open for F12.4:** the *public* site's unmatched URLs still
+get Next's white English 404. The admin's is fixed (a `not-found.tsx` plus a
+`[...unmatched]` catch-all, because the file alone only catches a `notFound()`
+thrown inside its own segment); the public equivalent was outside this audit's
+scope and is not claimed.
 
 <a id="f12"></a>
 

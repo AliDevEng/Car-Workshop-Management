@@ -1,7 +1,8 @@
 'use client';
 
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import Link from 'next/link';
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import type { SortDirection } from 'shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +27,23 @@ export interface DataTableColumn<Row> {
   /** Right-aligns and applies `tabular-nums`. Use for every number. */
   readonly numeric?: boolean;
   readonly width?: string;
+  /**
+   * Drop this column below the given breakpoint rather than letting the
+   * table scroll sideways inside a page that already scrolls. For the
+   * columns that are useful but not what anyone scans the list for.
+   */
+  readonly hideBelow?: 'lg' | 'xl';
+  /**
+   * The column's job in the card layout below `md`, where a table is
+   * unreadable (UI_UX_AUDIT L2).
+   *
+   *  - `primary` — the card's title line. Exactly one column should be this;
+   *    without it the first column is used.
+   *  - `trailing` — pinned to the card's top right. A status or an amount.
+   *  - `hidden` — left out of the card entirely.
+   *  - anything else — a labelled fact under the title.
+   */
+  readonly mobile?: 'primary' | 'trailing' | 'secondary' | 'hidden';
 }
 
 export interface DataTableSort {
@@ -49,6 +67,17 @@ export interface DataTableProps<Row> {
   readonly caption: string;
   readonly onRowActivate?: (row: Row) => void;
   /**
+   * The row's own address.
+   *
+   * Rows used to navigate through `onClick` alone, which meant middle-click,
+   * Ctrl/Cmd-click, "open in new tab" and link previews all did nothing —
+   * and opening three work orders side by side is an ordinary workshop task
+   * (UI_UX_AUDIT L3). With this, the row's title is a real `<Link>` and the
+   * browser's own navigation affordances work; `onRowActivate` stays for the
+   * plain click anywhere else on the row.
+   */
+  readonly rowHref?: (row: Row) => string;
+  /**
    * **The column names the endpoint declares sortable, and nothing else.**
    *
    * F1.4.2 and PROJECT_SPEC.md §8.1: a cursor is only stable against the
@@ -66,11 +95,32 @@ export interface DataTableProps<Row> {
   readonly empty?: ReactNode;
 }
 
+const HIDE_BELOW_CLASS: Readonly<Record<'lg' | 'xl', string>> = {
+  lg: 'hidden lg:table-cell',
+  xl: 'hidden xl:table-cell',
+};
+
+/** True for a click the browser should handle as a link, not as a row press. */
+function isBrowserNavigationClick(event: MouseEvent): boolean {
+  return (
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    event.button !== 0
+  );
+}
+
 /**
  * The admin list table (F1.4.1).
  *
- * Sticky header, tabular figures on numeric columns, rows that can be opened
- * by mouse or keyboard, and pagination driven by what the API declares.
+ * One scroll context: the table fills the page and the page scrolls, with a
+ * sticky header. It used to carry its own `max-h-[70vh] overflow-auto`
+ * inside a page that also scrolled, so a row could be scrolled two different
+ * ways and the last column was clipped at the same time (UI_UX_AUDIT L1/G3).
+ *
+ * Below `md` the same column definitions render as cards instead, because a
+ * five-column table on a 390 px phone shows one and a half of them.
  */
 export function DataTable<Row>({
   columns,
@@ -78,6 +128,7 @@ export function DataTable<Row>({
   rowKey,
   caption,
   onRowActivate,
+  rowHref,
   sortableColumns,
   sort,
   onSortChange,
@@ -86,6 +137,12 @@ export function DataTable<Row>({
 }: DataTableProps<Row>) {
   const sortable = new Set(sortableColumns ?? []);
   const interactive = onRowActivate !== undefined;
+  // Which button was pressed, so only it spins. Both used to receive the
+  // shared `isLoading`, so clicking "Nästa" also spun "Föregående".
+  const [pendingDirection, setPendingDirection] = useState<
+    'previous' | 'next' | null
+  >(null);
+  const isPaging = pagination?.isLoading ?? false;
 
   function moveFocus(from: EventTarget & HTMLElement, delta: number): void {
     const row = from.closest('tr');
@@ -96,9 +153,122 @@ export function DataTable<Row>({
     }
   }
 
+  const [firstColumn] = columns;
+  const primaryColumn =
+    columns.find((column) => column.mobile === 'primary') ?? firstColumn;
+  const trailingColumn = columns.find(
+    (column) => column.mobile === 'trailing',
+  );
+  const secondaryColumns = columns.filter(
+    (column) =>
+      column !== primaryColumn &&
+      column !== trailingColumn &&
+      column.mobile !== 'hidden',
+  );
+
+  function renderPrimary(row: Row, column: DataTableColumn<Row>): ReactNode {
+    if (rowHref === undefined) {
+      return column.cell(row);
+    }
+    return (
+      <Link
+        href={rowHref(row)}
+        className="block min-w-0 rounded-sharp underline-offset-4 hover:underline"
+        // The row's own click handler already navigates; letting this one
+        // through as well would push the same entry twice.
+        onClick={(event) => {
+          if (!isBrowserNavigationClick(event) && interactive) {
+            event.preventDefault();
+            onRowActivate(row);
+          }
+        }}
+      >
+        {column.cell(row)}
+      </Link>
+    );
+  }
+
+  function rowHandlers(row: Row) {
+    if (!interactive) {
+      return {};
+    }
+    return {
+      onClick: (event: MouseEvent<HTMLElement>) => {
+        // A click that landed on a control inside the row belongs to it.
+        if (
+          event.target instanceof Element &&
+          event.target.closest('a,button,input,select,textarea') !== null
+        ) {
+          return;
+        }
+        if (isBrowserNavigationClick(event)) {
+          return;
+        }
+        onRowActivate(row);
+      },
+    };
+  }
+
+  const showPagination =
+    pagination !== undefined &&
+    (pagination.canGoBack || pagination.nextCursor !== null);
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="relative max-h-[70vh] overflow-auto rounded-sharp border border-border">
+    <div className="flex min-w-0 flex-col gap-3">
+      {/* Cards below `md`, the table above it — one column definition
+          driving both, so a new column cannot be added to only one. */}
+      <ul className="flex flex-col gap-2 md:hidden">
+        {rows.length === 0 ? (
+          // No `empty`, no box — an empty bordered card says less than
+          // nothing at all.
+          empty === undefined ? null : (
+            <li className="rounded-sharp border border-border">{empty}</li>
+          )
+        ) : (
+          rows.map((row) => (
+            <li
+              key={rowKey(row)}
+              className={cn(
+                'rounded-sharp border border-border p-3',
+                interactive && 'cursor-pointer hover:bg-accent',
+              )}
+              {...rowHandlers(row)}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 font-medium">
+                  {primaryColumn === undefined
+                    ? null
+                    : renderPrimary(row, primaryColumn)}
+                </div>
+                {trailingColumn === undefined ? null : (
+                  <div className="shrink-0 text-right tabular-nums">
+                    {trailingColumn.cell(row)}
+                  </div>
+                )}
+              </div>
+              {secondaryColumns.length === 0 ? null : (
+                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                  {secondaryColumns.map((column) => (
+                    <div key={column.id} className="min-w-0">
+                      <dt className="text-muted-foreground">{column.header}</dt>
+                      <dd
+                        className={cn(
+                          'min-w-0 truncate',
+                          column.numeric === true && 'tabular-nums',
+                        )}
+                      >
+                        {column.cell(row)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </li>
+          ))
+        )}
+      </ul>
+
+      <div className="relative hidden min-w-0 rounded-sharp border border-border md:block">
         <Table>
           <caption className="sr-only">{caption}</caption>
           <TableHeader className="sticky top-0 z-10 bg-card">
@@ -117,6 +287,9 @@ export function DataTable<Row>({
                     className={cn(
                       'whitespace-nowrap',
                       column.numeric === true && 'text-right',
+                      column.hideBelow === undefined
+                        ? undefined
+                        : HIDE_BELOW_CLASS[column.hideBelow],
                     )}
                     aria-sort={
                       active
@@ -180,23 +353,20 @@ export function DataTable<Row>({
               rows.map((row) => (
                 <TableRow
                   key={rowKey(row)}
-                  // A row is only focusable when it actually does something.
-                  // A tab stop that leads nowhere is worse than no tab stop.
-                  tabIndex={interactive ? 0 : undefined}
-                  aria-label={interactive ? `Öppna ${caption}` : undefined}
+                  // Focusable only when the row is not already represented by
+                  // a link: with `rowHref` the link is the tab stop, and a
+                  // second one leading to the same place is noise. There is
+                  // also no `aria-label` here any more — it overrode every
+                  // row's content, so a screen reader heard "Öppna
+                  // Arbetsordrar" twenty-five times (UI_UX_AUDIT L7).
+                  tabIndex={interactive && rowHref === undefined ? 0 : undefined}
                   className={cn(
                     interactive &&
                       'cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2',
                   )}
-                  onClick={
-                    interactive
-                      ? () => {
-                          onRowActivate(row);
-                        }
-                      : undefined
-                  }
+                  {...rowHandlers(row)}
                   onKeyDown={
-                    interactive
+                    interactive && rowHref === undefined
                       ? (event) => {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
@@ -220,10 +390,17 @@ export function DataTable<Row>({
                     <TableCell
                       key={column.id}
                       className={cn(
-                        column.numeric === true && 'text-right tabular-nums',
+                        column.numeric === true
+                          ? 'text-right tabular-nums'
+                          : 'max-w-[28ch]',
+                        column.hideBelow === undefined
+                          ? undefined
+                          : HIDE_BELOW_CLASS[column.hideBelow],
                       )}
                     >
-                      {column.cell(row)}
+                      {column === primaryColumn
+                        ? renderPrimary(row, column)
+                        : column.cell(row)}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -233,7 +410,9 @@ export function DataTable<Row>({
         </Table>
       </div>
 
-      {pagination === undefined ? null : (
+      {/* Hidden outright on a single page, rather than drawn with both
+          buttons disabled (UI_UX_AUDIT L6). */}
+      {!showPagination || pagination === undefined ? null : (
         <nav
           aria-label="Sidnavigering"
           className="flex items-center justify-end gap-2"
@@ -241,18 +420,24 @@ export function DataTable<Row>({
           <Button
             variant="secondary"
             size="sm"
-            onClick={pagination.onPrevious}
+            onClick={() => {
+              setPendingDirection('previous');
+              pagination.onPrevious();
+            }}
             disabled={!pagination.canGoBack}
-            isPending={pagination.isLoading ?? false}
+            isPending={isPaging && pendingDirection === 'previous'}
           >
             Föregående
           </Button>
           <Button
             variant="secondary"
             size="sm"
-            onClick={pagination.onNext}
+            onClick={() => {
+              setPendingDirection('next');
+              pagination.onNext();
+            }}
             disabled={pagination.nextCursor === null}
-            isPending={pagination.isLoading ?? false}
+            isPending={isPaging && pendingDirection === 'next'}
           >
             Nästa
           </Button>

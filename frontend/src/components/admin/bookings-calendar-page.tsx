@@ -1,6 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   addStockholmDays,
@@ -20,7 +21,6 @@ import {
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { PageHeader } from '@/components/admin/page-header';
 import { ErrorState, TableSkeleton } from '@/components/admin/states';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ApiError } from '@/lib/api';
 import {
@@ -36,6 +36,7 @@ import {
   useUpdateBooking,
   type CalendarParams,
 } from '@/lib/api/bookings';
+import { useMatchMedia } from '@/lib/admin/use-match-media';
 import { useUserRoster } from '@/lib/api/users';
 
 function calendarParamsFor(
@@ -57,20 +58,46 @@ function calendarParamsFor(
 }
 
 /**
+ * Below this width the week view is seven columns in a 390 px viewport, so
+ * the day view is the useful default (UI_UX_AUDIT C3). Matches Tailwind's
+ * `md`, which is where the rest of the admin switches to its compact layout.
+ */
+const DAY_VIEW_MAX_WIDTH = '(max-width: 767px)';
+
+/**
  * F8 — the calendar and booking-requests screen, replacing the read-only
  * placeholder two tables that stood in for it since F5/F6.
  */
 export function BookingsCalendarPage({
   initialTab,
+  tabWasRequested = false,
   initialDate,
   initialStatus,
 }: {
   readonly initialTab: BookingsTab;
+  /** `?vy=` was in the URL, so the view is the user's choice, not a default. */
+  readonly tabWasRequested?: boolean;
   readonly initialDate: string;
   readonly initialStatus?: StatusFilter;
 }) {
-  const [tab, setTab] = useState<BookingsTab>(initialTab);
+  /*
+   * `null` until the user picks a view, so the default can stay *derived*
+   * rather than written into state by an effect on mount. On a phone the
+   * week view is seven columns in 390 px, so the day view is the useful
+   * default — unless the URL asked for a view, which is a real choice
+   * (UI_UX_AUDIT C3).
+   */
+  const [chosenTab, setChosenTab] = useState<BookingsTab | null>(null);
+  const prefersDayView = useMatchMedia(DAY_VIEW_MAX_WIDTH);
+  const tab: BookingsTab =
+    chosenTab ??
+    (!tabWasRequested && prefersDayView && initialTab === 'vecka'
+      ? 'dag'
+      : initialTab);
+  const setTab = setChosenTab;
   const [anchorDate, setAnchorDate] = useState(initialDate);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [mechanicFilter, setMechanicFilter] =
     useState<string>(MECHANIC_FILTER_ALL);
   const [selectedBooking, setSelectedBooking] =
@@ -108,6 +135,36 @@ export function BookingsCalendarPage({
       );
     }
   }, [calendarActive, view, anchorDate, mechanicFilter, queryClient]);
+
+  /*
+   * Keep `?vy=` and `?date=` in the address bar (UI_UX_AUDIT C4).
+   *
+   * Both were already *read* on load, but clicking Vecka / Dag /
+   * Förfrågningar never wrote them back, so a reload, the back button or a
+   * link pasted to a colleague all landed on the default view.
+   *
+   * `window.history.replaceState`, not `router.replace`: the view is already
+   * client state and the server has nothing new to render, so a router
+   * navigation would cost an RSC round-trip on every tab click and every
+   * step through the week for a URL that is only there to be copied and
+   * reloaded. Next's App Router supports this shallow update and keeps
+   * `useSearchParams` in step with it. `replace` rather than `push` either
+   * way: switching tab is not something the back button should have to step
+   * through twice.
+   */
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set('vy', tab);
+    if (tab === 'forfragningar') {
+      next.delete('date');
+    } else {
+      next.set('date', anchorDate);
+    }
+    const query = next.toString();
+    if (query !== searchParams.toString()) {
+      window.history.replaceState(null, '', `${pathname}?${query}`);
+    }
+  }, [tab, anchorDate, pathname, searchParams]);
 
   // The dashboard links to a specific day with `#booking-{id}` (F5). Once
   // that day's data has rendered, scroll the target into view.
@@ -171,30 +228,32 @@ export function BookingsCalendarPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={<span>Admin / Bokningar</span>}
+        breadcrumb={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Bokningar' },
+        ]}
         title="Bokningar"
         description="Bekräfta förfrågningar och planera veckan."
-        actions={
-          unhandledQuery.data === undefined ? null : (
-            <Badge
-              tone={
-                unhandledQuery.data.unhandledCount > 0 ? 'hivis' : 'neutral'
-              }
-            >
-              {unhandledQuery.data.unhandledCount} obehandlade förfrågningar
-            </Badge>
-          )
-        }
+        /*
+         * No count badge here. The unhandled-request count already appears
+         * in the sidebar, in the "Förfrågningar" tab label and on the
+         * inbox's own status filter — four times on one screen said nothing
+         * the first one did not (UI_UX_AUDIT C5).
+         */
       />
 
       <section className="flex flex-col gap-4 rounded-sharp border border-border bg-card/45 p-3 lg:flex-row lg:items-end">
+        {/* Labelled like the date and mechanic controls beside it, so the
+            three groups share one baseline instead of one floating
+            unlabelled (UI_UX_AUDIT C5). */}
         <Tabs
           value={tab}
           onValueChange={(next: string) => {
             setTab(next as BookingsTab);
           }}
-          className="shrink-0"
+          className="flex shrink-0 flex-col gap-1.5"
         >
+          <span className="text-xs font-medium text-muted-foreground">Vy</span>
           <TabsList>
             <TabsTrigger value="vecka">Vecka</TabsTrigger>
             <TabsTrigger value="dag">Dag</TabsTrigger>

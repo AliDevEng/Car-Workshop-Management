@@ -148,16 +148,24 @@ test.describe('self-hosted fonts', () => {
     // `/admin/logga-in`, not the scoped surface it names.
     await login(page);
 
-    const scope = page.locator('.admin-scope');
+    // The class is on `<body>` as well as the layout wrapper, so that Radix
+    // portals — a dialog, a sheet, a select — resolve the admin tokens
+    // instead of the public ones (UI_UX_AUDIT G4). Still scoped, not global:
+    // it is added while an admin route is mounted and removed on unmount,
+    // which the public-surface check below is what actually proves.
+    await expect(page.locator('body.admin-scope')).toHaveCount(1);
+    const scope = page.locator('.admin-scope').first();
     await expect(scope).toBeVisible();
-    // #1c2b33 — the steel token, applied by the (admin) layout only.
+    // #1c2b33 — the steel token, applied on admin routes only.
     await expect(scope).toHaveCSS('background-color', 'rgb(28, 43, 51)');
     await expect(
       page.getByRole('heading', { name: 'Adminpanelen' }),
     ).toBeVisible();
 
-    // The public surface keeps its own concrete background (#e6e8e5).
+    // The public surface keeps its own concrete background (#e6e8e5), and
+    // the body class is gone with the admin route that set it.
     await page.goto('/');
+    await expect(page.locator('body.admin-scope')).toHaveCount(0);
     await expect(page.locator('body')).toHaveCSS(
       'background-color',
       'rgb(230, 232, 229)',

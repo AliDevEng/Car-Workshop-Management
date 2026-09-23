@@ -43,6 +43,7 @@ export function OdometerInput({
       onChange={onChange}
       parse={parseMilToKm}
       format={formatKmAsMilInput}
+      suffix="mil"
       preview={(km) => `Sparas som ${km.toLocaleString('sv-SE')} km`}
       messages={MESSAGES}
       inputMode="decimal"

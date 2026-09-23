@@ -53,6 +53,7 @@ const columns: readonly DataTableColumn<CustomerListItem>[] = [
     id: 'vehicleCount',
     header: 'Fordon',
     numeric: true,
+    mobile: 'trailing',
     width: '96px',
     cell: (customer) => customer.vehicleCount,
   },
@@ -97,7 +98,7 @@ export function CustomerListPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={<span>Admin / Kunder</span>}
+        breadcrumb={[{ label: 'Admin', href: '/admin' }, { label: 'Kunder' }]}
         title="Kunder"
         description="Sök på namn, telefon eller e-post."
         actions={<CreateCustomerDialog />}
@@ -105,7 +106,7 @@ export function CustomerListPage({
 
       <ListPage
         filters={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <Input
               value={queryInput}
               onChange={(event) => {
@@ -155,6 +156,7 @@ export function CustomerListPage({
               rows={customersQuery.data?.data ?? []}
               rowKey={(customer) => customer.id}
               caption="Kunder"
+              rowHref={(customer) => `/admin/kunder/${customer.id}`}
               onRowActivate={(customer) => {
                 router.push(`/admin/kunder/${customer.id}`);
               }}

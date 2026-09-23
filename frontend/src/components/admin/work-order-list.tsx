@@ -126,6 +126,7 @@ const columns: readonly DataTableColumn<WorkOrderListItem>[] = [
   {
     id: 'status',
     header: 'Status',
+    mobile: 'trailing',
     cell: (order: WorkOrderListItem) => (
       <StatusBadge status={workOrderStatus(order.status)} />
     ),
@@ -133,6 +134,9 @@ const columns: readonly DataTableColumn<WorkOrderListItem>[] = [
   {
     id: 'mechanic',
     header: 'Mekaniker',
+    // The lowest-priority column: useful, but not what the list is scanned
+    // for, and dropping it below xl is what stops 'Belopp' being clipped.
+    hideBelow: 'xl',
     cell: (order: WorkOrderListItem) =>
       order.assignedUser === null ? 'Ej tilldelad' : order.assignedUser.name,
   },
@@ -248,7 +252,10 @@ export function WorkOrderListPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={<span>Admin / Arbetsordrar</span>}
+        breadcrumb={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Arbetsordrar' },
+        ]}
         title="Arbetsordrar"
         description="Arbetsordrar som matchar det valda filtret."
         actions={
@@ -368,17 +375,20 @@ export function WorkOrderListPage({
             </div>
           </div>
         }
-        table={
-          possiblyTruncated ? (
-            <p className="mb-3 text-xs text-muted-foreground">
-              Visar de {REPORT_LIMIT} senaste arbetsordrarna som matchar
-              filtret. Fler kan finnas — begränsa filtret för att se dem.
-            </p>
-          ) : null
-        }
-      />
-      <ListPage
-        filters={null}
+        /*
+         * One `ListPage`, not two. The truncation note used to be the first
+         * one's `table` and the real table the second one's, with
+         * `filters={null}` — and `ListPage` drew its bordered filter box
+         * regardless, so an empty grey bar sat above every work-order table
+         * (UI_UX_AUDIT L4).
+         */
+        // Spread, not `note={… : undefined}`: `exactOptionalPropertyTypes`
+        // wants the property absent rather than present-and-undefined.
+        {...(possiblyTruncated
+          ? {
+              note: `Visar de ${String(REPORT_LIMIT)} senaste arbetsordrarna som matchar filtret. Fler kan finnas — begränsa filtret för att se dem.`,
+            }
+          : {})}
         table={
           error !== null ? (
             <ErrorState
@@ -398,6 +408,9 @@ export function WorkOrderListPage({
               rows={rows}
               rowKey={(order: WorkOrderListItem) => order.id}
               caption="Arbetsordrar"
+              rowHref={(order: WorkOrderListItem) =>
+                `/admin/arbetsordrar/${order.id}`
+              }
               onRowActivate={(order: WorkOrderListItem) => {
                 router.push(`/admin/arbetsordrar/${order.id}`);
               }}

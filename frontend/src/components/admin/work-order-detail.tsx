@@ -1,8 +1,9 @@
 'use client';
 
+import { ChevronRightIcon, LockIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import type { UpdateWorkOrderInput } from 'shared';
+import { isWorkOrderLocked, type UpdateWorkOrderInput } from 'shared';
 import { isConflictError } from '@/components/admin/conflict';
 import { DetailLayout } from '@/components/admin/detail-layout';
 import { InlineField } from '@/components/admin/inline-field';
@@ -91,6 +92,7 @@ export function WorkOrderDetailPage({
   }
 
   const workOrder = workOrderQuery.data;
+  const locked = isWorkOrderLocked(workOrder.status);
 
   /**
    * Every header write in one place: carries the `version` this render read,
@@ -214,64 +216,113 @@ export function WorkOrderDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={
-          <span>Admin / Arbetsordrar / {workOrder.number ?? 'Utkast'}</span>
-        }
-        title={workOrder.number ?? 'Utkast'}
+        breadcrumb={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Arbetsordrar', href: '/admin/arbetsordrar' },
+          { label: workOrder.number ?? 'Utkast' },
+        ]}
+        title={workOrder.number ?? 'Arbetsorder (utkast)'}
         description={`${workOrder.vehicle.registrationNumberDisplay} · ${workOrder.vehicle.make} ${workOrder.vehicle.model}`}
+        /*
+         * The status badge and its transitions live in the page header,
+         * where the primary action for a page is looked for — not in a card
+         * of their own headed "Status" above a label also reading "Status"
+         * (UI_UX_AUDIT W3, W7).
+         */
         actions={
-          <div className="flex flex-col items-end gap-1">
-            <Link
-              href={`/admin/kunder/${workOrder.customer.id}`}
-              className="text-sm font-medium hover:underline"
-            >
-              {workOrder.customer.name}
-            </Link>
-            <Link
-              href={`/admin/fordon/${workOrder.vehicle.id}`}
-              className="text-xs text-muted-foreground hover:underline"
-            >
-              Visa fordon
-            </Link>
-          </div>
+          <WorkOrderStatusControl
+            workOrder={workOrder}
+            onVersionConflict={setConflict}
+          />
         }
       />
+
+      {/*
+       * Two labelled chips rather than a name with "Visa fordon" beneath it,
+       * which read as one control pointing at the wrong thing (W6).
+       */}
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href={`/admin/kunder/${workOrder.customer.id}`}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-sharp border border-border px-3 text-sm hover:bg-accent"
+        >
+          <span className="text-muted-foreground">Kund:</span>
+          <span className="font-medium">{workOrder.customer.name}</span>
+          <ChevronRightIcon aria-hidden="true" className="size-3.5" />
+        </Link>
+        <Link
+          href={`/admin/fordon/${workOrder.vehicle.id}`}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-sharp border border-border px-3 text-sm hover:bg-accent"
+        >
+          <span className="text-muted-foreground">Fordon:</span>
+          <span className="font-medium tabular-nums">
+            {workOrder.vehicle.registrationNumberDisplay}
+          </span>
+          <ChevronRightIcon aria-hidden="true" className="size-3.5" />
+        </Link>
+      </div>
+
+      {/*
+       * One lock banner at the top of the page. It used to be a sentence
+       * inside the lines card, while the description and both odometer
+       * fields above it stayed editable and went on auto-saving (W4).
+       */}
+      {locked ? (
+        <p
+          role="status"
+          className="flex items-center gap-2 rounded-sharp border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground"
+        >
+          <LockIcon aria-hidden="true" className="size-4 shrink-0" />
+          {/*
+           * States the lock rather than the status — the badge in the header
+           * already says "Slutförd" or "Avbruten", and repeating it here
+           * would also collide with the success toast the transition raises.
+           */}
+          {workOrder.status === 'CANCELLED'
+            ? 'Arbetsordern är låst. Rader, beskrivning och mätarställning kan inte längre ändras, och en avbruten order kan inte återöppnas.'
+            : 'Arbetsordern är låst. Rader, beskrivning och mätarställning kan inte längre ändras — återöppna den först om något behöver rättas.'}
+        </p>
+      ) : null}
 
       <DetailLayout
         main={
           <div className="flex flex-col gap-4">
             <Card className="rounded-soft">
               <CardHeader>
-                <CardTitle>Status</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <WorkOrderStatusControl
-                  workOrder={workOrder}
-                  onVersionConflict={setConflict}
-                />
-              </CardContent>
-            </Card>
-
-            <QuoteListCard workOrder={workOrder} />
-            <ServiceProtocolListCard workOrder={workOrder} />
-
-            <Card className="rounded-soft">
-              <CardHeader>
-                <CardTitle>Beskrivning</CardTitle>
+                <CardTitle>Uppdraget</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <InlineField
                   label="Beskrivning"
                   required
+                  undoable
+                  disabled={locked}
                   value={workOrder.description}
                   onSave={saveDescription}
                 />
+                {/*
+                 * Deliberately still editable on a locked order: an internal
+                 * note is the workshop's own record of a finished job, and
+                 * the backend does not lock it either.
+                 */}
                 <InlineField
                   label="Intern anteckning"
                   multiline
+                  undoable
                   value={workOrder.internalNote ?? ''}
                   onSave={saveInternalNote}
                 />
+              </CardContent>
+            </Card>
+
+            {/*
+             * The lines come before everything secondary. They are what a
+             * mechanic works in all day, and on a draft they used to start
+             * some 1 400 px down the page (W1).
+             */}
+            <Card className="rounded-soft">
+              <CardContent className="pt-6">
+                <WorkOrderLines workOrder={workOrder} />
               </CardContent>
             </Card>
 
@@ -285,6 +336,7 @@ export function WorkOrderDetailPage({
                   <OdometerInput
                     aria-label="Mätarställning in"
                     value={odometerInField.draft}
+                    disabled={locked}
                     onChange={(km) => {
                       odometerInField.onChange(km);
                     }}
@@ -299,6 +351,7 @@ export function WorkOrderDetailPage({
                   <OdometerInput
                     aria-label="Mätarställning ut"
                     value={odometerOutField.draft}
+                    disabled={locked}
                     onChange={(km) => {
                       odometerOutField.onChange(km);
                     }}
@@ -311,11 +364,8 @@ export function WorkOrderDetailPage({
               </CardContent>
             </Card>
 
-            <Card className="rounded-soft">
-              <CardContent className="pt-6">
-                <WorkOrderLines workOrder={workOrder} />
-              </CardContent>
-            </Card>
+            <QuoteListCard workOrder={workOrder} />
+            <ServiceProtocolListCard workOrder={workOrder} />
           </div>
         }
         aside={
@@ -329,6 +379,7 @@ export function WorkOrderDetailPage({
               <CardContent>
                 <Select
                   value={workOrder.assignedUserId ?? UNASSIGNED}
+                  disabled={locked}
                   onValueChange={(next: string) => {
                     void handleAssignedUserChange(next);
                   }}

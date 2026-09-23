@@ -22,9 +22,20 @@ import {
 } from '@/lib/admin/calendar';
 import { cn } from '@/lib/utils';
 
-const SLOT_HEIGHT_PX = 44;
-const DAY_COLUMN_WIDTH_PX = 140;
-const DENSE_COLUMN_WIDTH_PX = 220;
+/**
+ * 36 px, down from 44. Twenty slots at 44 px plus two header rows is 950 px
+ * of grid, so a working day never fitted a laptop screen and the calendar
+ * page measured 2.1× the viewport (UI_UX_AUDIT C2/G3).
+ */
+const SLOT_HEIGHT_PX = 36;
+/**
+ * Columns flex to fill the available width and only stop shrinking here.
+ * They used to be a fixed 140 px per mechanic per day — 420 px per day, and
+ * 2 940 px for a week, so a 1 440 px screen showed two and a half days
+ * (UI_UX_AUDIT C1).
+ */
+const MIN_WEEK_COLUMN_PX = 120;
+const MIN_DAY_COLUMN_PX = 180;
 
 interface GridColumn {
   readonly id: string | null;
@@ -35,6 +46,8 @@ interface GridColumn {
  * booking occupies nobody's calendar, mirroring the exclusion constraint's
  * own partial index (§6.2, B5.4.4), so it still needs somewhere to render. */
 const UNASSIGNED_COLUMN: GridColumn = { id: null, name: 'Ej tilldelad' };
+/** The week view's single column per day: every mechanic together. */
+const ALL_MECHANICS_COLUMN: GridColumn = { id: null, name: '' };
 
 function dayHeaderLabel(day: string, dense: boolean): string {
   const pattern = dense ? 'EEEE d MMMM' : 'EEE d/M';
@@ -45,6 +58,38 @@ function dayHeaderLabel(day: string, dense: boolean): string {
     { locale: sv },
   );
   return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/**
+ * Side-by-side lanes for bookings that overlap in time.
+ *
+ * Only the week view needs this: there one column holds every mechanic's
+ * work, so two jobs at nine o'clock would otherwise be drawn on top of each
+ * other. Greedy — each booking takes the first lane whose previous booking
+ * has already ended — and the lane count is per day, which for a two-mechanic
+ * workshop is at most two or three.
+ */
+function assignLanes(
+  dayBookings: readonly BookingWithRelations[],
+): { readonly lanes: ReadonlyMap<string, number>; readonly laneCount: number } {
+  const ordered = [...dayBookings].sort((a, b) =>
+    a.startsAt.localeCompare(b.startsAt),
+  );
+  const laneEnds: number[] = [];
+  const lanes = new Map<string, number>();
+
+  for (const booking of ordered) {
+    const start = new Date(booking.startsAt).getTime();
+    const end = new Date(booking.endsAt).getTime();
+    let lane = laneEnds.findIndex((laneEnd) => laneEnd <= start);
+    if (lane === -1) {
+      lane = laneEnds.length;
+    }
+    laneEnds[lane] = end;
+    lanes.set(booking.id, lane);
+  }
+
+  return { lanes, laneCount: Math.max(1, laneEnds.length) };
 }
 
 export interface CalendarGridProps {
@@ -60,7 +105,7 @@ export interface CalendarGridProps {
     mechanicId: string | null,
     startTime: string,
   ) => void;
-  /** The day view's wider, more detailed columns (F8.4.1). */
+  /** The day view's wider, per-mechanic columns (F8.4.1). */
   readonly dense?: boolean;
   /** Injectable for tests; defaults to the real current instant. */
   readonly now?: Date;
@@ -69,11 +114,19 @@ export interface CalendarGridProps {
 
 /**
  * The shared grid behind both the week view (F8.3) and the day view (F8.4) —
- * hours down the side, one column per mechanic (plus "Ej tilldelad"), status
- * colour-coded blocks, drag to reschedule. The day view is this same grid
- * given a single day and `dense`, not a separate implementation: F8.4.1's
- * "denser, showing full job details" is wider columns and more text per
- * card, not a different structure.
+ * hours down the side, status colour-coded blocks, drag to reschedule.
+ *
+ * The two views differ in what a column *is*. The day view gives each
+ * mechanic (plus "Ej tilldelad") a column, which is what makes it the view
+ * you plan in. The week view gives each **day** one column and puts every
+ * mechanic in it, labelled on the block: splitting seven days by mechanic
+ * needed 2 940 px of width for a workshop that has two of them (C1).
+ * Dragging in the week view therefore moves a booking in time and leaves its
+ * mechanic alone.
+ *
+ * Both axes scroll inside this component's own box, with the headers stuck
+ * to its top — not the page's, which is what left a 64 px empty band above
+ * the day names and let them scroll away anyway (C2).
  *
  * Saturday and Sunday columns are tinted the same red the custom date picker
  * (`components/form/calendar.tsx`) uses, for one calendar-wide convention.
@@ -90,19 +143,28 @@ export function CalendarGrid({
 }: CalendarGridProps) {
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
 
-  const columns: readonly GridColumn[] = [
-    ...mechanics.map((mechanic) => ({ id: mechanic.id, name: mechanic.name })),
-    UNASSIGNED_COLUMN,
-  ];
+  const splitByMechanic = dense;
+  const columns: readonly GridColumn[] = splitByMechanic
+    ? [
+        ...mechanics.map((mechanic) => ({
+          id: mechanic.id,
+          name: mechanic.name,
+        })),
+        UNASSIGNED_COLUMN,
+      ]
+    : [ALL_MECHANICS_COLUMN];
   const slotCount = calendarSlotCount(bounds);
   const hours = Array.from(
     { length: bounds.endHour - bounds.startHour },
     (_, index) => bounds.startHour + index,
   );
-  const columnWidthPx = dense ? DENSE_COLUMN_WIDTH_PX : DAY_COLUMN_WIDTH_PX;
-  const dayWidthPx = columns.length * columnWidthPx;
+  const minDayWidthPx =
+    columns.length * (dense ? MIN_DAY_COLUMN_PX : MIN_WEEK_COLUMN_PX);
 
   function columnIndexFor(booking: BookingWithRelations): number {
+    if (!splitByMechanic) {
+      return 0;
+    }
     if (booking.assignedUserId === null) {
       return columns.length - 1;
     }
@@ -112,29 +174,45 @@ export function CalendarGrid({
     return index === -1 ? columns.length - 1 : index;
   }
 
+  function mechanicNameFor(booking: BookingWithRelations): string {
+    return booking.assignedUser === null
+      ? 'Ej tilldelad'
+      : booking.assignedUser.name;
+  }
+
   function slotKey(day: string, columnIndex: number, rowIndex: number): string {
     return `${day}:${String(columnIndex)}:${String(rowIndex)}`;
   }
 
   return (
-    <div className="overflow-x-auto rounded-sharp border border-border">
-      <div className="flex" style={{ width: 'max-content' }}>
+    <div className="max-h-[calc(100dvh-17rem)] min-h-64 overflow-auto rounded-sharp border border-border">
+      <div className="flex min-w-max">
         <div className="sticky left-0 z-20 flex w-14 shrink-0 flex-col bg-card">
-          <div className="sticky top-16 z-10 h-11 border-b border-border bg-card" />
-          <div className="sticky top-[calc(4rem+2.75rem)] z-10 h-7 border-b border-border bg-card" />
+          <div className="sticky top-0 z-10 h-11 border-b border-border bg-card" />
+          {splitByMechanic ? (
+            <div className="sticky top-11 z-10 h-7 border-b border-border bg-card" />
+          ) : null}
           <div
             style={{
               display: 'grid',
               gridTemplateRows: `repeat(${String(slotCount)}, ${String(SLOT_HEIGHT_PX)}px)`,
             }}
           >
-            {hours.map((hour) => (
+            {hours.map((hour, index) => (
               <div
                 key={hour}
                 style={{ gridRow: 'span 2' }}
                 className="relative border-b border-border/60"
               >
-                <span className="absolute -top-2 right-1 text-xs tabular-nums text-muted-foreground">
+                <span
+                  className={cn(
+                    'absolute right-1 text-xs tabular-nums text-muted-foreground',
+                    // Every label straddles its hour line, except the first:
+                    // there is no line above it, only the top of the scroll
+                    // box, which clipped it in half.
+                    index === 0 ? 'top-0.5' : '-top-2',
+                  )}
+                >
                   {calendarHourLabel(hour)}
                 </span>
               </div>
@@ -147,6 +225,9 @@ export function CalendarGrid({
           const dayBookings = bookings.filter(
             (booking) => stockholmDate(new Date(booking.startsAt)) === day,
           );
+          const { lanes, laneCount } = splitByMechanic
+            ? { lanes: new Map<string, number>(), laneCount: 1 }
+            : assignLanes(dayBookings);
 
           /**
            * The drop target, read from the pointer position relative to the
@@ -191,32 +272,34 @@ export function CalendarGrid({
           return (
             <div
               key={day}
-              className="flex shrink-0 flex-col border-l border-border"
-              style={{ width: dayWidthPx }}
+              className="flex flex-col border-l border-border"
+              style={{ flex: '1 1 0', minWidth: minDayWidthPx }}
             >
               <div
                 className={cn(
-                  'sticky top-16 z-10 flex h-11 items-center justify-center border-b border-border bg-card text-sm font-medium',
+                  'sticky top-0 z-10 flex h-11 items-center justify-center border-b border-border bg-card text-sm font-medium',
                   weekend && 'text-status-oxide',
                 )}
               >
                 {dayHeaderLabel(day, dense)}
               </div>
-              <div
-                className="sticky top-[calc(4rem+2.75rem)] z-10 grid h-7 border-b border-border bg-card text-[0.6875rem] text-muted-foreground"
-                style={{
-                  gridTemplateColumns: `repeat(${String(columns.length)}, minmax(0, 1fr))`,
-                }}
-              >
-                {columns.map((column) => (
-                  <div
-                    key={column.id ?? 'unassigned'}
-                    className="flex items-center justify-center truncate px-1"
-                  >
-                    {column.name}
-                  </div>
-                ))}
-              </div>
+              {splitByMechanic ? (
+                <div
+                  className="sticky top-11 z-10 grid h-7 border-b border-border bg-card text-[0.6875rem] text-muted-foreground"
+                  style={{
+                    gridTemplateColumns: `repeat(${String(columns.length)}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {columns.map((column) => (
+                    <div
+                      key={column.id ?? 'unassigned'}
+                      className="flex items-center justify-center truncate px-1"
+                    >
+                      {column.name}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               <div
                 className="relative grid"
@@ -253,10 +336,19 @@ export function CalendarGrid({
                   if (column === undefined) {
                     return;
                   }
+                  // In the week view a column is a *day*, not a mechanic, so
+                  // the drop must not reassign one. The booking keeps whoever
+                  // it already had.
+                  const dragged = bookings.find(
+                    (candidate) => candidate.id === bookingId,
+                  );
+                  const mechanicId = splitByMechanic
+                    ? column.id
+                    : (dragged?.assignedUserId ?? null);
                   onReschedule(
                     bookingId,
                     day,
-                    column.id,
+                    mechanicId,
                     calendarSlotToLocalTime(target.rowIndex, bounds),
                   );
                 }}
@@ -297,12 +389,16 @@ export function CalendarGrid({
                     bounds,
                   );
                   const columnIndex = columnIndexFor(booking);
+                  const lane = lanes.get(booking.id) ?? 0;
                   return (
                     <BookingBlock
                       key={booking.id}
                       booking={booking}
                       clipped={span.clipped}
                       draggable={booking.status === 'SCHEDULED'}
+                      {...(splitByMechanic
+                        ? {}
+                        : { mechanicName: mechanicNameFor(booking) })}
                       onDragStart={(event: DragEvent<HTMLButtonElement>) => {
                         event.dataTransfer.setData('text/plain', booking.id);
                         event.dataTransfer.effectAllowed = 'move';
@@ -313,6 +409,12 @@ export function CalendarGrid({
                       style={{
                         gridColumn: columnIndex + 1,
                         gridRow: `${String(span.rowStart)} / ${String(span.rowEnd)}`,
+                        ...(laneCount > 1
+                          ? {
+                              width: `${String(100 / laneCount)}%`,
+                              marginLeft: `${String((lane * 100) / laneCount)}%`,
+                            }
+                          : {}),
                       }}
                     />
                   );

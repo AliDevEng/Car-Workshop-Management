@@ -82,7 +82,10 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const info = await getWorkshopInfo();
-  const weekdayHours = formatOpeningHours(info.openingHours).slice(0, 5);
+  // Every day, not the first five. Showing Mon–Fri alone told a visitor
+  // reading this section that the workshop is closed on Saturdays, while
+  // the footer on the same page said "Lördag 09–13" (UI_UX_AUDIT P2).
+  const openingHours = formatOpeningHours(info.openingHours);
 
   return (
     <main id="main-content">
@@ -177,7 +180,7 @@ export default async function HomePage() {
               <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
           </div>
-          <div className="mt-9 grid gap-5 lg:mt-10 lg:grid-cols-3">
+          <div className="mt-9 grid gap-5 md:grid-cols-2 lg:mt-10 lg:grid-cols-3">
             {services.slice(0, 3).map((service, index) => (
               <ServiceCard key={service.slug} service={service} index={index} />
             ))}
@@ -191,7 +194,7 @@ export default async function HomePage() {
             <p className="section-kicker">Så arbetar vi</p>
             <h2 className="section-title">Mät först. Byt sedan.</h2>
           </div>
-          <div className="grid gap-px overflow-hidden rounded-soft bg-steel/15 sm:grid-cols-3">
+          <div className="grid gap-px overflow-hidden rounded-soft bg-steel/15 lg:grid-cols-3">
             {processSteps.map((step) => {
               const ItemIcon = step.icon;
               return (
@@ -224,7 +227,7 @@ export default async function HomePage() {
                 <Clock3 aria-hidden="true" className="size-4" /> Öppettider
               </h3>
               <dl className="mt-4 grid grid-cols-[1fr_auto] gap-x-5 gap-y-1 text-sm">
-                {weekdayHours.map((day) => (
+                {openingHours.map((day) => (
                   <div className="contents" key={day.weekday}>
                     <dt>{day.weekday}</dt>
                     <dd className="tabular-nums">{day.hours}</dd>
@@ -245,7 +248,9 @@ export default async function HomePage() {
                 href={getMapUrl(info)}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-4 inline-flex items-center gap-2 font-sans text-sm font-bold underline underline-offset-4"
+                /* `min-h-11` and vertical padding — a 44 px touch target
+                   (UI_UX_AUDIT P3). */
+                className="mt-2 inline-flex min-h-11 items-center gap-2 py-3 font-sans text-sm font-bold underline underline-offset-4"
               >
                 Öppna i kartan{' '}
                 <ArrowRight aria-hidden="true" className="size-4" />

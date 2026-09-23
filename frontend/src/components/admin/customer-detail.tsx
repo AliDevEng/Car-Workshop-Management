@@ -21,6 +21,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { CreateVehicleDialog } from '@/components/admin/create-vehicle-dialog';
 import { DetailLayout } from '@/components/admin/detail-layout';
+import { FieldGrid, FieldGridFull } from '@/components/admin/field-grid';
 import { InlineField } from '@/components/admin/inline-field';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { PageHeader } from '@/components/admin/page-header';
@@ -100,17 +101,23 @@ export function CustomerDetailPage({
 
   const customer = customerQuery.data;
 
-  // No local try/catch: the rejection reaches `InlineField`'s own `commit()`,
-  // which is where the error is actually shown — right beside the field that
-  // failed, in the backend's own Swedish message (`ApiError` extends `Error`).
-  // A toast here as well would say the same thing twice.
+  /**
+   * No local try/catch: the rejection reaches `InlineField`'s own `commit()`,
+   * which is where the error is actually shown — right beside the field that
+   * failed, in the backend's own Swedish message (`ApiError` extends
+   * `Error`). A toast here as well would say the same thing twice.
+   *
+   * `null`, not `undefined`, for a cleared field: `undefined` is dropped by
+   * `JSON.stringify`, so clearing an address used to PATCH `{}` — a request
+   * that succeeded, reported "Sparat", and left the old value in the
+   * database (UI_UX_AUDIT D1). `shared`'s update contract now distinguishes
+   * the two: `undefined` leaves a field alone, `null` clears it.
+   */
   async function saveField(
     field: 'name' | 'phone' | 'email' | 'orgNumber' | 'address' | 'notes',
     value: string,
   ): Promise<void> {
-    await updateCustomer.mutateAsync({
-      [field]: value === '' ? undefined : value,
-    });
+    await updateCustomer.mutateAsync({ [field]: value === '' ? null : value });
   }
 
   async function changeType(rawValue: string): Promise<void> {
@@ -137,7 +144,11 @@ export function CustomerDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={<span>Admin / Kunder / {customer.name}</span>}
+        breadcrumb={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Kunder', href: '/admin/kunder' },
+          { label: customer.name },
+        ]}
         title={customer.name}
         {...(customer.isActive
           ? {}
@@ -149,7 +160,8 @@ export function CustomerDetailPage({
               <>
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
                   onClick={() => {
                     setConfirmDeactivate(true);
                   }}
@@ -191,71 +203,80 @@ export function CustomerDetailPage({
               <CardHeader>
                 <CardTitle>Kontaktuppgifter</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="customer-type"
-                    className="text-sm font-medium"
-                  >
-                    Typ
-                  </label>
-                  <Select
-                    value={customer.type}
-                    onValueChange={(value) => {
-                      void changeType(value);
-                    }}
-                  >
-                    <SelectTrigger
-                      id="customer-type"
-                      className="w-full sm:w-56"
+              <CardContent>
+                <FieldGrid>
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <label
+                      htmlFor="customer-type"
+                      className="text-sm font-medium"
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CUSTOMER_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {CUSTOMER_TYPE_LABELS[type]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                      Typ
+                    </label>
+                    <Select
+                      value={customer.type}
+                      onValueChange={(value) => {
+                        void changeType(value);
+                      }}
+                    >
+                      <SelectTrigger id="customer-type" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CUSTOMER_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {CUSTOMER_TYPE_LABELS[type]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <InlineField
-                  label="Namn"
-                  value={customer.name}
-                  required
-                  onSave={(value) => saveField('name', value)}
-                />
-                <InlineField
-                  label="Telefon"
-                  type="tel"
-                  value={customer.phone}
-                  required
-                  validate={validatePhone}
-                  onSave={(value) => saveField('phone', value)}
-                />
-                <InlineField
-                  label="E-post"
-                  type="email"
-                  value={customer.email ?? ''}
-                  validate={validateEmail}
-                  onSave={(value) => saveField('email', value)}
-                />
-                {customer.type === 'COMPANY' ? (
+                  {customer.type === 'COMPANY' ? (
+                    <InlineField
+                      label="Organisationsnummer"
+                      undoable
+                      value={customer.orgNumber ?? ''}
+                      validate={validateOrgNumber}
+                      onSave={(value) => saveField('orgNumber', value)}
+                    />
+                  ) : null}
+
+                  <FieldGridFull>
+                    <InlineField
+                      label="Namn"
+                      value={customer.name}
+                      required
+                      undoable
+                      onSave={(value) => saveField('name', value)}
+                    />
+                  </FieldGridFull>
                   <InlineField
-                    label="Organisationsnummer"
-                    value={customer.orgNumber ?? ''}
-                    validate={validateOrgNumber}
-                    onSave={(value) => saveField('orgNumber', value)}
+                    label="Telefon"
+                    type="tel"
+                    value={customer.phone}
+                    required
+                    undoable
+                    validate={validatePhone}
+                    onSave={(value) => saveField('phone', value)}
                   />
-                ) : null}
-                <InlineField
-                  label="Adress"
-                  value={customer.address ?? ''}
-                  validate={validateAddress}
-                  onSave={(value) => saveField('address', value)}
-                />
+                  <InlineField
+                    label="E-post"
+                    type="email"
+                    undoable
+                    value={customer.email ?? ''}
+                    validate={validateEmail}
+                    onSave={(value) => saveField('email', value)}
+                  />
+                  <FieldGridFull>
+                    <InlineField
+                      label="Adress"
+                      undoable
+                      value={customer.address ?? ''}
+                      validate={validateAddress}
+                      onSave={(value) => saveField('address', value)}
+                    />
+                  </FieldGridFull>
+                </FieldGrid>
               </CardContent>
             </Card>
 
@@ -282,6 +303,7 @@ export function CustomerDetailPage({
               <CardContent>
                 {customer.vehicles.length === 0 ? (
                   <EmptyState
+                    inline
                     icon={CarFrontIcon}
                     message="Kunden äger inga fordon än."
                   />
@@ -339,10 +361,13 @@ export function CustomerDetailPage({
               </CardContent>
             </Card>
 
+            {/* Activated in F12.7, once verified against a real erasure.
+                The milestone id stays in this comment: it is traceability
+                for the team, not copy for a customer-facing screen. */}
             <ReservedSection
               icon={ShieldIcon}
               title="Sekretess (GDPR)"
-              message="Export och anonymisering av kunduppgifter aktiveras för administratörer i F12.7, sedan de har verifierats mot en riktig radering."
+              message="Export och anonymisering av kunduppgifter är under arbete och öppnas här för administratörer när funktionen är verifierad."
             />
 
             <Card className="rounded-soft" size="sm">

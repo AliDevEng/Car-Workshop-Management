@@ -81,7 +81,26 @@ export const createCustomerInputSchema = z.object({
 });
 export type CreateCustomerInput = z.infer<typeof createCustomerInputSchema>;
 
-export const updateCustomerInputSchema = createCustomerInputSchema.partial();
+/**
+ * Every optional field is `.nullable()` here, and that is load-bearing.
+ *
+ * `.partial()` alone gives an update contract with no way to say "clear this
+ * field": `undefined` is dropped by `JSON.stringify`, so a cleared address
+ * arrived as `{}` — a request that succeeded, reported "Sparat", and changed
+ * nothing, with the old value back after a reload (UI_UX_AUDIT D1).
+ *
+ * So the two meanings are split, the same way
+ * {@link updateVehicleInputSchema}'s `customerId` already did:
+ * **`undefined` leaves the field alone, `null` clears it.**
+ */
+export const updateCustomerInputSchema = createCustomerInputSchema
+  .partial()
+  .extend({
+    orgNumber: orgNumberSchema.nullable().optional(),
+    email: emailSchema.nullable().optional(),
+    address: shortTextSchema.nullable().optional(),
+    notes: noteSchema.nullable().optional(),
+  });
 export type UpdateCustomerInput = z.infer<typeof updateCustomerInputSchema>;
 
 export const customerListQuerySchema = cursorQuerySchema.extend({

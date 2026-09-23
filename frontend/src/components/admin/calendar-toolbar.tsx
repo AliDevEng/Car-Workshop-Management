@@ -68,12 +68,18 @@ export function CalendarToolbar({
   const stepDays = view === 'day' ? 1 : 7;
 
   return (
+    /*
+     * Every control on one baseline (UI_UX_AUDIT C5/L5). The step buttons
+     * were 32 px beside a 44 px date picker and a 32 px select, with only
+     * two of the three carrying a label, so nothing lined up. They are all
+     * 44 px now, and the labelled groups share one `items-end` row.
+     */
     <div className="flex flex-wrap items-end gap-3">
       <div className="flex items-center gap-1">
         <Button
           type="button"
           variant="secondary"
-          size="icon-sm"
+          size="icon-lg"
           aria-label={view === 'day' ? 'Föregående dag' : 'Föregående vecka'}
           onClick={() => {
             onAnchorDateChange(addStockholmDays(anchorDate, -stepDays));
@@ -84,7 +90,7 @@ export function CalendarToolbar({
         <Button
           type="button"
           variant="secondary"
-          size="sm"
+          size="lg"
           onClick={() => {
             onAnchorDateChange(stockholmDate(new Date()));
           }}
@@ -94,7 +100,7 @@ export function CalendarToolbar({
         <Button
           type="button"
           variant="secondary"
-          size="icon-sm"
+          size="icon-lg"
           aria-label={view === 'day' ? 'Nästa dag' : 'Nästa vecka'}
           onClick={() => {
             onAnchorDateChange(addStockholmDays(anchorDate, stepDays));
@@ -104,7 +110,7 @@ export function CalendarToolbar({
         </Button>
       </div>
 
-      <div className="flex min-w-[220px] flex-col gap-1.5">
+      <div className="flex min-w-[220px] flex-1 flex-col gap-1.5 sm:flex-none">
         <span className="text-xs font-medium text-muted-foreground">
           {view === 'day' ? 'Dag' : 'Vecka'}
         </span>
@@ -120,7 +126,9 @@ export function CalendarToolbar({
         />
       </div>
 
-      <div className="ml-auto flex min-w-[180px] flex-col gap-1.5">
+      {/* `sm:ml-auto`, not `ml-auto`: on a phone the select used to float
+          right on its own while everything else was left-aligned. */}
+      <div className="flex min-w-[180px] flex-1 flex-col gap-1.5 sm:ml-auto sm:flex-none">
         <span className="text-xs font-medium text-muted-foreground">
           Mekaniker
         </span>

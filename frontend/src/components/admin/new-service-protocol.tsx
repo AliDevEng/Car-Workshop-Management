@@ -85,12 +85,18 @@ export function NewServiceProtocolPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={
-          <span>
-            Admin / Arbetsordrar / {workOrder.number ?? 'Utkast'} /{' '}
-            {correctingId === null ? 'Nytt serviceprotokoll' : 'Korrigering'}
-          </span>
-        }
+        breadcrumb={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Arbetsordrar', href: '/admin/arbetsordrar' },
+          {
+            label: workOrder.number ?? 'Utkast',
+            href: `/admin/arbetsordrar/${workOrder.id}`,
+          },
+          {
+            label:
+              correctingId === null ? 'Nytt serviceprotokoll' : 'Korrigering',
+          },
+        ]}
         title={
           correctingId === null
             ? 'Nytt serviceprotokoll'

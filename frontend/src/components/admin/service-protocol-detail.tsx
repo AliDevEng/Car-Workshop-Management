@@ -108,18 +108,15 @@ export function ServiceProtocolDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={
-          <span>
-            Admin /{' '}
-            <Link
-              href={`/admin/arbetsordrar/${protocol.workOrderId}`}
-              className="hover:underline"
-            >
-              Arbetsordrar / {protocol.workOrderNumber ?? 'Utkast'}
-            </Link>{' '}
-            / {protocol.number ?? `Utkast v${String(protocol.revision)}`}
-          </span>
-        }
+        breadcrumb={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Arbetsordrar', href: '/admin/arbetsordrar' },
+          {
+            label: protocol.workOrderNumber ?? 'Utkast',
+            href: `/admin/arbetsordrar/${protocol.workOrderId}`,
+          },
+          { label: protocol.number ?? `Utkast v${String(protocol.revision)}` },
+        ]}
         title={protocol.number ?? `Utkast v${String(protocol.revision)}`}
         description={`${protocol.vehicle.registrationNumberDisplay} · ${protocol.vehicle.make} ${protocol.vehicle.model}`}
         actions={

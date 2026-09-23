@@ -68,7 +68,9 @@ test.describe('customers and vehicles (F6)', () => {
     await page
       .getByPlaceholder('Sök på namn, telefon, regnr eller artikelnummer')
       .fill(plate);
-    await page.getByText(displayPlate).click();
+    // The global search's results are buttons, not table rows. Scoped to the
+    // dialog so the page behind it cannot match first.
+    await page.getByRole('dialog').getByText(displayPlate).click();
     await expect(page).toHaveURL(/\/admin\/fordon\/.+/);
     await expect(
       page.getByRole('heading', { name: displayPlate }),
@@ -123,14 +125,17 @@ test.describe('customers and vehicles (F6)', () => {
     // Back to the vehicle to reassign it to the second customer.
     await page.goto('/admin/fordon');
     await page.getByPlaceholder('Sök fordon…').fill(plate);
-    await page.getByText(displayPlate).click();
+    // A row's first cell is a real link now (UI_UX_AUDIT L3), which is also
+    // what disambiguates it from the hidden mobile card carrying the same
+    // text: only the visible layout is in the accessibility tree.
+    await page.getByRole('link', { name: displayPlate }).click();
     await expect(page).toHaveURL(/\/admin\/fordon\/.+/);
 
     await page.getByRole('button', { name: 'Byt ägare' }).click();
     await page
       .getByPlaceholder('Sök kund på namn eller telefon')
       .fill(newOwner);
-    await page.getByText(newOwner).click();
+    await page.getByRole('dialog').getByText(newOwner).click();
 
     // `.first()`: the new owner's name legitimately appears twice — the page
     // header (F6.4.1) and the "Ägare" card both show it.

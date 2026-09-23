@@ -89,7 +89,7 @@ function HistoryList({
   const entries = query.data?.data ?? [];
 
   if (entries.length === 0) {
-    return <EmptyState icon={ClipboardListIcon} message={emptyMessage} />;
+    return <EmptyState inline icon={ClipboardListIcon} message={emptyMessage} />;
   }
 
   return (

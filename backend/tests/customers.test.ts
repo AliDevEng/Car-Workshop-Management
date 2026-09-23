@@ -149,6 +149,57 @@ describe('customers', () => {
     expect(updated.phoneNormalised).toBe('+468998877');
   });
 
+  /**
+   * UI_UX_AUDIT D1. `.partial()` alone gave an update contract with no way to
+   * say "clear this field": the client sent `undefined`, `JSON.stringify`
+   * dropped it, and the PATCH body was `{}` — a 200 that reported "Sparat"
+   * and left the old value in the database. §8.1 now settles the rule, and
+   * every optional field is asserted here rather than the one that happened
+   * to be noticed.
+   */
+  it.each([
+    ['email', 'cecilia@example.se'],
+    ['address', 'Testgatan 1, 171 45 Solna'],
+    ['notes', 'Vill helst bli ringd på förmiddagen.'],
+    ['orgNumber', '556677-8899'],
+  ])('clears %s when sent as null', async (field, value) => {
+    const { id } = await createCustomer(harness, agent, {
+      ...validCustomer,
+      type: 'COMPANY',
+      name: `Rensa ${field}`,
+    });
+
+    async function patch(body: Record<string, unknown>) {
+      const response = await withAgent(
+        supertest(harness.app.server).patch(`/api/customers/${id}`),
+        agent,
+      )
+        .send(body)
+        .expect(200);
+      return customerSchema.parse(jsonBody(response));
+    }
+
+    expect(await patch({ [field]: value })).toMatchObject({ [field]: value });
+
+    // An absent field leaves it alone — the other half of the contract, and
+    // the half that used to be the *only* behaviour available.
+    expect(await patch({ name: `Rensa ${field} igen` })).toMatchObject({
+      [field]: value,
+    });
+
+    expect(await patch({ [field]: null })).toMatchObject({ [field]: null });
+
+    // Read back through a fresh request: the bug was that the response
+    // looked right and the row did not change.
+    const reread = await withAgent(
+      supertest(harness.app.server).get(`/api/customers/${id}`),
+      agent,
+    ).expect(200);
+    expect(customerDetailSchema.parse(jsonBody(reread))).toMatchObject({
+      [field]: null,
+    });
+  });
+
   it('deactivates and reactivates rather than deleting', async () => {
     const { id } = await createCustomer(harness, agent, {
       ...validCustomer,

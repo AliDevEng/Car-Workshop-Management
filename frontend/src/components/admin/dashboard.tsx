@@ -167,7 +167,12 @@ function CountLink({
             className="mt-0.5 size-5 text-muted-foreground"
           />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium">{label}</span>
+            {/* Wraps rather than truncates: in the 360 px aside these
+                became "Besiktning i…" and "Artiklar und…", which is
+                not a label (UI_UX_AUDIT H1). */}
+            <span className="block text-sm font-medium text-balance">
+              {label}
+            </span>
             <span className="mt-2 flex items-baseline gap-2">
               <span className="type-display text-3xl font-semibold tabular-nums">
                 {count}
@@ -270,28 +275,35 @@ function Actions({
   const readyForPickup = data?.readyForPickup ?? 0;
 
   return (
-    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
-      <CountLink
-        href={bookingRequestsHref}
-        label="Obehandlade förfrågningar"
-        count={unhandledBookingRequests}
-        icon={TimerIcon}
-        tone={unhandledBookingRequests === 0 ? 'neutral' : 'hivis'}
-      />
-      <CountLink
-        href={awaitingPartsHref}
-        label="Väntar på delar"
-        count={awaitingParts}
-        icon={WrenchIcon}
-        tone={awaitingParts === 0 ? 'neutral' : 'hivis'}
-      />
-      <CountLink
-        href={readyForPickupHref}
-        label="Klara för hämtning"
-        count={readyForPickup}
-        icon={CheckCircle2Icon}
-        tone={readyForPickup === 0 ? 'neutral' : 'moss'}
-      />
+    /*
+     * Sized by its container, not by the viewport. This grid sits in a
+     * half-width column at 1024 px, where three viewport-sized tiles get
+     * about 200 px each and their badges spill out of them (UI_UX_AUDIT H1).
+     */
+    <div className="@container">
+      <div className="grid gap-3 @lg:grid-cols-3 @4xl:grid-cols-1">
+        <CountLink
+          href={bookingRequestsHref}
+          label="Obehandlade förfrågningar"
+          count={unhandledBookingRequests}
+          icon={TimerIcon}
+          tone={unhandledBookingRequests === 0 ? 'neutral' : 'hivis'}
+        />
+        <CountLink
+          href={awaitingPartsHref}
+          label="Väntar på delar"
+          count={awaitingParts}
+          icon={WrenchIcon}
+          tone={awaitingParts === 0 ? 'neutral' : 'hivis'}
+        />
+        <CountLink
+          href={readyForPickupHref}
+          label="Klara för hämtning"
+          count={readyForPickup}
+          icon={CheckCircle2Icon}
+          tone={readyForPickup === 0 ? 'neutral' : 'moss'}
+        />
+      </div>
     </div>
   );
 }
@@ -325,21 +337,23 @@ function Attention({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <CountLink
-          href={inspectionsHref}
-          label="Besiktning inom 60 dagar"
-          count={inspectionsDueSoonCount}
-          icon={CarFrontIcon}
-          tone={inspectionsDueSoonCount === 0 ? 'neutral' : 'hivis'}
-        />
-        <CountLink
-          href={lowStockHref}
-          label="Artiklar under minsta saldo"
-          count={lowStockArticles}
-          icon={PackageSearchIcon}
-          tone={lowStockArticles === 0 ? 'neutral' : 'hivis'}
-        />
+      <div className="@container">
+        <div className="grid gap-3 @md:grid-cols-2">
+          <CountLink
+            href={inspectionsHref}
+            label="Besiktning inom 60 dagar"
+            count={inspectionsDueSoonCount}
+            icon={CarFrontIcon}
+            tone={inspectionsDueSoonCount === 0 ? 'neutral' : 'hivis'}
+          />
+          <CountLink
+            href={lowStockHref}
+            label="Artiklar under minsta saldo"
+            count={lowStockArticles}
+            icon={PackageSearchIcon}
+            tone={lowStockArticles === 0 ? 'neutral' : 'hivis'}
+          />
+        </div>
       </div>
 
       {inspections.length === 0 ? (
@@ -404,15 +418,32 @@ export function DashboardOverview() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={<span>Admin / Översikt</span>}
+        breadcrumb={[{ label: 'Admin', href: '/admin' }, { label: 'Översikt' }]}
         title="Adminpanelen"
         description={
           resolvedDate === null
             ? 'Dagens bokningar, väntande jobb och saker som behöver uppmärksamhet.'
             : `Översikt för ${formatDateOnly(resolvedDate)}.`
         }
+        /*
+         * "Idag" first, then the date, then refresh — the same order as the
+         * calendar toolbar. The picker is no longer `optional`: its clear
+         * "×" floated between the controls and did exactly what "Idag" does,
+         * for a field that is never genuinely empty (UI_UX_AUDIT H3).
+         */
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              disabled={selectedDate === null}
+              onClick={() => {
+                setSelectedDate(null);
+              }}
+            >
+              Idag
+            </Button>
             <label className="sr-only" htmlFor="dashboard-date">
               Välj datum
             </label>
@@ -423,28 +454,17 @@ export function DashboardOverview() {
               onChange={(nextValue) => {
                 setSelectedDate(nextValue);
               }}
-              optional
               disablePast={false}
             />
             <Button
               type="button"
               variant="secondary"
-              size="icon"
+              size="icon-lg"
               onClick={retryDashboard}
               isPending={dashboardQuery.isFetching}
             >
               <RefreshCwIcon aria-hidden="true" />
               <span className="sr-only">Uppdatera dashboard</span>
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setSelectedDate(null);
-              }}
-            >
-              Idag
             </Button>
           </div>
         }
@@ -458,11 +478,13 @@ export function DashboardOverview() {
           action={
             dashboardQuery.data === undefined ? null : (
               <Badge tone="neutral" className="tabular-nums">
-                {dashboardQuery.data.todaysBookings.length} bokningar
+                {dashboardQuery.data.todaysBookings.length}{' '}
+                {dashboardQuery.data.todaysBookings.length === 1
+                  ? 'bokning'
+                  : 'bokningar'}
               </Badge>
             )
           }
-          className="xl:min-h-[520px]"
         >
           <TodayBookings
             data={dashboardQuery.data}

@@ -3,7 +3,7 @@
 import { PackageSearchIcon, PlusIcon, TriangleAlertIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ChangeEvent } from 'react';
-import { UNIT_LABELS, ore, type Article, type LowStockArticle } from 'shared';
+import { ore, type Article, type LowStockArticle } from 'shared';
 import { ArticleFormDialog } from '@/components/admin/article-form-dialog';
 import { DataTable, type DataTableColumn } from '@/components/admin/data-table';
 import { ListPage } from '@/components/admin/list-page';
@@ -20,6 +20,7 @@ import {
 } from '@/lib/api/articles';
 import { useCurrentUser } from '@/lib/api/current-user';
 import { formatCurrency } from '@/lib/format/currency';
+import { formatQuantity } from '@/lib/format/quantity';
 
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -39,7 +40,7 @@ function StockCell({ row }: { readonly row: ArticleStockRow }) {
   const status = stockLevelStatus(row.stockQuantity, row.minimumQuantity);
   return (
     <span className="inline-flex items-center gap-1.5 tabular-nums">
-      {row.stockQuantity} {UNIT_LABELS[row.unit]}
+      {formatQuantity(row.stockQuantity, row.unit)}
       {status === null ? null : (
         <TriangleAlertIcon
           aria-label={status.label}
@@ -71,13 +72,15 @@ const columns: readonly DataTableColumn<ArticleStockRow>[] = [
     id: 'stock',
     header: 'Saldo',
     numeric: true,
+    mobile: 'trailing',
     cell: (row: ArticleStockRow) => <StockCell row={row} />,
   },
   {
     id: 'minimum',
     header: 'Minsta',
     numeric: true,
-    cell: (row: ArticleStockRow) => `${row.minimumQuantity} ${UNIT_LABELS[row.unit]}`,
+    cell: (row: ArticleStockRow) =>
+      formatQuantity(row.minimumQuantity, row.unit),
   },
   {
     id: 'price',
@@ -88,6 +91,7 @@ const columns: readonly DataTableColumn<ArticleStockRow>[] = [
   {
     id: 'location',
     header: 'Plats',
+    hideBelow: 'lg',
     cell: (row: ArticleStockRow) => row.location ?? 'Saknas',
   },
 ];
@@ -165,7 +169,7 @@ export function ArticleListPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={<span>Admin / Lager</span>}
+        breadcrumb={[{ label: 'Admin', href: '/admin' }, { label: 'Lager' }]}
         title="Lager"
         description="Sök på artikelnummer, namn eller OE-nummer."
         actions={
@@ -208,7 +212,7 @@ export function ArticleListPage({
 
       <ListPage
         filters={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <Input
               value={queryInput}
               onChange={(event: ChangeEvent<HTMLInputElement>) => {
@@ -221,7 +225,7 @@ export function ArticleListPage({
             <Button
               type="button"
               variant={lowStock ? 'primary' : 'secondary'}
-              size="sm"
+              size="lg"
               onClick={() => {
                 setLowStock((current) => !current);
                 setCursorStack([]);
@@ -233,7 +237,7 @@ export function ArticleListPage({
             <Button
               type="button"
               variant={showInactive ? 'primary' : 'secondary'}
-              size="sm"
+              size="lg"
               disabled={lowStock}
               title={
                 lowStock
@@ -268,6 +272,7 @@ export function ArticleListPage({
               columns={columns}
               rows={rows}
               rowKey={(row: ArticleStockRow) => row.id}
+              rowHref={(row: ArticleStockRow) => `/admin/lager/${row.id}`}
               caption="Artiklar"
               onRowActivate={(row: ArticleStockRow) => {
                 router.push(`/admin/lager/${row.id}`);

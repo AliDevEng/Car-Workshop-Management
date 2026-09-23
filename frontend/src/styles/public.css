@@ -104,11 +104,22 @@
     font-family: var(--font-body-admin);
     font-size: 0.875rem;
     font-weight: 600;
+    /* The 44 px touch target the site's navigation already meets
+       (UI_UX_AUDIT P3, WCAG 2.5.8). */
+    min-height: 2.75rem;
   }
 
   .footer-link {
     align-items: flex-start;
     font-weight: 400;
+    /*
+     * A 44 px hit area, not a 16–21 px line of text. Every contact link in
+     * the footer is something a visitor taps on a phone while standing next
+     * to a car, and they measured well under the target the site's own
+     * navigation already meets (UI_UX_AUDIT P3, WCAG 2.5.8).
+     */
+    min-height: 2.75rem;
+    padding-block: 0.625rem;
   }
 
   .footer-link:hover {

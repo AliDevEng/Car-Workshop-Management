@@ -102,13 +102,28 @@ export const createVehicleInputSchema = z.object({
 export type CreateVehicleInput = z.infer<typeof createVehicleInputSchema>;
 
 /**
- * `customerId` is nullable here rather than merely optional: unlinking a
- * vehicle from its owner is a real operation, and `undefined` (leave alone)
- * has to stay distinguishable from `null` (detach).
+ * Every optional field is nullable here rather than merely optional:
+ * **`undefined` leaves the field alone, `null` clears it.**
+ *
+ * `customerId` has always worked this way — unlinking a vehicle from its
+ * owner is a real operation. The rest followed once it turned out that
+ * clearing a VIN or a model year could not be expressed at all: the frontend
+ * sent `undefined`, `JSON.stringify` dropped it, and the PATCH was a
+ * successful no-op that still reported "Sparat" (UI_UX_AUDIT D1).
  */
 export const updateVehicleInputSchema = createVehicleInputSchema
   .partial()
-  .extend({ customerId: idSchema.nullable().optional() });
+  .extend({
+    customerId: idSchema.nullable().optional(),
+    variant: shortTextSchema.nullable().optional(),
+    modelYear: modelYearSchema.nullable().optional(),
+    vin: vinSchema.nullable().optional(),
+    engineCode: shortTextSchema.nullable().optional(),
+    fuelType: shortTextSchema.nullable().optional(),
+    firstRegistrationDate: isoDateSchema.nullable().optional(),
+    lastInspectionDate: isoDateSchema.nullable().optional(),
+    nextInspectionDueDate: isoDateSchema.nullable().optional(),
+  });
 export type UpdateVehicleInput = z.infer<typeof updateVehicleInputSchema>;
 
 /** The vehicle page — the system's centrepiece (§6.3). */

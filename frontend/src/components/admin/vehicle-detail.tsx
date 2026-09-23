@@ -15,6 +15,7 @@ import {
   type PartnerLink,
 } from 'shared';
 import { DetailLayout } from '@/components/admin/detail-layout';
+import { FieldGrid, FieldGridFull } from '@/components/admin/field-grid';
 import { InlineField } from '@/components/admin/inline-field';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { OdometerSparkline } from '@/components/admin/odometer-sparkline';
@@ -51,8 +52,7 @@ import { formatOdometer } from '@/lib/format/odometer';
 
 const validateName = schemaValidator(nameSchema);
 
-type EditableTextField =
-  'make' | 'model' | 'variant' | 'engineCode' | 'fuelType';
+type EditableTextField = 'variant' | 'engineCode' | 'fuelType';
 type EditableDateField =
   'firstRegistrationDate' | 'lastInspectionDate' | 'nextInspectionDueDate';
 
@@ -96,32 +96,43 @@ export function VehicleDetailPage({
 
   const vehicle = vehicleQuery.data;
 
+  /**
+   * `null`, not `undefined`, for a cleared field. `undefined` is dropped by
+   * `JSON.stringify`, so clearing a VIN used to PATCH `{}` — a successful
+   * no-op that still reported "Sparat" (UI_UX_AUDIT D1). `shared`'s update
+   * contract now separates the two: `undefined` leaves the field alone,
+   * `null` clears it.
+   */
   async function saveText(
     field: EditableTextField,
     value: string,
   ): Promise<void> {
-    await updateVehicle.mutateAsync({
-      [field]: value === '' ? undefined : value,
-    });
+    await updateVehicle.mutateAsync({ [field]: value === '' ? null : value });
+  }
+
+  /** `make` and `model` are `NOT NULL` (§4.2, B3) and cannot be cleared. */
+  async function saveRequiredText(
+    field: 'make' | 'model',
+    value: string,
+  ): Promise<void> {
+    await updateVehicle.mutateAsync({ [field]: value });
   }
 
   async function saveDate(
     field: EditableDateField,
     value: string,
   ): Promise<void> {
-    await updateVehicle.mutateAsync({
-      [field]: value === '' ? undefined : value,
-    });
+    await updateVehicle.mutateAsync({ [field]: value === '' ? null : value });
   }
 
   async function saveModelYear(value: string): Promise<void> {
     await updateVehicle.mutateAsync({
-      modelYear: value === '' ? undefined : Number(value),
+      modelYear: value === '' ? null : Number(value),
     });
   }
 
   async function saveVin(value: string): Promise<void> {
-    await updateVehicle.mutateAsync({ vin: value === '' ? undefined : value });
+    await updateVehicle.mutateAsync({ vin: value === '' ? null : value });
   }
 
   async function handleRefreshVehicleData(): Promise<void> {
@@ -148,9 +159,11 @@ export function VehicleDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={
-          <span>Admin / Fordon / {vehicle.registrationNumberDisplay}</span>
-        }
+        breadcrumb={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Fordon', href: '/admin/fordon' },
+          { label: vehicle.registrationNumberDisplay },
+        ]}
         title={vehicle.registrationNumberDisplay}
         description={`${vehicle.make} ${vehicle.model}${
           vehicle.modelYear === null ? '' : ` · ${String(vehicle.modelYear)}`
@@ -170,62 +183,75 @@ export function VehicleDetailPage({
               <CardHeader>
                 <CardTitle>Teknisk data</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <InlineField
-                  label="Märke"
-                  required
-                  validate={validateName}
-                  value={vehicle.make}
-                  onSave={(value: string) => saveText('make', value)}
-                />
-                <InlineField
-                  label="Modell"
-                  required
-                  validate={validateName}
-                  value={vehicle.model}
-                  onSave={(value: string) => saveText('model', value)}
-                />
-                <InlineField
-                  label="Variant"
-                  value={vehicle.variant ?? ''}
-                  onSave={(value: string) => saveText('variant', value)}
-                  placeholder="T.ex. R-Design"
-                />
-                <InlineField
-                  label="Modellår"
-                  type="number"
-                  validate={validateModelYear}
-                  value={
-                    vehicle.modelYear === null ? '' : String(vehicle.modelYear)
-                  }
-                  onSave={saveModelYear}
-                />
-                <InlineField
-                  label="Chassinummer (VIN)"
-                  validate={validateVin}
-                  value={vehicle.vin ?? ''}
-                  onSave={saveVin}
-                />
-                <InlineField
-                  label="Motorkod"
-                  value={vehicle.engineCode ?? ''}
-                  onSave={(value: string) => saveText('engineCode', value)}
-                />
-                <InlineField
-                  label="Bränsle"
-                  value={vehicle.fuelType ?? ''}
-                  onSave={(value: string) => saveText('fuelType', value)}
-                />
-                <InlineField
-                  label="Första registrering"
-                  type="date"
-                  value={vehicle.firstRegistrationDate ?? ''}
-                  onSave={(value: string) =>
-                    saveDate('firstRegistrationDate', value)
-                  }
-                />
+              <CardContent>
+                <FieldGrid>
+                  <InlineField
+                    label="Märke"
+                    required
+                    undoable
+                    validate={validateName}
+                    value={vehicle.make}
+                    onSave={(value: string) => saveRequiredText('make', value)}
+                  />
+                  <InlineField
+                    label="Modell"
+                    required
+                    undoable
+                    validate={validateName}
+                    value={vehicle.model}
+                    onSave={(value: string) => saveRequiredText('model', value)}
+                  />
+                  <InlineField
+                    label="Variant"
+                    undoable
+                    value={vehicle.variant ?? ''}
+                    onSave={(value: string) => saveText('variant', value)}
+                    placeholder="T.ex. R-Design"
+                  />
+                  <InlineField
+                    label="Modellår"
+                    type="number"
+                    undoable
+                    validate={validateModelYear}
+                    value={
+                      vehicle.modelYear === null
+                        ? ''
+                        : String(vehicle.modelYear)
+                    }
+                    onSave={saveModelYear}
+                  />
+                  <FieldGridFull>
+                    <InlineField
+                      label="Chassinummer (VIN)"
+                      undoable
+                      validate={validateVin}
+                      value={vehicle.vin ?? ''}
+                      onSave={saveVin}
+                    />
+                  </FieldGridFull>
+                  <InlineField
+                    label="Motorkod"
+                    undoable
+                    value={vehicle.engineCode ?? ''}
+                    onSave={(value: string) => saveText('engineCode', value)}
+                  />
+                  <InlineField
+                    label="Bränsle"
+                    undoable
+                    value={vehicle.fuelType ?? ''}
+                    onSave={(value: string) => saveText('fuelType', value)}
+                  />
+                  <InlineField
+                    label="Första registrering"
+                    type="date"
+                    value={vehicle.firstRegistrationDate ?? ''}
+                    onSave={(value: string) =>
+                      saveDate('firstRegistrationDate', value)
+                    }
+                  />
+                </FieldGrid>
 
-                <div className="flex flex-col gap-2 rounded-sharp border border-dashed border-border p-3">
+                <div className="mt-4 flex flex-col gap-2 rounded-sharp border border-dashed border-border p-3">
                   <p className="text-sm font-medium">
                     Biluppgifter från fordonsregistret
                   </p>
@@ -261,40 +287,44 @@ export function VehicleDetailPage({
               <CardHeader>
                 <CardTitle>Besiktning</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <InlineField
-                  label="Senast besiktigad"
-                  type="date"
-                  value={vehicle.lastInspectionDate ?? ''}
-                  onSave={(value: string) =>
-                    saveDate('lastInspectionDate', value)
-                  }
-                />
-                <InlineField
-                  label="Nästa besiktning senast"
-                  type="date"
-                  value={vehicle.nextInspectionDueDate ?? ''}
-                  onSave={(value: string) =>
-                    saveDate('nextInspectionDueDate', value)
-                  }
-                />
-                {vehicle.nextInspectionDueDate === null ? null : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      Status
-                    </span>
-                    <StatusBadge
-                      status={inspectionStatus(vehicle.nextInspectionDueDate)}
-                    />
-                  </div>
-                )}
+              <CardContent>
+                <FieldGrid>
+                  <InlineField
+                    label="Senast besiktigad"
+                    type="date"
+                    value={vehicle.lastInspectionDate ?? ''}
+                    onSave={(value: string) =>
+                      saveDate('lastInspectionDate', value)
+                    }
+                  />
+                  <InlineField
+                    label="Nästa besiktning senast"
+                    type="date"
+                    value={vehicle.nextInspectionDueDate ?? ''}
+                    onSave={(value: string) =>
+                      saveDate('nextInspectionDueDate', value)
+                    }
+                  />
+                  {vehicle.nextInspectionDueDate === null ? null : (
+                    <FieldGridFull className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        Status
+                      </span>
+                      <StatusBadge
+                        status={inspectionStatus(vehicle.nextInspectionDueDate)}
+                      />
+                    </FieldGridFull>
+                  )}
+                </FieldGrid>
               </CardContent>
             </Card>
 
+            {/* Wired up in F11.6, on top of B9. The milestone ids stay in
+                this comment rather than in the Swedish copy a user reads. */}
             <ReservedSection
               icon={WrenchIcon}
               title="Servicerekommendationer"
-              message="Regelmotorns förslag, allvarlighetsgrad och möjligheten att acceptera eller avfärda dem kopplas in i F11.6, sedan B9 finns."
+              message="Servicerekommendationer är under arbete. Förslagen och möjligheten att acceptera eller avfärda dem visas här när funktionen är klar."
             />
 
             <Card className="rounded-soft">
@@ -304,6 +334,7 @@ export function VehicleDetailPage({
               <CardContent>
                 {regNrPartnerLinks.length === 0 ? (
                   <EmptyState
+                    inline
                     icon={Link2Icon}
                     message="Inga partnerlänkar är konfigurerade än."
                   />
@@ -353,6 +384,7 @@ export function VehicleDetailPage({
               <CardContent>
                 {vehicle.customer === null ? (
                   <EmptyState
+                    inline
                     message="Ingen kund kopplad till fordonet."
                     icon={UserRoundIcon}
                   />

@@ -20,13 +20,39 @@ export function EmptyState({
   icon: Icon,
   message,
   action,
+  inline = false,
   className,
 }: {
   readonly icon: LucideIcon;
   readonly message: string;
   readonly action?: ReactNode;
+  /**
+   * The one-line variant, for an empty state *inside* a card.
+   *
+   * The full-page version is ~250 px tall, and a detail page that stacks six
+   * of them (Offerter, Serviceprotokoll, Partnerlänkar, OE-nummer, Fordon,
+   * Arbetsorderhistorik) spends 1 500 px saying six times that there is
+   * nothing to show — the single biggest contributor to detail-page length
+   * (UI_UX_AUDIT R3). A section that is empty should cost about a line.
+   */
+  readonly inline?: boolean;
   readonly className?: string;
 }) {
+  if (inline) {
+    return (
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-x-3 gap-y-2 px-1 py-4',
+          className,
+        )}
+      >
+        <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+        <p className="min-w-0 flex-1 text-sm text-muted-foreground">{message}</p>
+        {action}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

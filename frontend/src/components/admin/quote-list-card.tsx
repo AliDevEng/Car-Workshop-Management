@@ -75,7 +75,7 @@ export function QuoteListCard({
         ) : quotesQuery.isPending ? (
           <TableSkeleton rows={2} columns={3} />
         ) : (quotesQuery.data?.data.length ?? 0) === 0 ? (
-          <EmptyState icon={FileTextIcon} message="Inga offerter skapade än." />
+          <EmptyState inline icon={FileTextIcon} message="Inga offerter skapade än." />
         ) : (
           <ul className="flex flex-col gap-2">
             {quotesQuery.data?.data.map((quote: QuoteListItem) => (

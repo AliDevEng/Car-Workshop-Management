@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-import { UNIT_LABELS, ore, type QuoteLine, type QuoteListItem } from 'shared';
+import { ore, type QuoteLine, type QuoteListItem } from 'shared';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { DocumentPreview } from '@/components/admin/document-preview';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
@@ -27,7 +26,7 @@ import {
 } from '@/lib/api/quotes';
 import { formatCurrency } from '@/lib/format/currency';
 import { formatDate, formatDateOnly } from '@/lib/format/date';
-import { formatQuantityForInput } from '@/lib/form/quantity-input';
+import { formatQuantity } from '@/lib/format/quantity';
 
 const RESPONSE_COPY: Readonly<
   Record<'ACCEPTED' | 'DECLINED', { title: string; description: string }>
@@ -151,18 +150,15 @@ export function QuoteDetailPage({ quoteId }: { readonly quoteId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={
-          <span>
-            Admin /{' '}
-            <Link
-              href={`/admin/arbetsordrar/${quote.workOrderId}`}
-              className="hover:underline"
-            >
-              Arbetsordrar / {quote.workOrderNumber ?? 'Utkast'}
-            </Link>{' '}
-            / {quote.number ?? `Utkast v${String(quote.revision)}`}
-          </span>
-        }
+        breadcrumb={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Arbetsordrar', href: '/admin/arbetsordrar' },
+          {
+            label: quote.workOrderNumber ?? 'Utkast',
+            href: `/admin/arbetsordrar/${quote.workOrderId}`,
+          },
+          { label: quote.number ?? `Utkast v${String(quote.revision)}` },
+        ]}
         title={quote.number ?? `Utkast v${String(quote.revision)}`}
         description={`${quote.vehicle.registrationNumberDisplay} · ${quote.customer.name}`}
         actions={<StatusBadge status={quoteStatus(quote.status)} />}
@@ -183,8 +179,7 @@ export function QuoteDetailPage({ quoteId }: { readonly quoteId: string }) {
                   >
                     <span className="min-w-0 truncate">{line.description}</span>
                     <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {formatQuantityForInput(line.quantity)}{' '}
-                      {UNIT_LABELS[line.unit]}
+                      {formatQuantity(line.quantity, line.unit)}
                       {' · '}
                       {formatCurrency(ore(line.totals.grossOre))}
                     </span>

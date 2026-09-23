@@ -48,7 +48,15 @@ export function ServiceCard({
         </p>
         <div className="mt-6 flex items-center justify-between gap-4 border-t border-steel/20 pt-5 font-sans text-sm font-semibold">
           <span className="tabular-nums">{service.fromPrice}</span>
-          <Link href={`/tjanster/${service.slug}`} className="stretched-link">
+          {/* `min-h-11` and vertical padding: the link's own box was
+              51 × 20 px, well under the 44 px touch target the project
+              holds itself to elsewhere (UI_UX_AUDIT P3, WCAG 2.5.8). The
+              card is a stretched link, so this is about the fallback hit
+              area and about matching the rest of the site. */}
+          <Link
+            href={`/tjanster/${service.slug}`}
+            className="stretched-link inline-flex min-h-11 items-center py-3"
+          >
             Läs mer<span className="sr-only"> om {service.name}</span>
           </Link>
         </div>

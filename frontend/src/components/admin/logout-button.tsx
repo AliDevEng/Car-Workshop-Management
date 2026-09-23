@@ -11,7 +11,11 @@ import { notifyError } from './notify';
 
 const logoutResponseSchema = z.null();
 
-export function LogoutButton() {
+export function LogoutButton({
+  className,
+}: {
+  readonly className?: string;
+}) {
   const [isPending, setIsPending] = useState(false);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -37,6 +41,7 @@ export function LogoutButton() {
       type="button"
       variant="ghost"
       size="sm"
+      className={className}
       onClick={() => {
         void logout();
       }}

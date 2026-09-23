@@ -1,6 +1,8 @@
 'use client';
 
+import { CheckIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import { notifyUndoable } from '@/components/admin/notify';
 import { DatePicker } from '@/components/form/date-picker';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -25,6 +27,20 @@ export interface InlineFieldProps {
    * are not written to accept empty.
    */
   readonly validate?: (value: string) => string | undefined;
+  /**
+   * Read-only, with a reason. A completed work order is locked by the
+   * backend, and the screen used to say so in one sentence inside the lines
+   * card while its description, note and odometer fields stayed editable and
+   * went on auto-saving (UI_UX_AUDIT W4).
+   */
+  readonly disabled?: boolean;
+  /**
+   * Offers "Ångra" in the toast after a successful save, restoring the value
+   * this field held before it. Off by default: a field whose save has side
+   * effects beyond the value itself cannot be undone by writing the old one
+   * back, and silently pretending otherwise would be worse than no undo.
+   */
+  readonly undoable?: boolean;
 }
 
 /**
@@ -46,6 +62,8 @@ export function InlineField({
   placeholder,
   required = false,
   validate,
+  disabled = false,
+  undoable = false,
 }: InlineFieldProps) {
   const id = useId();
   const [text, setText] = useState(value);
@@ -105,12 +123,23 @@ export function InlineField({
     // silently overwrite this field's still-being-corrected text with the
     // last known-good server value, while its error message stayed on
     // screen describing a value that is no longer even shown.
+    const previous = value;
     dirty.current = false;
     setError(undefined);
     setStatus('saving');
     try {
       await onSave(trimmed);
       setStatus('saved');
+      if (undoable && !(required && previous === '')) {
+        notifyUndoable(`${label} sparad.`, () => {
+          dirty.current = false;
+          setText(previous);
+          void onSave(previous).catch(() => {
+            setStatus('error');
+            setError('Ändringen kunde inte ångras.');
+          });
+        });
+      }
       savedTimer.current = window.setTimeout(() => {
         setStatus('idle');
       }, SAVED_INDICATOR_MS);
@@ -127,11 +156,25 @@ export function InlineField({
   const aria = {
     id,
     'aria-invalid': invalid ? (true as const) : undefined,
+    disabled,
   };
 
   return (
     <Field data-invalid={invalid ? 'true' : undefined}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldLabel htmlFor={id} className="flex items-center gap-1.5">
+        {label}
+        {/*
+         * A check beside the label, not only grey text below it. Auto-save
+         * is invisible by design, and its one acknowledgement was easy to
+         * miss entirely (UI_UX_AUDIT M2).
+         */}
+        {status === 'saved' ? (
+          <CheckIcon
+            aria-hidden="true"
+            className="size-3.5 text-status-moss"
+          />
+        ) : null}
+      </FieldLabel>
       {multiline ? (
         <Textarea
           {...aria}

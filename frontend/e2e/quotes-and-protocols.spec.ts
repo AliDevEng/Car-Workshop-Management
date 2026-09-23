@@ -49,7 +49,13 @@ async function createCompletedWorkOrder(
   await page.goto('/admin/arbetsordrar');
   await page.getByRole('button', { name: 'Ny arbetsorder' }).click();
   await page.getByLabel('Sök fordon').fill(plate);
-  await page.getByText(plate.slice(0, 3), { exact: false }).first().waitFor();
+  // Scoped to the dialog: the list behind it renders its rows twice — a
+  // table above `md` and cards below it (UI_UX_AUDIT L2).
+  await page
+    .getByRole('dialog')
+    .getByText(plate.slice(0, 3), { exact: false })
+    .first()
+    .waitFor();
   await page.locator('.max-h-40 button').first().click();
   await page.getByLabel('Beskrivning').fill('F10 e2e: service');
   await page.getByRole('button', { name: 'Skapa arbetsorder' }).click();
@@ -67,10 +73,13 @@ async function createCompletedWorkOrder(
     .click();
   await expect(page.getByText('Raden är tillagd.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Sätt som pågår' }).click();
+  await page.getByRole('button', { name: 'Påbörja arbetet' }).click();
   await expect(page.getByText('Status ändrad till Pågår.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Slutför arbetsorder' }).first().click();
+  await page
+    .getByRole('button', { name: 'Slutför arbetsorder' })
+    .first()
+    .click();
   await page.locator('#complete-odometer-out').fill('12345');
   await page
     .getByRole('dialog')
@@ -98,13 +107,13 @@ test.describe('quotes and service protocols (F10)', () => {
 
     // Navigated to the new quote's own page.
     await expect(page).toHaveURL(/\/offerter\/.+/);
-    await expect(page.getByRole('heading', { name: /Utkast v1/ })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /Utkast v1/ }),
+    ).toBeVisible();
     await expect(page.getByText('Utkast', { exact: true })).toBeVisible();
     // The frontend never recalculates a total — this is `workOrder.totals`
     // read straight off the quote (F10.6.3): 800 kr net + 25 % VAT.
-    await expect(
-      page.getByText('1 000,00 kr', { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText('1 000,00 kr', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Skicka offert' }).click();
     await page
@@ -113,23 +122,28 @@ test.describe('quotes and service protocols (F10)', () => {
       .click();
     await expect(page.getByText('Offerten är skickad.')).toBeVisible();
     await expect(page.getByText('Skickad', { exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /^OF-2026-/ })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /^OF-2026-/ }),
+    ).toBeVisible();
 
     // F10.5.1 — the inline PDF preview loads (a real fetched blob, not a
     // broken frame) and the download fallback points at the real file.
     await expect(page.locator('iframe')).toHaveAttribute('src', /^blob:/, {
       timeout: 15_000,
     });
-    await expect(
-      page.getByRole('link', { name: 'Ladda ner' }),
-    ).toHaveAttribute('href', /\/api\/documents\/.+\/file/);
+    await expect(page.getByRole('link', { name: 'Ladda ner' })).toHaveAttribute(
+      'href',
+      /\/api\/documents\/.+\/file/,
+    );
 
     await page.getByRole('button', { name: 'Registrera accepterad' }).click();
     await page
       .getByRole('dialog')
       .getByRole('button', { name: 'Registrera accepterad' })
       .click();
-    await expect(page.getByText('Svaret är registrerat: accepterad.')).toBeVisible();
+    await expect(
+      page.getByText('Svaret är registrerat: accepterad.'),
+    ).toBeVisible();
     await expect(page.getByText('Accepterad', { exact: true })).toBeVisible();
 
     // F10.2.3 — a sent (here: accepted) quote is read-only; only a new
@@ -138,8 +152,12 @@ test.describe('quotes and service protocols (F10)', () => {
       page.getByText('En skickad offert är skrivskyddad.'),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Skapa ny version' }).click();
-    await expect(page.getByText('En ny version av offerten är skapad.')).toBeVisible();
-    await expect(page.getByRole('heading', { name: /Utkast v2/ })).toBeVisible();
+    await expect(
+      page.getByText('En ny version av offerten är skapad.'),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /Utkast v2/ }),
+    ).toBeVisible();
 
     // Back on the work order, both versions are listed (F10.2.1).
     await page.goto(page.url().replace(/\/offerter\/.+$/, ''));
@@ -191,7 +209,9 @@ test.describe('quotes and service protocols (F10)', () => {
     await expect(page).toHaveURL(/\/protokoll\/[^/]+$/);
     await expect(page.getByText('Utkast', { exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Finalisera serviceprotokoll' }).click();
+    await page
+      .getByRole('button', { name: 'Finalisera serviceprotokoll' })
+      .click();
     await page
       .getByRole('dialog')
       .getByRole('button', { name: 'Finalisera serviceprotokoll' })
@@ -199,8 +219,12 @@ test.describe('quotes and service protocols (F10)', () => {
     await expect(
       page.getByText('Serviceprotokollet är finaliserat.'),
     ).toBeVisible();
-    await expect(page.getByRole('heading', { name: /^SP-2026-/ })).toBeVisible();
-    await expect(page.getByText('Finaliserad', { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /^SP-2026-/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Finaliserad', { exact: true }).first(),
+    ).toBeVisible();
     await expect(page.locator('iframe')).toHaveAttribute('src', /^blob:/, {
       timeout: 15_000,
     });

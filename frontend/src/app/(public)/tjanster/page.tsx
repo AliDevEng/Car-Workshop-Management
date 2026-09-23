@@ -27,7 +27,7 @@ export default function ServicesPage() {
         </div>
       </header>
       <section className="site-container pb-24 sm:pb-32">
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-2">
           {services.map((service, index) => (
             <ServiceCard key={service.slug} service={service} index={index} />
           ))}

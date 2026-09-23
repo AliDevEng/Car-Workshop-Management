@@ -57,7 +57,11 @@ test.describe('calendar and booking requests (F8)', () => {
   const tomorrow = addStockholmDays(stockholmDate(new Date()), 1);
 
   test('submits two real public booking requests', async ({ page }) => {
-    await submitPublicBookingRequest(page, confirmedCustomer, uniquePhone(stamp));
+    await submitPublicBookingRequest(
+      page,
+      confirmedCustomer,
+      uniquePhone(stamp),
+    );
     await submitPublicBookingRequest(
       page,
       rejectedCustomer,
@@ -73,7 +77,10 @@ test.describe('calendar and booking requests (F8)', () => {
     await login(page);
     await page.goto('/admin/bokningar?vy=forfragningar');
 
-    await page.getByText(confirmedCustomer).click();
+    // By cell role: the inbox renders each row twice — a table above `md`
+    // and cards below it — and only the visible one is in the accessibility
+    // tree (UI_UX_AUDIT L2).
+    await page.getByRole('cell', { name: confirmedCustomer }).click();
     await expect(
       page.getByRole('heading', { name: confirmedCustomer }),
     ).toBeVisible();
@@ -103,9 +110,9 @@ test.describe('calendar and booking requests (F8)', () => {
     await expect(page.locator(`[data-date="${yesterday}"]`)).toBeDisabled();
 
     await page.locator(`[data-date="${tomorrow}"]`).click();
-    await expect(
-      page.getByRole('button', { name: 'Välj datum' }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Välj datum' })).toHaveCount(
+      0,
+    );
 
     await page.getByRole('button', { name: 'Bekräfta bokning' }).click();
     await expect(
@@ -114,7 +121,9 @@ test.describe('calendar and booking requests (F8)', () => {
 
     // Gone from the pending inbox — it is `CONFIRMED` now.
     await page.goto('/admin/bokningar?vy=forfragningar&status=PENDING');
-    await expect(page.getByText(confirmedCustomer)).not.toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: confirmedCustomer }),
+    ).toHaveCount(0);
   });
 
   test('the confirmed booking is visible and reschedulable on tomorrow’s day view, keyboard-accessibly (F8.4, F8.6.4)', async ({
@@ -123,7 +132,9 @@ test.describe('calendar and booking requests (F8)', () => {
     await login(page);
     await page.goto(`/admin/bokningar?vy=dag&date=${tomorrow}`);
 
-    const block = page.getByRole('button', { name: new RegExp(confirmedCustomer) });
+    const block = page.getByRole('button', {
+      name: new RegExp(confirmedCustomer),
+    });
     // A generous timeout: this run may share the dev database and backend
     // process with other spec files running in parallel workers.
     await expect(block).toBeVisible({ timeout: 15_000 });
@@ -137,20 +148,16 @@ test.describe('calendar and booking requests (F8)', () => {
     // `PATCH /bookings/:id` the drag gesture also calls, reached entirely
     // by keyboard (F8.6.4).
     await page.getByLabel('Starttid').fill('10:00');
-    await page
-      .getByRole('button', { name: 'Spara ändringar' })
-      .click();
+    await page.getByRole('button', { name: 'Spara ändringar' }).click();
 
-    await expect(
-      page.getByText('Bokningen är uppdaterad.'),
-    ).toBeVisible();
+    await expect(page.getByText('Bokningen är uppdaterad.')).toBeVisible();
   });
 
   test('rejects a request with a reason (F8.1.4)', async ({ page }) => {
     await login(page);
     await page.goto('/admin/bokningar?vy=forfragningar');
 
-    await page.getByText(rejectedCustomer).click();
+    await page.getByRole('cell', { name: rejectedCustomer }).click();
     await page.getByRole('button', { name: 'Avvisa' }).click();
 
     await expect(
@@ -163,6 +170,8 @@ test.describe('calendar and booking requests (F8)', () => {
 
     await expect(page.getByText('Förfrågan är avvisad.')).toBeVisible();
     await page.goto('/admin/bokningar?vy=forfragningar&status=PENDING');
-    await expect(page.getByText(rejectedCustomer)).not.toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: rejectedCustomer }),
+    ).toHaveCount(0);
   });
 });

@@ -230,7 +230,8 @@ export function BookingRequestInbox({
       id: 'regNr',
       header: 'Regnr',
       cell: (request: BookingRequest) => (
-        <span className="tabular-nums">{request.regNr ?? 'Saknas'}</span>
+        // An em dash, not the word 'Saknas' repeated down the column.
+        <span className="tabular-nums">{request.regNr ?? '—'}</span>
       ),
     },
     {
@@ -244,6 +245,7 @@ export function BookingRequestInbox({
     {
       id: 'submittedAt',
       header: 'Inkommen',
+      hideBelow: 'lg',
       cell: (request: BookingRequest) => (
         <span className="tabular-nums">{formatDate(request.submittedAt)}</span>
       ),
@@ -251,6 +253,7 @@ export function BookingRequestInbox({
     {
       id: 'status',
       header: 'Status',
+      mobile: 'trailing',
       cell: (request: BookingRequest) => (
         <span className="flex items-center gap-2">
           <StatusBadge status={bookingRequestStatus(request.status)} />
@@ -266,7 +269,7 @@ export function BookingRequestInbox({
     <>
       <ListPage
         filters={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <Select
               value={status}
               onValueChange={(next: string) => {
@@ -285,11 +288,9 @@ export function BookingRequestInbox({
                 ))}
               </SelectContent>
             </Select>
-            {requestsQuery.data === undefined ? null : (
-              <Badge tone="hivis">
-                {requestsQuery.data.unhandledCount} obehandlade
-              </Badge>
-            )}
+            {/* The unhandled count is already in the sidebar and in this
+                screen's own tab label; a third copy beside the filter told
+                nobody anything new (UI_UX_AUDIT C5). */}
           </div>
         }
         table={

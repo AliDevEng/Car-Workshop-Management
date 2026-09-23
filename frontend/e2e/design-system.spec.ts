@@ -62,8 +62,12 @@ test.describe('tokens and type', () => {
     page,
   }) => {
     // The scoped class is the whole mechanism: one class, every primitive.
+    // `.first()` is `<body>`, which now carries it too so Radix portals — they
+    // mount outside the layout wrapper — resolve the admin tokens rather than
+    // the public ones (UI_UX_AUDIT G4).
     const background = await page
       .locator('.admin-scope')
+      .first()
       .evaluate((element) =>
         getComputedStyle(element).getPropertyValue('--background').trim(),
       );

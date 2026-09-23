@@ -19,6 +19,7 @@ import { DatePicker } from '@/components/form/date-picker';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -444,7 +445,7 @@ export function ConfirmBookingRequestDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
+        <DialogBody>
           <CustomerPicker
             request={request}
             override={customerOverride}
@@ -583,7 +584,7 @@ export function ConfirmBookingRequestDialog({
               placeholder="Valfritt, synlig internt"
             />
           </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <Button

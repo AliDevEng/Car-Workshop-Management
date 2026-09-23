@@ -1,16 +1,22 @@
 # Frontend UI/UX audit
 
-**Date:** 2026-09-22 · **Build:** `c5b65c6` (main) · **Scope:** admin panel and
-public site, `pnpm dev` against the seeded dev database.
+**Audited:** 2026-09-22 · **Build:** `c5b65c6` (main) · **Scope:** admin panel
+and public site, `pnpm dev` against the seeded dev database.
 
-This is a findings list, not a fix. Nothing described here has been changed.
-Each item states what is wrong, where it comes from in the code, and how it
-should be fixed. Items are ordered by area; the [fix order](#suggested-fix-order)
-at the end ranks them by impact.
+**Resolved: 2026-09-23. All 41 findings are fixed and verified in a browser.**
+See [what was changed](#what-was-changed) at the end for the fix record, the
+measurements taken afterwards, and the regression guards added so these
+cannot come back quietly.
 
-Several items overlap with milestones already planned in F11/F12 (settings,
-error pages, cross-device pass). They are listed anyway, because they are
-visible today, and the F12 milestone they belong to is noted where relevant.
+The findings below are kept **as written on 2026-09-22**, in the present
+tense, because the value of an audit is the record of what was wrong and why
+— not a list of ticks. Each item states what was wrong, where it came from in
+the code, and how it should be fixed; the fix record says what was actually
+done where that differs.
+
+Several items overlapped with milestones already planned in F11/F12 (settings,
+error pages, cross-device pass). They were fixed now anyway, because they were
+visible then, and the F12 milestone they belong to is noted where relevant.
 
 ## How this was tested
 
@@ -37,6 +43,8 @@ visible today, and the F12 milestone they belong to is noted where relevant.
 | **S3** | Minor: inconsistency, polish, or an edge viewport |
 
 ## Index
+
+All rows are **fixed** as of 2026-09-23; see [what was changed](#what-was-changed).
 
 | ID | Sev | Area | Finding |
 |---|---|---|---|
@@ -782,3 +790,167 @@ A single Playwright spec that visits every admin route at 390, 768, 1024 and
 - an opened dialog's background matches the admin token
 
 It would have caught G1, G2, G4 and R1, and it fits F12.6.
+
+**Built** as `e2e/admin-layout.spec.ts`, with one addition: the copy rule is
+*also* a source scan (`src/lib/admin/user-facing-copy.test.ts`), which runs in
+`pnpm check` without a browser and catches a milestone id before it is ever
+rendered. The browser spec keeps the same assertion, because what a user sees
+is the thing that actually matters.
+
+---
+
+## What was changed
+
+**2026-09-23.** All 41 findings fixed, in the order the list itself
+recommended. `pnpm check` is clean — typecheck, lint, **943 tests**
+(787 backend, 156 frontend, plus `shared`), type-coverage **99.58 %**.
+
+Every Playwright spec passes, including nine assertions updated to the
+behaviour this pass deliberately changed (listed below). A *full* run of the
+whole suite on this machine does not go green — and did not before this work
+either; see [the note on running the suite](#one-thing-to-know-about-running-the-suite)
+for the before/after measurement.
+
+### Where the work landed
+
+| Area | Files |
+|---|---|
+| Shell, navigation, overlays | `admin-shell.tsx`, `booking-badge.tsx`, `logout-button.tsx`, `global-search.tsx`, `admin-scope-body.tsx` (new), `app/(admin)/layout.tsx`, `page-header.tsx`, `installningar/page.tsx` (new), `not-found.tsx` + `[...unmatched]/page.tsx` (new) |
+| Data correctness | `shared/schemas/customer.ts`, `shared/schemas/vehicle.ts`, `backend/modules/vehicles/service.ts`, `customer-detail.tsx`, `vehicle-detail.tsx`, `lib/format/quantity.ts` |
+| Lists | `data-table.tsx`, `list-page.tsx`, and the five list screens |
+| Work order | `work-order-detail.tsx`, `work-order-lines.tsx`, `work-order-status-control.tsx`, `detail-layout.tsx`, `inline-field.tsx`, `converting-input.tsx`, `shared/work-order-state.ts` |
+| Calendar | `calendar-grid.tsx`, `calendar-toolbar.tsx`, `bookings-calendar-page.tsx`, `booking-block.tsx`, `lib/admin/use-match-media.ts` (new) |
+| Dialogs | `ui/dialog.tsx` (new `DialogBody`), four dialogs restructured |
+| Shared primitives | `states.tsx` (`inline` empty state), `field-grid.tsx` (new), `ui/select.tsx`, `form/date-picker.tsx`, `notify.ts` (`notifyUndoable`) |
+| Public site | `app/(public)/page.tsx`, `tjanster/page.tsx`, `service-card.tsx`, `site-footer.tsx`, `styles/public.css` |
+| Development | `shared/tsup.config.ts` |
+
+### Decisions worth knowing about
+
+Four changes were larger than "apply the suggested fix", and each is recorded
+as a row in the root `README.md` decision log:
+
+1. **D1 needed an API contract change**, agreed with the human first, as this
+   document asked. `PROJECT_SPEC.md` §8.1 now states the rule for every
+   endpoint rather than for these two: **`undefined` leaves a field alone,
+   `null` clears it.** The backend needed nothing beyond `toDateColumn`
+   accepting `null` — its existing spreads already pass one through.
+2. **G4 is fixed with a body class, not a portal container.** Threading
+   `container` into every Radix `Portal` has to be remembered by each
+   primitive ever added, and one that forgets fails identically. A body class
+   cannot be forgotten and covers toasts too.
+2a. **G6 needed a catch-all route, not only a `not-found.tsx`.** Adding the
+   file exactly as this document specifies left `/admin/finns-inte` on Next's
+   white English 404 — a nested `not-found.tsx` is reached by a `notFound()`
+   thrown *inside* its segment, while an address matching no route at all
+   falls through to the root one, outside every layout. Caught by opening the
+   URL in a browser rather than by trusting the file. `[...unmatched]/page.tsx`
+   inside `(authenticated)` now matches whatever nothing more specific did
+   and throws `notFound()`, so the panel's own Swedish page renders inside the
+   shell — and, because it sits inside the authenticated segment, a signed-out
+   visitor is still redirected to the login page rather than told the page does
+   not exist. The public site's own unmatched URLs still get Next's default;
+   that is outside this audit's scope and is left as a finding for F12.4.
+3. **G2/G3 became one change**, not five. The shell is now a fixed-height
+   application layout with a single scrolling `<main>`, which also gives list
+   headers and the calendar's day headers a sticky containing block — so L1's
+   `max-h-[70vh]` and C2's `top-16` offset both stopped being necessary
+   rather than being separately patched.
+4. **C1 changes what a column means in the week view.** Seven days split by
+   mechanic needed 2 940 px for a two-mechanic workshop. The week view now
+   gives each *day* one flexible column with every mechanic in it, named on
+   the block and laid into side-by-side lanes when jobs overlap; per-mechanic
+   columns remain in the day view, where planning happens. A drag in the week
+   view therefore moves a booking in time and leaves its mechanic alone.
+
+Two suggestions were **not** followed, deliberately:
+
+- **L1's tooltip on truncated cells.** Cells wrap within a `max-w` instead. A
+  tooltip is hover-only, and §6.5 rules out hover-dependent controls on the
+  tablet this is used on.
+- **C1's "hide days the workshop is closed".** The grid has no opening-hours
+  dependency and inventing one for a cosmetic gain is not worth the coupling;
+  with columns flexed, all seven days fit. Saturday and Sunday stay tinted.
+
+### Measured afterwards
+
+Driven in Chrome against the live backend, at 390 × 844, 768 × 1024,
+1024 × 768 and 1440 × 900, over all seven admin routes:
+
+- **Horizontal overflow: 0 px everywhere** (was 23 px at 390 px — G1).
+- **Vertical document overflow: 0 px everywhere.** The page itself no longer
+  scrolls at all; `<main>` does, so the navigation is permanently in place
+  (G2, G3).
+- **No milestone id in any rendered text** (R1).
+- **An open dialog's background is `rgb(42, 60, 70)`** = `--color-steel-2`,
+  the admin raised surface. The mobile navigation sheet matches (G4).
+- **A phone dialog's submit button is visible without scrolling** (M1).
+- **D1 verified end to end:** set an address, reload, clear it, reload — the
+  field is now empty. Before, the old value came back.
+- **M2 verified:** the save toast offers "Ångra" and restores the previous
+  value.
+- **C3/C4 verified:** at 390 px `/admin/bokningar` lands on
+  `?vy=dag&date=2026-09-23` — the day view, with the view in the URL.
+- **G6 verified:** `/admin/finns-inte` renders "Sidan finns inte" inside the
+  shell on the steel background, with the navigation available. Before the
+  catch-all route it was still Next's white English 404 — see 2a above.
+- **Detail-page height at 1280 × 720**, against this document's own
+  measurements: work order **2.3× → 1.85×**, vehicle **2.9× → 2.36×**,
+  article **1.08×**.
+- **Public site:** no element under a 44 px touch target on `/` at either
+  390 px or 768 px (was two); `/tjanster` **5.7× → 3.33×** at 768 px.
+
+### Regression guards added
+
+- `frontend/e2e/admin-layout.spec.ts` — the spec this document asked for,
+  plus a check that an unmatched `/admin/...` URL stays inside the shell.
+- `frontend/src/lib/admin/user-facing-copy.test.ts` — the milestone-id scan,
+  in `pnpm check`, with `styleguide.tsx` exempt (it is an internal design
+  reference and cites its iterations on purpose).
+
+### Existing tests that changed, and why
+
+Nine assertions in the e2e suite were coupled to markup or copy this pass
+changed on purpose. Each was updated to the new behaviour, not loosened:
+
+- **The status action is "Påbörja arbetet"**, not "Sätt som pågår" (W3).
+- **A draft's heading is "Arbetsorder (utkast)"**, not "Utkast" (W7).
+- **The lock is a banner** reading "Arbetsordern är låst. …", and the test
+  now also asserts the order's description is `disabled` — which is the part
+  of W4 that was actually broken.
+- **The work-order header has two chips**, so "Visa fordon" is now
+  `Fordon: <plate> ›` (W6).
+- **`.admin-scope` is on `<body>` as well as the wrapper** (G4), so the two
+  theming tests took `.first()` — and gained an explicit check that the body
+  class is present on an admin route and *gone* on the public site, which is
+  the thing that makes "scoped, not global" true.
+- **Four `getByText` row queries became role queries.** A list renders its
+  rows twice now — a table above `md`, cards below it — so page-wide text
+  queries match the hidden copy as well. Role queries do not: a
+  `display: none` layout is not in the accessibility tree. Two dialog
+  queries were scoped to their dialog for the same reason.
+
+### One thing to know about running the suite
+
+**Every Playwright spec passes when run on its own or by file. A full run of
+the whole suite on this machine does not go green, and it did not before this
+work either.** That was measured rather than assumed: the same full serial run
+on `main` with these changes stashed came back **1 failed / 65 passed**, on a
+*different* test (`customers-vehicles` F6.6.1, a `toHaveURL` timeout after
+creating a vehicle). With the changes applied it is **2 failed / 66 passed**,
+and both failures are the two specs that submit *public* booking requests.
+
+Those two are the rate limiter, confirmed in the backend log rather than
+inferred: `POST /api/public/booking-requests` → **429**. The global ceiling is
+300 requests per minute per IP (§5.4) and the entire suite shares one address,
+so a dense run can cross it; the same tests pass once the minute has rolled.
+CI's `retries: 2` absorbs this, and both are worth knowing about before
+chasing either as a regression.
+
+The first version of the new layout spec made the pressure worse rather than
+merely meeting it — four logins and a page load per route *per viewport*, 28
+in all, landing immediately before the public-booking specs in file order.
+It now logs in once, visits each route once, and checks the four widths by
+**resizing**: every responsive rule it asserts is CSS, so a resize
+re-evaluates all of it. Seven page loads instead of 28, and 14 s instead of
+26 s, with the same coverage.

@@ -58,6 +58,7 @@ export function QuantityInput({
       {...(unit === undefined
         ? {}
         : {
+            suffix: UNIT_LABELS[unit],
             preview: (canonical: string) =>
               `${formatQuantityForInput(canonical)} ${UNIT_LABELS[unit]}`,
           })}

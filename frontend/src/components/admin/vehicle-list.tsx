@@ -97,7 +97,7 @@ export function VehicleListPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={<span>Admin / Fordon</span>}
+        breadcrumb={[{ label: 'Admin', href: '/admin' }, { label: 'Fordon' }]}
         title="Fordon"
         description="Sök på registreringsnummer, märke eller modell."
         actions={<CreateVehicleDialog />}
@@ -105,7 +105,7 @@ export function VehicleListPage({
 
       <ListPage
         filters={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <Input
               value={queryInput}
               onChange={(event) => {
@@ -118,7 +118,7 @@ export function VehicleListPage({
             <Button
               type="button"
               variant={inspectionDueSoon ? 'primary' : 'secondary'}
-              size="sm"
+              size="lg"
               onClick={() => {
                 setInspectionDueSoon((current) => !current);
                 setCursorStack([]);
@@ -148,6 +148,7 @@ export function VehicleListPage({
               rows={vehiclesQuery.data?.data ?? []}
               rowKey={(vehicle) => vehicle.id}
               caption="Fordon"
+              rowHref={(vehicle: Vehicle) => `/admin/fordon/${vehicle.id}`}
               onRowActivate={(vehicle: Vehicle) => {
                 router.push(`/admin/fordon/${vehicle.id}`);
               }}

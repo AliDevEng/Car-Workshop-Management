@@ -190,6 +190,59 @@ describe('vehicles', () => {
     expect(vehicleSchema.parse(jsonBody(detached)).customerId).toBeNull();
   });
 
+  /**
+   * UI_UX_AUDIT D1, the vehicle half. `customerId` above always worked this
+   * way; the rest of the optional columns did not, so clearing a VIN or a
+   * model year was a successful no-op. §8.1 settles the rule for every
+   * endpoint, and each field is asserted rather than the one that was noticed.
+   */
+  it.each([
+    ['variant', 'R-Design'],
+    ['modelYear', 2019],
+    ['vin', 'YV1MW7331P1234567'],
+    ['engineCode', 'B4204T11'],
+    ['fuelType', 'Bensin'],
+    ['firstRegistrationDate', '2019-04-01'],
+    ['lastInspectionDate', '2025-03-14'],
+    ['nextInspectionDueDate', '2026-03-31'],
+  ])('clears %s when sent as null', async (field, value) => {
+    const vehicle = await createVehicle(harness, agent, {
+      // A distinct, standard-format plate per case: the registration number
+      // carries §4.2's unique index.
+      registrationNumber: `NUL${String(field.length).padStart(2, '0')}${field
+        .slice(0, 1)
+        .toUpperCase()}`,
+      make: 'Volvo',
+      model: 'V60',
+      [field]: value,
+    });
+    expect(vehicle).toMatchObject({ [field]: value });
+
+    async function patch(body: Record<string, unknown>) {
+      const response = await withAgent(
+        supertest(harness.app.server).patch(`/api/vehicles/${vehicle.id}`),
+        agent,
+      )
+        .send(body)
+        .expect(200);
+      return vehicleSchema.parse(jsonBody(response));
+    }
+
+    // Absent leaves it alone; `null` clears it.
+    expect(await patch({ model: 'V60 Cross Country' })).toMatchObject({
+      [field]: value,
+    });
+    expect(await patch({ [field]: null })).toMatchObject({ [field]: null });
+
+    const reread = await withAgent(
+      supertest(harness.app.server).get(`/api/vehicles/${vehicle.id}`),
+      agent,
+    ).expect(200);
+    expect(vehicleSchema.parse(jsonBody(reread))).toMatchObject({
+      [field]: null,
+    });
+  });
+
   it('filters the list by customer', async () => {
     const owner = await createCustomer(harness, agent, 'Listägare');
     await createVehicle(harness, agent, {

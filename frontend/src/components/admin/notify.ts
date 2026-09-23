@@ -40,6 +40,33 @@ export function notifyWarning(message: string, description?: string): void {
 }
 
 /**
+ * A change that has already happened, with a way back.
+ *
+ * Inline fields save on blur (F6.2.1), which is right for a workshop — but
+ * it also means a mistyped phone number is committed the moment focus
+ * leaves, including when the user clicks a navigation link, and the only
+ * feedback was small grey text under the field (UI_UX_AUDIT M2). The undo
+ * lives in a toast rather than in the field because by then the field may no
+ * longer be on screen.
+ *
+ * Longer than a plain success toast: undo is only useful while the offer is
+ * still visible.
+ */
+const UNDOABLE_MS = 8000;
+
+export function notifyUndoable(
+  message: string,
+  undo: () => void,
+  description?: string,
+): void {
+  toast.success(message, {
+    duration: UNDOABLE_MS,
+    ...(description === undefined ? {} : { description }),
+    action: { label: 'Ångra', onClick: undo },
+  });
+}
+
+/**
  * Raises an error toast from anything a mutation can throw.
  *
  * `ApiError.message` is already Swedish and already safe to show — the

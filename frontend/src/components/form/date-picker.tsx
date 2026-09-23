@@ -19,6 +19,7 @@ export interface DatePickerProps {
   readonly placeholder?: string;
   readonly disablePast?: boolean;
   readonly optional?: boolean;
+  readonly disabled?: boolean;
   readonly className?: string;
   readonly 'aria-describedby'?: string | undefined;
   readonly 'aria-invalid'?: boolean | undefined;
@@ -36,6 +37,7 @@ export function DatePicker({
   placeholder = 'Välj datum',
   disablePast = false,
   optional = false,
+  disabled = false,
   className,
   ...aria
 }: DatePickerProps) {
@@ -49,6 +51,7 @@ export function DatePicker({
             id={id}
             type="button"
             variant="secondary"
+            disabled={disabled}
             className={cn(
               'h-11 min-w-0 flex-1 justify-start px-3 tabular-nums',
               value === null && 'text-muted-foreground',
@@ -73,7 +76,7 @@ export function DatePicker({
         </PopoverContent>
       </Popover>
 
-      {optional && value !== null ? (
+      {optional && value !== null && !disabled ? (
         <Button
           type="button"
           variant="ghost"

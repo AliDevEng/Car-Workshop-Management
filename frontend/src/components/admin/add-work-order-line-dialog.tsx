@@ -25,6 +25,7 @@ import { QuantityInput } from '@/components/form/quantity-input';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -42,6 +43,7 @@ import {
 } from '@/components/ui/select';
 import { useArticles } from '@/lib/api/articles';
 import { useAddWorkOrderLine } from '@/lib/api/work-orders';
+import { formatQuantity } from '@/lib/format/quantity';
 
 const SEARCH_DEBOUNCE_MS = 250;
 const VAT_RATE_OPTIONS = [2500, 1200, 600, 0] as const;
@@ -151,7 +153,7 @@ function ArticlePicker({
                 </span>
               </span>
               <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                {article.stockQuantity} {UNIT_LABELS[article.unit]} i lager
+                {formatQuantity(article.stockQuantity, article.unit)} i lager
               </span>
             </button>
           ))}
@@ -228,11 +230,12 @@ export function AddWorkOrderLineDialog({
         </DialogHeader>
 
         <form
-          className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1"
+          className="flex min-h-0 flex-1 flex-col gap-4"
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             void form.handleSubmit(submit)(event);
           }}
         >
+          <DialogBody>
           <FormField control={form.control} name="type" label="Typ" required>
             {({
               aria,
@@ -392,6 +395,7 @@ export function AddWorkOrderLineDialog({
               )}
             </FormField>
           </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button

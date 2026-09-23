@@ -39,6 +39,9 @@ export default async function BookingsPage({
   return (
     <BookingsCalendarPage
       initialTab={defaultBookingsTab(vy, date)}
+      // Whether the *user* chose a view, so the client may fall back to the
+      // day view on a phone without overriding an explicit `?vy=vecka`.
+      tabWasRequested={vy !== undefined}
       initialDate={defaultBookingsDate(date)}
       {...(initialStatus === undefined ? {} : { initialStatus })}
     />
