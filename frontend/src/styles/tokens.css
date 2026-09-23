@@ -22,6 +22,66 @@
   --radius-soft: 10px; /* content surfaces: cards, dialogs */
 
   /*
+   * ---------------------------------------------------------------------
+   * F13 — the admin workspace (ADMIN_PANEL_REDESIGN.md §10)
+   * ---------------------------------------------------------------------
+   *
+   * The admin panel moves from the dark steel surface to a light, colourful
+   * composition: a deep navy navigation rail against a pale canvas, white
+   * work panels and pastel overview cards. The public site is untouched —
+   * everything above this block still paints it, and `.admin-scope` in
+   * `globals.css` is the only thing that consumes what is below.
+   *
+   * Every value here was measured with `lib/contrast.ts` before it was
+   * written down; the numbers are recorded beside the pairs that use them in
+   * `globals.css` and are re-measured live on `/admin/styleguide`.
+   */
+
+  /* The navigation rail. Navy, and it stays navy in the light appearance —
+     the rail/workspace contrast is the defining part of the reference. */
+  --color-navy: #111936;
+  --color-navy-raised: #243058; /* selected / hovered destination */
+  --color-navy-line: #2b3760; /* quiet divider inside the rail */
+  --color-navy-ink: #f8faff; /* 16.54:1 on navy, 12.27:1 on raised */
+  --color-navy-muted: #b8c4e0; /* 9.88:1 on navy, 7.33:1 on raised */
+
+  /* The workspace. Pale canvas, white panels, a gentle raised neutral. */
+  --color-canvas: #f3f6fb;
+  --color-panel: #ffffff;
+  --color-panel-raised: #edf2f8; /* hovered row, grouping without borders */
+
+  /* Warm brand accent. Used for the active rail indicator and icon discs;
+     white on it is only 2.93:1, so it never carries a white glyph. */
+  --color-ember: #ea763f; /* 5.89:1 on navy */
+
+  /*
+   * Category accents — a family kept deliberately separate from the status
+   * tokens above. A violet work-order icon does not mean an order is violet;
+   * a rose customer icon is not an error. `status.ts` stays authoritative for
+   * meaning, and these only say *which part of the product* you are looking
+   * at. `cat` rather than `accent`: shadcn already owns `--accent`, where it
+   * means "the hover surface", and two different things called accent in one
+   * stylesheet is how a hover tint ends up as a section identity.
+   *
+   * Each pair is a soft surface plus an ink that reads AA on it, on white
+   * and on the canvas (measured: 5.37–7.77:1).
+   */
+  --color-cat-blue-soft: #e8f2ff;
+  --color-cat-blue: #1d4fb0;
+  --color-cat-lilac-soft: #f0eafe;
+  --color-cat-lilac: #6234b8;
+  --color-cat-peach-soft: #fff0e5;
+  --color-cat-peach: #a8441a;
+  --color-cat-mint-soft: #e8f7ee;
+  --color-cat-mint: #19663d;
+  --color-cat-amber-soft: #fff7d6;
+  --color-cat-amber: #7a5600;
+  --color-cat-rose-soft: #fce8ef;
+  --color-cat-rose: #a3325c;
+  --color-cat-teal-soft: #e2f4f5;
+  --color-cat-teal: #0f6870;
+
+  /*
    * Both `--font-display` and `--font-body-admin` resolve to the same
    * self-hosted Archivo variable file (frontend/src/fonts/index.ts) — see
    * that file for why "Archivo Expanded" isn't a separate download. Display

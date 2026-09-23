@@ -37,6 +37,21 @@ export function formatDateOnly(value: string): string {
   return formatDate(`${value}T12:00:00.000Z`);
 }
 
+/**
+ * "onsdag 23 september" — the dashboard heading (ADMIN_PANEL_REDESIGN.md
+ * §5.1). Midday UTC, like `formatDateOnly`: a bare calendar date has no time,
+ * and anchoring it at noon keeps it on the intended day on both sides of a
+ * daylight-saving transition.
+ */
+export function formatWeekdayDate(value: string): string {
+  return formatInTimeZone(
+    new Date(`${value}T12:00:00.000Z`),
+    WORKSHOP_TIMEZONE,
+    'EEEE d MMMM',
+    { locale: sv },
+  );
+}
+
 /** e.g. "för 2 dagar sedan". A duration, so timezone-independent. */
 export function formatRelative(value: Date | string): string {
   return formatDistanceToNow(toDate(value), { addSuffix: true, locale: sv });

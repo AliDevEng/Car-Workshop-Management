@@ -23,8 +23,13 @@ import { expect, test, type Page } from '@playwright/test';
 const ADMIN_EMAIL = 'admin@verkstaden.se';
 const ADMIN_PASSWORD = 'utveckling-admin-2026';
 
-/** `--color-steel-2` from `styles/tokens.css`, the admin raised surface. */
-const ADMIN_POPOVER_BACKGROUND = 'rgb(42, 60, 70)';
+/**
+ * `--color-panel` from `styles/tokens.css`: the admin panel surface, white
+ * since the F13 redesign. Still the point of the check — an overlay that
+ * resolved the *public* tokens would come back concrete (`rgb(242, 243, 241)`),
+ * which is a different wrong colour rather than no colour at all.
+ */
+const ADMIN_POPOVER_BACKGROUND = 'rgb(255, 255, 255)';
 
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
@@ -103,8 +108,9 @@ test('admin routes fit every supported viewport', async ({ page }) => {
       ).toBeLessThanOrEqual(overflow.clientWidth);
 
       // The navigation must still be reachable from the bottom of a long
-      // page: either the persistent sidebar, or the menu button that opens
-      // it on a phone.
+      // page: either the persistent rail, or the bottom bar on a phone.
+      // Both are permanent — neither scrolls away, and the phone no longer
+      // hides its navigation behind a menu button (F13.3).
       await page.evaluate(() => {
         const main = document.querySelector('main');
         main?.scrollTo(0, main.scrollHeight);
@@ -112,7 +118,7 @@ test('admin routes fit every supported viewport', async ({ page }) => {
       const nav =
         viewport.width >= 768
           ? page.getByRole('navigation', { name: 'Admin' }).first()
-          : page.getByRole('button', { name: 'Öppna meny' });
+          : page.getByRole('navigation', { name: 'Huvudmeny' });
       await expect(
         nav,
         `${route} loses its navigation at ${String(viewport.width)} px`,

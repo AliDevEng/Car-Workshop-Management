@@ -156,10 +156,13 @@ test.describe('self-hosted fonts', () => {
     await expect(page.locator('body.admin-scope')).toHaveCount(1);
     const scope = page.locator('.admin-scope').first();
     await expect(scope).toBeVisible();
-    // #1c2b33 — the steel token, applied on admin routes only.
-    await expect(scope).toHaveCSS('background-color', 'rgb(28, 43, 51)');
+    // #f3f6fb — the pale canvas the F13 redesign moved the admin panel to,
+    // applied on admin routes only. The public surface below is unchanged,
+    // which is what proves the palette is still scoped rather than global.
+    await expect(scope).toHaveCSS('background-color', 'rgb(243, 246, 251)');
+    // The dashboard heading is the selected day ("Idag · onsdag 23 september").
     await expect(
-      page.getByRole('heading', { name: 'Adminpanelen' }),
+      page.getByRole('heading', { level: 1, name: /^Idag/ }),
     ).toBeVisible();
 
     // The public surface keeps its own concrete background (#e6e8e5), and

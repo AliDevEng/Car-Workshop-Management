@@ -45,6 +45,24 @@ const nextConfig: NextConfig = {
     qualities: [60, 75],
   },
 
+  /*
+   * The development route indicator is turned off, not moved.
+   *
+   * It defaults to the bottom-left corner, which is where F13.3 put the
+   * admin panel's mobile bottom navigation — its circle covered the first
+   * tab and swallowed taps meant for it, in the browser and in Playwright.
+   * Every other corner it offers is taken at 390 px too: top-right is the
+   * public site's menu button, top-left the admin panel's brand link, and
+   * bottom-right the `Mer` tab. This was measured, one corner at a time.
+   *
+   * Development-only, so nothing shipped was ever affected, and per the
+   * installed docs Next still surfaces every compile and runtime error with
+   * the indicator disabled. What it costs is the static/dynamic route badge.
+   * See `node_modules/next/dist/docs/01-app/03-api-reference/05-config/
+   * 01-next-config-js/devIndicators.md`.
+   */
+  devIndicators: false,
+
   rewrites() {
     // Development-only convenience: production routes /api/* to the backend
     // via Caddy (README.md "Runtime topology"), so the browser always calls

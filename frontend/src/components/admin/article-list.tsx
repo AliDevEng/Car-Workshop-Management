@@ -1,6 +1,11 @@
 'use client';
 
-import { PackageSearchIcon, PlusIcon, TriangleAlertIcon } from 'lucide-react';
+import {
+  BoxesIcon,
+  PackageSearchIcon,
+  PlusIcon,
+  TriangleAlertIcon,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { ore, type Article, type LowStockArticle } from 'shared';
@@ -9,7 +14,11 @@ import { DataTable, type DataTableColumn } from '@/components/admin/data-table';
 import { ListPage } from '@/components/admin/list-page';
 import { PageHeader } from '@/components/admin/page-header';
 import { stockLevelStatus } from '@/components/admin/status';
-import { EmptyState, ErrorState, TableSkeleton } from '@/components/admin/states';
+import {
+  EmptyState,
+  ErrorState,
+  TableSkeleton,
+} from '@/components/admin/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiError } from '@/lib/api';
@@ -33,7 +42,14 @@ const SEARCH_DEBOUNCE_MS = 250;
  */
 type ArticleStockRow = Pick<
   Article,
-  'id' | 'sku' | 'name' | 'unit' | 'salesPriceOre' | 'stockQuantity' | 'minimumQuantity' | 'location'
+  | 'id'
+  | 'sku'
+  | 'name'
+  | 'unit'
+  | 'salesPriceOre'
+  | 'stockQuantity'
+  | 'minimumQuantity'
+  | 'location'
 >;
 
 function StockCell({ row }: { readonly row: ArticleStockRow }) {
@@ -102,7 +118,8 @@ function matchesQuery(row: LowStockArticle, query: string): boolean {
     return true;
   }
   return (
-    row.name.toLowerCase().includes(term) || row.sku.toLowerCase().includes(term)
+    row.name.toLowerCase().includes(term) ||
+    row.sku.toLowerCase().includes(term)
   );
 }
 
@@ -170,6 +187,8 @@ export function ArticleListPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         breadcrumb={[{ label: 'Admin', href: '/admin' }, { label: 'Lager' }]}
+        icon={BoxesIcon}
+        accent="amber"
         title="Lager"
         description="Sök på artikelnummer, namn eller OE-nummer."
         actions={
@@ -240,9 +259,7 @@ export function ArticleListPage({
               size="lg"
               disabled={lowStock}
               title={
-                lowStock
-                  ? 'Bristlistan visar bara aktiva artiklar.'
-                  : undefined
+                lowStock ? 'Bristlistan visar bara aktiva artiklar.' : undefined
               }
               onClick={() => {
                 setShowInactive((current) => !current);

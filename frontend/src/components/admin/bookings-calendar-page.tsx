@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { PlusIcon } from 'lucide-react';
+import { CalendarDaysIcon, PlusIcon } from 'lucide-react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
@@ -235,9 +235,11 @@ export function BookingsCalendarPage({
       <PageHeader
         breadcrumb={[
           { label: 'Admin', href: '/admin' },
-          { label: 'Bokningar' },
+          { label: 'Planering' },
         ]}
-        title="Bokningar"
+        icon={CalendarDaysIcon}
+        accent="blue"
+        title="Planering"
         description="Bekräfta förfrågningar och planera veckan."
         /*
          * No count badge here. The unhandled-request count already appears

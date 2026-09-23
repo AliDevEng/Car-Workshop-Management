@@ -10,7 +10,11 @@ import { ListPage } from '@/components/admin/list-page';
 import { PageHeader } from '@/components/admin/page-header';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { inspectionStatus } from '@/components/admin/status';
-import { EmptyState, ErrorState, TableSkeleton } from '@/components/admin/states';
+import {
+  EmptyState,
+  ErrorState,
+  TableSkeleton,
+} from '@/components/admin/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiError } from '@/lib/api';
@@ -98,6 +102,8 @@ export function VehicleListPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         breadcrumb={[{ label: 'Admin', href: '/admin' }, { label: 'Fordon' }]}
+        icon={CarFrontIcon}
+        accent="teal"
         title="Fordon"
         description="Sök på registreringsnummer, märke eller modell."
         actions={<CreateVehicleDialog />}

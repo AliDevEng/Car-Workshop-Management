@@ -41,7 +41,26 @@ from milestone completions only. Keep existing task IDs when adding new work.
 
 ## Status
 
-**Overall: 66/84 milestones complete; 8/13 iterations Done.**
+**Overall: 66/96 milestones complete; 8/14 iterations Done.**
+
+**2026-09-23 — F13 admin redesign added, then partly built: 0/12 milestones.**
+The user accepted the browser review's direction, supplied a reference
+dashboard image and asked for a welcoming, lively, icon-rich admin panel. Read
+[`ADMIN_PANEL_REDESIGN.md`](ADMIN_PANEL_REDESIGN.md) for the observations,
+screen behavior, design rationale, contract work and acceptance scenarios, and
+[its §18](ADMIN_PANEL_REDESIGN.md#18-implementation-record) for what has
+actually been built.
+
+**The admin panel now looks the way the brief describes: the visual system,
+the navigation shell and the dashboard are implemented and verified in a
+browser.** The counter stays at **0/12** on purpose. Five tasks are ticked —
+F13.2.1, F13.2.5, F13.3.1, F13.4.1 and F13.4.4 — and every one of the twelve
+milestones still holds tasks that are not done: the shared and backend
+contracts in F13.1, the dark appearance preference, the extended search, the
+mechanic scope, and the whole of F13.5–F13.9's calendar, booking, work-order,
+register and inventory work. A redesigned surface is not a delivered workflow,
+and this file counts workflows. F13 runs before F12's final acceptance;
+iteration IDs remain stable.
 
 **2026-09-23 — all 41 findings in [`UI_UX_AUDIT.md`](UI_UX_AUDIT.md) are
 fixed and verified in a browser.** The count above is unchanged on purpose:
@@ -63,7 +82,8 @@ primitives every later iteration builds on, and one API contract — see
 | [F9](#f9)   | Work orders                               | 4     | F4, B4, B5, B6                     | 7/7             | Done        |
 | [F10](#f10) | Quotes and service protocols              | 5     | F9, B7, B8                         | 5/6             | In progress |
 | [F11](#f11) | Settings, service rules and partner links | 6     | F4, B9, B10; settings contracts    | 0/6             | Not started |
-| [F12](#f12) | Polish, accessibility and performance     | 8     | F0–F11, B11, B12; B13 measurements | 0/8             | Not started |
+| [F13](#f13) | Admin workflow and visual redesign       | 8     | Implemented F4–F10 flows; scoped shared/backend work | 0/12 | Not started |
+| [F12](#f12) | Polish, accessibility and performance     | 8     | F0–F11, F13, B11, B12; B13 measurements | 0/8         | Not started |
 
 Statuses: **Not started**, **In progress**, **Blocked**, **Done**. Installing
 packages establishes the dependency baseline; it does not complete an
@@ -81,7 +101,7 @@ application milestone. All implementation milestones are initially unchecked.
 | 5     | F10 documents                     | Recommendation pre-filling waits for F11.6                                  |
 | 6     | F11 settings and service advice   | F11.6 activates advice in the public site, vehicle detail and protocols     |
 | 7     | Backend B11/B12 hardening         | Supplies the privacy and deployment dependencies verified in F12            |
-| 8     | F12 polish and final acceptance   | F12.7 activates privacy actions and verifies production sessions            |
+| 8     | F13 admin redesign, then F12 acceptance | F13 uses existing workflows; F12.7 activates privacy actions and verifies production sessions |
 
 ## Installed package baseline
 
@@ -191,8 +211,22 @@ a permanent version requirement.
 
 ## Design direction
 
-Fixed here so that every iteration builds the same product. The reasoning is in
-`PROJECT_SPEC.md` §9.
+The baseline below records the design used by completed F0–F10 work. The
+**admin-only F13 amendment** in `PROJECT_SPEC.md` §9.8 and
+[`ADMIN_PANEL_REDESIGN.md`](ADMIN_PANEL_REDESIGN.md) supersedes its fixed admin
+palette, control radii, heading width, navigation arrangement and appearance
+restrictions. Public design and status meanings remain unchanged. Keep
+historical completion records intact; the redesign has its own tasks and
+evidence.
+
+**As of 2026-09-23 the admin half of this baseline is history, not description.**
+The admin panel is no longer the dark steel surface described under "Tokens"
+below: `.admin-scope` now resolves a light workspace — navy navigation rail,
+pale canvas, white panels, pastel overview cards, a warm orange principal
+action and a category-accent family for section identity. The tokens listed
+here still paint the public site, and the status map is unchanged and still
+authoritative. See [the brief's §18](ADMIN_PANEL_REDESIGN.md#18-implementation-record)
+for what that covers and `src/styles/globals.css` for the measured values.
 
 ### Concept
 
@@ -2936,6 +2970,367 @@ get Next's white English 404. The admin's is fixed (a `not-found.tsx` plus a
 thrown inside its own segment); the public equivalent was outside this audit's
 scope and is not claimed.
 
+<a id="f13"></a>
+
+## F13 — Admin workflow and visual redesign
+
+**Goal:** make daily workshop work easier to find and complete through clearer
+priority, contextual actions, readable planning, useful mobile layouts and a
+consistent admin visual system.
+
+**Design source:** [`ADMIN_PANEL_REDESIGN.md`](ADMIN_PANEL_REDESIGN.md), accepted
+direction recorded 2026-09-23. Read the full brief before implementation; it
+defines the why, screen behavior, contract gaps, fixtures and compatibility rules.
+`PROJECT_SPEC.md` §9.8 records the scoped amendment to the previous design.
+
+**Phase:** 8. **Entry dependencies:** implemented F4–F10 workflows and their
+backend contracts. F13.1 owns the additional shared/backend groundwork below.
+Provider/photography blockers do not block shell, dashboard or layout work.
+F11 settings, F10 vehicle documents and F12.7 privacy keep their feature owners.
+
+**Execution order:** F13 precedes final F12 acceptance. It does not depend on
+F12 completion. Finish available predecessor work according to the phase rules;
+do not infer that adding this plan authorizes implementation in this
+documentation-only session. A later instruction to build F13 supplies that scope.
+
+**Definition of done:** all twelve milestones pass against real APIs and
+controlled synthetic data; old links and domain protections remain valid;
+desktop/tablet/mobile and both appearances meet the brief's acceptance criteria;
+quality/build/browser evidence is recorded and handed to F12. No feature is
+counted complete on the strength of a mock or placeholder.
+
+**Milestone checklist — 0/12 complete:**
+
+- [ ] **[F13.1](#f13-1)** — Baseline, URL state and contract groundwork
+- [ ] **[F13.2](#f13-2)** — Admin visual system and appearances
+- [ ] **[F13.3](#f13-3)** — Navigation, account controls and global search
+- [ ] **[F13.4](#f13-4)** — Actionable dashboard and role defaults
+- [ ] **[F13.5](#f13-5)** — Calendar, agenda and unassigned planning
+- [ ] **[F13.6](#f13-6)** — Request handling and telephone-booking forms
+- [ ] **[F13.7](#f13-7)** — Work-order lists and execution workspace
+- [ ] **[F13.8](#f13-8)** — Contextual customer and vehicle workspaces
+- [ ] **[F13.9](#f13-9)** — Inventory alignment and feature hand-offs
+- [ ] **[F13.10](#f13-10)** — Cross-device, accessibility and copy verification
+- [ ] **[F13.11](#f13-11)** — Production performance and loading behavior
+- [ ] **[F13.12](#f13-12)** — Journey evidence and F12 hand-over
+
+<a id="f13-1"></a>
+
+### F13.1 Baseline, URL state and contract groundwork
+
+**Acceptance:** a reproducible baseline and real typed data support the planned
+workflows; no count or search result depends on a capped client-side approximation.
+Brief reference: §§2, 5.3, 8, 12, 14.
+
+- [ ] **F13.1.1** Capture current UI with isolated normal/stress fixtures and
+      document existing uncommitted work to preserve. Record role/viewport/build.
+- [ ] **F13.1.2** Define and test the URL vocabulary, including old `vy`, `date`,
+      `status`, `bookingId` and hash links; specify selected-item/back behavior.
+- [ ] **F13.1.3** Extend shared/backend search for bounded work-order/quote-number
+      results, parent identity, authorization and deterministic result ordering.
+- [ ] **F13.1.4** Extend the dashboard contract for active work, bounded actionable
+      requests and mechanic scope; preserve date semantics and matching predicates.
+- [ ] **F13.1.5** Supply complete server-side active/date-filtered order reads with
+      stable pagination; document date meaning and eliminate misleading sample counts.
+- [ ] **F13.1.6** Verify or implement an authorized record-scoped work-order
+      activity source. Keep it separate from customer/vehicle service history and
+      the privileged global audit endpoint; define its DTO in shared.
+- [ ] **F13.1.7** Run relevant contract/route tests and affected query probes;
+      document request limits, permissions and remaining integration ownership.
+
+<a id="f13-2"></a>
+
+### F13.2 Admin visual system and appearances
+
+**Acceptance:** dark and light admin appearances have verified semantic tokens,
+stable initial rendering and correctly themed overlays; public styling is intact.
+Brief reference: §10.
+
+- [x] **F13.2.1** Add admin-scoped graphite/light tokens, separate readable status
+      inks, fills, control boundaries and focus states; preserve status meanings.
+      **Done 2026-09-23, as the reference-led light workspace** — the brief's
+      §10 revision supersedes "graphite", and the user's reference image is
+      what settled it. `tokens.css` gains the navy rail, the pale canvas, the
+      white panel and raised neutral, a warm `ember` accent and a seven-pair
+      **category-accent** family; `globals.css` remaps `.admin-scope` onto them
+      and adds `.admin-rail` for the navigation and for anything that *is* the
+      navigation somewhere else — which is what keeps the mobile menu sheet
+      navy although Radix portals it onto `<body>`.
+      The category family is deliberately separate from the status family, and
+      `components/admin/accent.tsx` says why in the file itself: a violet
+      work-order icon is not a violet status. `status.ts` is untouched and
+      remains the only authority on meaning.
+      One primitive change fell out of it. `Button`'s primary variant hovered
+      to `signal-lift` **by name**, which is blue — correct while the primary
+      action was blue on both surfaces, and a different button entirely once
+      the admin panel's is orange. It hovers to `--primary-hover` now. The
+      destructive variant filled from `oxide` by name for the same reason, and
+      oxide beside the new orange is the same button twice; it fills from
+      `--destructive`, which is rose-red in the admin panel and still oxide on
+      the public site.
+- [ ] **F13.2.2** Refine Archivo heading width, control radii, spacing, table
+      dividers and surface levels through the live styleguide.
+- [ ] **F13.2.3** Implement validated admin-only appearance persistence and initial
+      rendering without flash/hydration mismatch or a new global theme dependency.
+- [ ] **F13.2.4** Extend the central body/portal bridge and verify dialogs, sheets,
+      selects, pickers and toasts in both appearances and public/admin navigation.
+- [x] **F13.2.5** Measure rendered contrast and hit areas; record values rather
+      than treating the brief's proposed hex palette as pre-validated.
+      **Done 2026-09-23, and it changed three of the brief's values.** Every
+      pair was measured with `lib/contrast.ts` before it was written down, the
+      numbers are recorded beside each token in `globals.css` and in
+      [the brief's §18.4](ADMIN_PANEL_REDESIGN.md#184-measured-contrast), and
+      `/admin/styleguide` re-measures them from the live document — so a token
+      edit that breaks a pair shows up on a page rather than in a report.
+      The proposed `#c64f1d` primary measures **4.63:1** with white: a pass
+      with almost no margin, on a button that also renders at 50 % opacity
+      while pending. Darkened to `#bf4a1a`, 4.99:1. The proposed input boundary
+      was under the 3:1 non-text floor; `#7e8da8` measures 3.10:1 on the canvas.
+      And white on the warm accent is **2.93:1** — below what a meaningful
+      graphic needs — so there are no saturated discs with white glyphs
+      anywhere: every icon tile is a pale surface with a strong icon, 5.4–7.8:1.
+      Hit areas were swept at 320/390/768/1024/1440 px, which found the mobile
+      search trigger still at the 36 px the UI/UX audit's header squeeze had
+      settled on. F13 moved the account block out of the header, so the room
+      exists and it is 44 px now.
+
+<a id="f13-3"></a>
+
+### F13.3 Navigation, account controls and global search
+
+**Acceptance:** daily work is grouped and reachable across devices; existing
+routes remain valid and authorized order/quote results navigate correctly.
+Brief reference: §§4, 11, 12.2.
+
+- [x] **F13.3.1** Group `Idag`, `Planering`, `Arbetsordrar`; separate registers
+      and bottom utility/account controls while preserving the single main scroll.
+      **Done 2026-09-23.** `Dagligt arbete` and `Register` are labelled groups
+      in the navy rail, `Inställningar` sits below a divider as a utility, and
+      the account block moved to the rail's foot — which frees the header for
+      search and puts sign-out in one predictable place on a shared machine.
+      The active destination carries three signals, not a tint alone: the
+      raised navy surface, an ember bar down its leading edge and an ember
+      icon. §9.2's "colour is never the only signal" applies to "you are here"
+      too, and on the 76 px collapsed rail the tint is the first thing to go.
+      `Bokningar` is now `Planering` and `Översikt` is now `Idag`. **No URL
+      changed**, so bookmarks, the dashboard's deep links and every existing
+      Playwright journey still resolve.
+      The single `h-dvh` shell with one scrolling `<main>` is preserved exactly
+      as UI_UX_AUDIT G2/G3 left it.
+      **One defect found here.** The account block on a single row inside the
+      240 px rail had about 45 px left for the name after the avatar and the
+      "Logga ut" label, and rendered "Ann…" / "Admin…" — losing both facts it
+      exists to state. Two rows now, with a full-width 44 px sign-out.
+- [ ] **F13.3.2** Implement compact/tablet navigation with accessible labels and
+      mobile `Idag`, `Planering`, `Arbete`, `Mer`, safe areas and role-aware settings.
+- [ ] **F13.3.3** Render the extended search union, preserve keyboard/escape
+      behavior and scope recent entries/cache correctly on logout and user switch.
+- [ ] **F13.3.4** Verify deep links, navigation focus, search destinations and
+      account/appearance/logout access at all target widths.
+
+<a id="f13-4"></a>
+
+### F13.4 Actionable dashboard and role defaults
+
+**Acceptance:** pending work and productive actions appear early, including when
+the schedule is empty; counts, rows and linked destinations agree.
+Brief reference: §5.
+
+- [x] **F13.4.1** Build the compact action/header and four operational summaries.
+      **Done 2026-09-23.** A `Hej Anna!` greeting over the selected day
+      (`Idag · onsdag 23 september`), then four pastel summary cards with
+      colored icon containers: förfrågningar in amber, the day's bookings in
+      blue, väntar på delar in peach and klara för hämtning in mint.
+      All four read the **existing** dashboard contract. The brief also asks
+      for an in-progress count and actionable request rows; those need F13.1's
+      contract work and were not invented — the fourth card is the day's
+      booking count, which the response already carries.
+      The greeting reads the signed-in user through a new
+      `CurrentUserProvider`, so it costs no second `/auth/me`: that read is
+      deliberately `no-store` (F0.4.7) and would otherwise be a real request on
+      every dashboard render.
+      `Ny bokning` is the warm principal action and navigates to
+      `/admin/bokningar`. It does not deep-link into the open dialog, because
+      that needs a URL parameter and §12.2 gives the vocabulary to F13.1.
+- [ ] **F13.4.2** Arrange schedule and actionable queue with compact empty states;
+      move inspection/stock follow-up below the primary work area.
+- [ ] **F13.4.3** Implement mechanic `Mina arbeten` and administrator workshop
+      defaults, explicit scope switching and shared unassigned-work access.
+- [x] **F13.4.4** Verify current-queue versus selected-date copy, Stockholm dates,
+      filtered links, loading/error recovery and the mobile first-content target.
+      **Done 2026-09-23.** The description now says which numbers follow the
+      selected date and which describe the queues as they are right now, so a
+      historical date cannot read as a snapshot of that day's inbox (§5.2).
+      Two copy fixes from the review: the empty schedule said the workshop
+      "kan ta den i lugn ordning", which the data does not support — an empty
+      day says nothing about the inbox or the cars already in the workshop
+      (R02) — and "Klicka vidare till listan som äger arbetet" was
+      implementation language on a product screen.
+      Dates go through `formatWeekdayDate`, which anchors a bare calendar date
+      at midday UTC like `formatDateOnly`, so it stays on the intended day
+      across a daylight-saving boundary.
+      Every count still links to the matching filtered page, asserted by
+      `e2e/dashboard.spec.ts`. Replacing the two count tiles with panels would
+      have quietly removed the one-click route to the besiktning and bristlista
+      lists, so both panels keep an explicit link at every count, including
+      zero. Loading, error and retry are covered by the same spec against an
+      intercepted 500. At 390×844 the first operational summary is on screen
+      without scrolling.
+
+<a id="f13-5"></a>
+
+### F13.5 Calendar, agenda and unassigned planning
+
+**Acceptance:** every booking stays readable and reachable under overlap, and
+staff can plan by date/mechanic without a drag-only interaction.
+Brief reference: §§6.1–6.2, 11.
+
+- [ ] **F13.5.1** Separate `Kalender`/`Förfrågningar` from `Dag`/`Vecka`/`Lista`;
+      preserve old URLs, explicit view selection and back/forward behavior.
+- [ ] **F13.5.2** Provide the selected-range `Ej tilldelade` queue without
+      allocating fake mechanic capacity or double-counting bookings.
+- [ ] **F13.5.3** Implement readable overlap packing and an accessible overflow
+      list; verify long identities and 6–10 overlapping unassigned fixtures.
+- [ ] **F13.5.4** Provide the mobile agenda and compact controls; keep a deliberate
+      grid mode, current-day/time cues and correct opening-hours context.
+- [ ] **F13.5.5** Preserve collision/past-slot rules, explicit non-drag moving,
+      duration and rollback; verify against real scheduling endpoints.
+
+<a id="f13-6"></a>
+
+### F13.6 Request handling and telephone-booking forms
+
+**Acceptance:** staff can book a caller with the documented minimum and handle
+a request without losing identity, calendar context or input on failure.
+Brief reference: §§6.3, 7.
+
+- [ ] **F13.6.1** Use a desktop side sheet and mobile full-screen surface for
+      booking details, retaining correct focus/close/history behavior.
+- [ ] **F13.6.2** Make request inspection and confirmation one coherent flow,
+      including explicit customer/vehicle matching and review before mutation.
+- [ ] **F13.6.3** Put customer/time before optional details in telephone booking;
+      keep vehicle optional and support existing/new/context-prefilled records.
+- [ ] **F13.6.4** Replace the long availability list with an honest summary and
+      expandable detail; unknown availability must not appear confirmed free.
+- [ ] **F13.6.5** Verify date/time pickers, dirty-close behavior, failure recovery,
+      pending submit, mobile keyboard/footer and cache/focus updates after success.
+
+<a id="f13-7"></a>
+
+### F13.7 Work-order lists and execution workspace
+
+**Acceptance:** identity and next action remain clear throughout editing; list
+filters are truthful and all existing concurrency/stock/document protections hold.
+Brief reference: §8.
+
+- [ ] **F13.7.1** Implement quick views, advanced-filter sheet, active-filter count,
+      URL restoration and complete paginated results using F13.1 contracts.
+- [ ] **F13.7.2** Create the compact sticky order header, productive next action
+      and secondary destructive-action menu.
+- [ ] **F13.7.3** Organize work/material, context/totals, documents and authorized
+      activity history; retain nested document links and tab draft state.
+- [ ] **F13.7.4** Preserve truthful autosave/error feedback, version conflicts,
+      line mutation semantics and locked completed/cancelled records.
+- [ ] **F13.7.5** Verify completion requirements, single stock deduction,
+      server-calculated totals, immutable PDFs and return-to-list context.
+
+<a id="f13-8"></a>
+
+### F13.8 Contextual customer and vehicle workspaces
+
+**Acceptance:** routine work can start from the correct customer/vehicle without
+re-entry; ownership, history and required customer resolution remain correct.
+Brief reference: §§9.1–9.2.
+
+- [ ] **F13.8.1** Promote customer `Ny bokning`; move deactivation into secondary
+      actions and preserve privacy-feature ownership and confirmations.
+- [ ] **F13.8.2** Promote vehicle `Ny arbetsorder`/`Ny bokning`; group technical
+      data and keep contact, mileage, inspection and history prominent.
+- [ ] **F13.8.3** Share creation form behavior across entry points; validate
+      context IDs and handle inactive/missing/ownerless records explicitly.
+- [ ] **F13.8.4** Verify clearing optional fields, autosave recovery, owner change,
+      persistent vehicle history and user-initiated provider lookup.
+
+<a id="f13-9"></a>
+
+### F13.9 Inventory alignment and feature hand-offs
+
+**Acceptance:** inventory follows the new interaction patterns without altered
+stock semantics, and unfinished features keep explicit integration owners.
+Brief reference: §§9.3–9.4, 13.
+
+- [ ] **F13.9.1** Align stock table/cards, shortage cues, filters, article actions
+      and bristlista export with the common visual/interaction patterns.
+- [ ] **F13.9.2** Verify stock adjustment/stocktake traceability, units, warnings
+      and service-article behavior against existing contracts.
+- [ ] **F13.9.3** Record F11 settings/recommendation, F10 vehicle-document and
+      F12.7 privacy hand-offs; apply shared patterns to available integrations.
+- [ ] **F13.9.4** Confirm unavailable features have truthful states and are not
+      counted as delivered; record which F13 evidence later integrations must rerun.
+
+<a id="f13-10"></a>
+
+### F13.10 Cross-device, accessibility and copy verification
+
+**Acceptance:** the brief's device matrix works in both appearances and both
+roles, with accessible operation and clear Swedish copy. Brief reference: §14.
+
+- [ ] **F13.10.1** Verify all target viewports, 320 px, zoom, overflow, sticky
+      regions, mobile first-content targets and software-keyboard interactions.
+- [ ] **F13.10.2** Complete keyboard/focus/overlay/reduced-motion checks and live
+      contrast measurements; preserve the 44 px admin target requirement.
+- [ ] **F13.10.3** Review Swedish navigation, status, action, empty/error and
+      saving copy; remove internal implementation language from product screens.
+- [ ] **F13.10.4** Record actual-device evidence separately from emulation and
+      explicitly hand any remaining workshop-device release checks to F12.6.
+
+<a id="f13-11"></a>
+
+### F13.11 Production performance and loading behavior
+
+**Acceptance:** the redesign meets the existing initial admin JS budget and
+introduces no hidden request amplification or misleading loading state.
+Brief reference: §14.4.
+
+- [ ] **F13.11.1** Measure initial admin JS, including required shared chunks,
+      against the <200 KB gzip budget on a production build; record route/tooling.
+- [ ] **F13.11.2** Split heavy secondary content where measured useful; preserve
+      draft state, stable skeleton geometry and responsive first interaction.
+- [ ] **F13.11.3** Inspect request waterfalls, scoped query keys and invalidation;
+      remeasure affected backend search/dashboard/list budgets using B13 tooling.
+- [ ] **F13.11.4** Record local versus production-host evidence accurately;
+      preserve F12/B13 ownership of final production acceptance.
+
+<a id="f13-12"></a>
+
+### F13.12 Journey evidence and F12 hand-over
+
+**Acceptance:** the redesign is implemented and reviewable, with no unchecked
+integration hidden behind a polished surface. Brief reference: §§14, 16.
+
+- [ ] **F13.12.1** Run the brief's complete affected journeys against real APIs,
+      including role switching, conflicts, old links, stock and stored documents.
+- [ ] **F13.12.2** Run `pnpm check`, production build and affected Playwright
+      suites; record date, commit, commands and results.
+- [ ] **F13.12.3** Attach stable before/after evidence with synthetic data and
+      record material departures from the brief with their reasons.
+- [ ] **F13.12.4** Reconcile milestone counts, spec/decision references and both
+      READMEs; hand fresh evidence and remaining release checks to F12.
+
+**Iteration acceptance record**
+
+- [ ] **F13 Done** — all milestones and the Definition of Done pass; counts and
+      evidence are updated. The completed brief alone does not satisfy this box.
+
+| Field | Record |
+| --- | --- |
+| Current milestone / blocker | In progress. The visual system, shell and dashboard are built (F13.2.1, F13.2.5, F13.3.1, F13.4.1, F13.4.4). **F13.1 is the blocker for most of what remains** — the in-progress count, actionable request rows, mechanic scope, complete order filtering, the order/quote search union and the work-order activity source are all contract work that does not exist yet. F13.2.3's dark appearance and F13.3.2's role-aware settings are unblocked but unbuilt; the settings gate is deliberately deferred to F11, which owns the permission it would express. |
+| Design direction | Accepted by the user on 2026-09-23, revised the same day from the user's reference dashboard image: a light, colorful workspace with a navy rail, replacing the earlier graphite-and-dark proposal. [`PROJECT_SPEC.md` §9.8](../docs/PROJECT_SPEC.md#98-admin-redesign-f13) and [`DECISIONS.md`](../docs/DECISIONS.md) are updated; the detailed brief is linked above. |
+| Verification evidence | 2026-09-23/24, Node 22.21.1, pnpm 12.3.4, Chrome stable, Windows 11, against a live backend and PostgreSQL. `pnpm typecheck`, `pnpm lint --max-warnings 0`, `pnpm test` (187 frontend tests) and `type-coverage` 99.60 % against a 99.5 % floor: clean. `pnpm exec playwright test`: **78 passed, 0 failed** at one worker against a freshly started backend — parallel workers trip the backend's own per-IP ceilings, which these specs already warn about, and every failure seen at two to six workers reproduced as `För många försök` and passed serially. Eight admin routes were swept at 320/390/768/1024/1440 px: **no horizontal document scroll at any width.** Measured contrast is in [the brief's §18.4](ADMIN_PANEL_REDESIGN.md#184-measured-contrast) and re-measured live on `/admin/styleguide`. **Not run:** `axe`, a screen-reader pass, reduced motion, the production bundle budget, and any physical device — F13.10, F13.11 and F12 own those. |
+| Completed on | — |
+
+---
+
 <a id="f12"></a>
 
 ## F12 — Polish, accessibility and performance
@@ -2945,11 +3340,13 @@ scope and is not claimed.
 **Definition of done:** every budget met, every check passed, results recorded
 in this file.
 
-**Phase:** 8. **Entry dependencies:** F0–F11, B11, B12; B13 measurements.
+**Phase:** 8. **Entry dependencies:** F0–F11, F13, B11, B12; B13 measurements.
 
 B11 supplies privacy/audit functions, B12 supplies the deployed origin and
 restore evidence, and B13 supplies production load measurements. This is the
-final frontend acceptance gate.
+final frontend acceptance gate. F13 supplies the redesigned admin surfaces;
+reuse its still-applicable evidence and rerun checks affected by subsequent
+changes. Its completion does not close the public, privacy or production checks.
 
 **Milestone checklist — 0/8 complete:**
 
@@ -3068,7 +3465,7 @@ reconciled.
 - [ ] **F12.8.2** Attach the accessibility review, Lighthouse reports, bundle
       measurement and actual-device/print observations.
 - [ ] **F12.8.3** Confirm no deferred integration remains unowned or unfinished;
-      verify F8.7, F9.7, F11.6 and F12.7 are complete.
+      verify F8.7, F9.7, F11.6, F13 and F12.7 are complete.
 - [ ] **F12.8.4** Update milestone counts, iteration checkboxes and both README
       status tables; mark the frontend Done only when every iteration acceptance
       criterion is met.

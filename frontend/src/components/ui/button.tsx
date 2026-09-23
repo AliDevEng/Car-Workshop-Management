@@ -43,13 +43,20 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-primary text-primary-foreground hover:bg-signal-lift',
+        // `primary-hover`, not `signal-lift`: the primary action is blue on
+        // the public site and warm orange in the admin panel (F13), and a
+        // hover named after one palette entry cannot follow both.
+        primary: 'bg-primary text-primary-foreground hover:bg-primary-hover',
         secondary:
           'bg-secondary text-secondary-foreground border-border hover:bg-accent',
         outline: 'border-input bg-transparent hover:bg-accent',
         ghost: 'bg-transparent hover:bg-accent',
+        // Also a token rather than `oxide` by name. Oxide is orange-red, and
+        // beside the admin panel's orange primary action it read as the same
+        // button twice — ADMIN_PANEL_REDESIGN.md §10.1 requires the two to be
+        // distinguishable. `--destructive` stays oxide on the public site.
         destructive:
-          'bg-oxide text-white hover:bg-oxide/85 focus-visible:outline-oxide',
+          'bg-destructive text-white hover:bg-destructive/85 focus-visible:outline-destructive',
         // `text-link`, not `text-primary`: the primary colour is chosen so
         // that white reads on top of it, which makes it far too dark to be
         // text itself on the steel ground (2.55:1).

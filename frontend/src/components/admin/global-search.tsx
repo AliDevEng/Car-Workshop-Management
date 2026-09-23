@@ -42,7 +42,9 @@ type SupportedSearchResult = Extract<
 const RECENT_SEARCHES_KEY = 'verkstad.recentSearches';
 const recentSearchesSchema = z.array(searchResultSchema).max(8);
 
-function isSupportedResult(result: SearchResult): result is SupportedSearchResult {
+function isSupportedResult(
+  result: SearchResult,
+): result is SupportedSearchResult {
   return (
     result.type === 'CUSTOMER' ||
     result.type === 'VEHICLE' ||
@@ -93,7 +95,11 @@ const RESULT_ICONS: Readonly<
   ARTICLE: PackageIcon,
 };
 
-function ResultIcon({ type }: { readonly type: SupportedSearchResult['type'] }) {
+function ResultIcon({
+  type,
+}: {
+  readonly type: SupportedSearchResult['type'];
+}) {
   const Icon = RESULT_ICONS[type];
   return <Icon aria-hidden="true" className="size-4 text-muted-foreground" />;
 }
@@ -246,9 +252,12 @@ export function GlobalSearch() {
         /*
          * Icon-only below `sm`: the full placeholder plus the logout label
          * made the admin header wider than a 390 px viewport, and the header
-         * is the one thing on every page (UI_UX_AUDIT G1).
+         * is the one thing on every page (UI_UX_AUDIT G1). 44 px rather than
+         * the 36 px that compromise settled on — F13 moved the account block
+         * out of the header, so the room is there and the search control can
+         * meet the admin touch-target floor like everything else.
          */
-        className="min-w-0 shrink justify-start text-muted-foreground max-sm:size-9 max-sm:shrink-0 max-sm:justify-center max-sm:p-0 md:w-[340px]"
+        className="min-w-0 shrink justify-start text-muted-foreground max-sm:size-11 max-sm:shrink-0 max-sm:justify-center max-sm:p-0 md:w-[340px]"
         onClick={() => {
           openSearch();
         }}
@@ -280,7 +289,10 @@ export function GlobalSearch() {
           }}
         >
           <div className="flex items-center gap-2 border-b border-border p-3">
-            <SearchIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+            <SearchIcon
+              aria-hidden="true"
+              className="size-4 text-muted-foreground"
+            />
             <DialogTitle className="sr-only">Sök</DialogTitle>
             <DialogDescription className="sr-only">
               Sök efter kunder, fordon och artiklar i registret.
@@ -337,7 +349,10 @@ export function GlobalSearch() {
               </p>
             ) : null}
 
-            {error === null && !isLoading && shownRecent && recent.length === 0 ? (
+            {error === null &&
+            !isLoading &&
+            shownRecent &&
+            recent.length === 0 ? (
               <p className="px-3 py-8 text-center text-sm text-muted-foreground">
                 Senaste träffar visas här när du har öppnat något.
               </p>

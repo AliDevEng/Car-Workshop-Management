@@ -54,6 +54,14 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  /*
+   * The primary button used to hover to `signal-lift` by name. That was fine
+   * while the primary action was blue on both surfaces; F13 makes it warm
+   * orange in the admin panel, and a blue hover on an orange button is a
+   * different button. The hover is a token now, so a surface that changes its
+   * primary cannot forget to change what it hovers to.
+   */
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -120,6 +128,7 @@
   --popover-foreground: var(--color-steel);
   --primary: var(--color-signal);
   --primary-foreground: #ffffff;
+  --primary-hover: var(--color-signal-lift);
   --secondary: var(--color-concrete-2);
   --secondary-foreground: var(--color-steel);
   --muted: var(--color-concrete-2);
@@ -142,55 +151,122 @@
 }
 
 /*
- * The admin surface. Not "dark mode" — a different interface with a
+ * The admin workspace. Not "light mode" — a different interface with a
  * different job, sharing the same tokens (§9.1).
+ *
+ * F13 (ADMIN_PANEL_REDESIGN.md §10) replaced the dark steel ground with a
+ * pale canvas, white work panels and pastel overview cards, keeping a deep
+ * navy navigation rail. It is still one scoped class doing all of it: every
+ * admin component asks for `bg-card`, `text-muted-foreground`, `bg-accent`
+ * and `border-border` rather than for a colour, so the whole panel changed
+ * surface without a single component learning that it had.
+ *
+ * Every ratio in the comments was measured with `lib/contrast.ts`, and
+ * `/admin/styleguide` re-measures them from the live document.
  */
 .admin-scope {
-  --background: var(--color-steel);
-  --foreground: var(--color-concrete-2);
-  --card: var(--color-steel-2);
-  --card-foreground: var(--color-concrete-2);
-  --popover: var(--color-steel-2);
-  --popover-foreground: var(--color-concrete-2);
-  --primary: var(--color-signal-lift);
+  --background: var(--color-canvas);
+  --foreground: #202b43; /* 13.03:1 on canvas, 14.11:1 on a panel */
+  --card: var(--color-panel);
+  --card-foreground: #202b43;
+  --popover: var(--color-panel);
+  --popover-foreground: #202b43;
+  /*
+   * The warm principal action. The brief proposed #c64f1d; measured against
+   * white ink that is 4.63:1 — a pass with almost no margin, and this button
+   * also carries `isPending` at 50 % opacity. Darkened one step to 4.99:1.
+   */
+  --primary: #bf4a1a;
   --primary-foreground: #ffffff;
-  --secondary: var(--color-steel-2);
-  --secondary-foreground: var(--color-concrete-2);
-  --muted: var(--color-steel-2);
-  --muted-foreground: #a7b7bf;
-  --accent: var(--color-steel-2);
-  --accent-foreground: var(--color-concrete-2);
+  --primary-hover: #ad4015; /* 5.96:1 with white */
+  --secondary: var(--color-panel);
+  --secondary-foreground: #202b43;
+  --muted: var(--color-panel-raised);
+  --muted-foreground: #5d6b82; /* 4.98:1 canvas, 5.40:1 panel, 4.80:1 raised */
+  --accent: var(--color-panel-raised);
+  --accent-foreground: #202b43;
   /*
-   * Oxide at #b23a16 is fine as a filled button with white ink (5.98:1), but
-   * only 2.43:1 as destructive *text* on the steel ground. Lifted here so a
-   * destructive label reads: 6.77:1 on steel and 5.33:1 on the raised
-   * steel-2 card. An earlier #e8663a was rejected for measuring 3.49:1 on
-   * steel-2 — passable on the ground it was checked against, and a failure
-   * one surface over, which is exactly the bug `lib/contrast.ts` exists to
-   * catch. The filled variant keeps white ink either way.
+   * A red distinct from the warm primary. Oxide (#b23a16) is the public
+   * site's destructive fill and reads fine there, but beside an orange
+   * `Ny bokning` button it is the same colour twice — and §10.1 requires a
+   * destructive control to look different from the principal action. This
+   * one is rose-red rather than orange-red: 6.51:1 filled with white ink,
+   * 6.01:1 as text on the canvas and 6.51:1 on a panel, so the single token
+   * serves both the filled button and a destructive label.
    */
-  --destructive: #f59a76;
+  --destructive: #b42332;
   --destructive-foreground: #ffffff;
-  --border: #3d525e;
-  --input: #5a7381;
+  --border: #dde5ef; /* a quiet divider, not an input boundary */
+  --input: #7e8da8; /* 3.10:1 canvas, 3.35:1 panel — the non-text floor */
   /*
-   * A near-white focus ring on the steel ground. `hivis` would be brighter
-   * still, but §9.2 makes colour *information* in the admin panel and hi-vis
-   * already means "attention" — a focus ring is "you are here", not a status.
+   * Blue, not the warm primary: a focus ring is "you are here", and on this
+   * surface the orange sits too close to the destructive red to also mean
+   * focus. 5.86:1 on the canvas, 6.35:1 on a panel, and the 2 px offset in
+   * the base layer keeps it off the fill of the control it surrounds.
    */
-  --ring: var(--color-concrete-2);
+  --ring: #245db5;
 
-  --link: #7fb6ea; /* 6.78:1 on steel, 5.34:1 on steel-2 */
+  --link: #245db5; /* 5.86:1 on canvas, 6.35:1 on a panel */
 
-  /* Measured over each tone's own 18 % tint on steel and on steel-2. */
-  --status-signal: #7fb6ea; /* 6.25:1 / 5.12:1 */
-  --status-hivis: #ffc500; /* 6.05:1 / 4.90:1 — hi-vis is at home here */
-  --status-oxide: #f59a76; /* 6.13:1 / 5.02:1 */
-  --status-moss: #6fcb98; /* 6.20:1 / 5.03:1 */
+  /*
+   * Status inks, measured over each tone's own 12 % tint — the ground a
+   * badge label actually sits on. The surface is light now, so these are the
+   * same inks the public site uses, and they measure higher here because
+   * white and the canvas are lighter than concrete: 5.5–7.6:1 across the
+   * canvas, panel and raised surfaces.
+   */
+  --status-signal: #0b4f8f; /* 6.33 / 6.83 / 6.08 */
+  --status-hivis: #6b4a00; /* 7.05 / 7.58 / 6.83 */
+  --status-oxide: #9a3213; /* 5.69 / 6.15 / 5.51 */
+  --status-moss: #1f6440; /* 5.62 / 6.06 / 5.44 */
 
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-body-admin);
+}
+
+/*
+ * The navigation rail, and anything that *is* the rail while rendered
+ * somewhere else — the mobile menu sheet, which Radix portals onto `<body>`
+ * and which would otherwise resolve the light workspace tokens above.
+ *
+ * It redeclares the semantic layer rather than hand-painting navy onto each
+ * element, so a `Button`, `Badge` or focus ring dropped into the rail is
+ * correct without knowing where it is. This is the same mechanism as
+ * `.admin-scope` itself, one level in.
+ */
+.admin-rail {
+  --background: var(--color-navy);
+  --foreground: var(--color-navy-ink); /* 16.54:1 on navy */
+  --card: var(--color-navy-raised);
+  --card-foreground: var(--color-navy-ink);
+  --popover: var(--color-navy-raised);
+  --popover-foreground: var(--color-navy-ink);
+  --primary: var(--color-ember);
+  --primary-foreground: #1a1005; /* dark ink: white on ember is 2.93:1 */
+  --primary-hover: #f28a58;
+  --secondary: var(--color-navy-raised);
+  --secondary-foreground: var(--color-navy-ink);
+  --muted: var(--color-navy-raised);
+  --muted-foreground: var(--color-navy-muted); /* 9.88:1 / 7.33:1 */
+  --accent: var(--color-navy-raised);
+  --accent-foreground: var(--color-navy-ink);
+  --destructive: #f59a76; /* as ink on navy; nothing in the rail fills with it */
+  --destructive-foreground: #1a1005;
+  --border: var(--color-navy-line);
+  --input: #7a88b4; /* 4.94:1 on navy, 3.67:1 on the raised navy */
+  --ring: var(--color-navy-ink);
+  --link: #9dc0f0; /* 9.24:1 / 6.85:1 */
+
+  /* Measured over each tone's own 12 % badge tint: 7.5–8.5:1 on navy, 5.7–6.4:1
+     on the raised navy. */
+  --status-signal: #8fc0f0;
+  --status-hivis: #ffc500;
+  --status-oxide: #f59a76;
+  --status-moss: #6fcb98;
+
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 @layer base {

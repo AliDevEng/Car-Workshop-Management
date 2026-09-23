@@ -14,7 +14,7 @@ workspace's `shared` package.
 
 ## 🚦 Status
 
-**66/84 milestones complete · 8/13 iterations done**
+**66/96 milestones complete · 8/14 iterations done**
 
 | Remaining area | Progress | Blocker or next step |
 |---|---:|---|
@@ -22,10 +22,25 @@ workspace's `shared` package.
 | [F8 — Calendar](IMPLEMENTATION_PLAN.md#f8) | 6/8 | Complete remaining booking acceptance work |
 | [F10 — Documents](IMPLEMENTATION_PLAN.md#f10) | 5/6 | Add vehicle-scoped document listing |
 | [F11 — Settings](IMPLEMENTATION_PLAN.md#f11) | 0/6 | Build settings, users, rules and partner-link screens |
+| [F13 — Admin redesign](IMPLEMENTATION_PLAN.md#f13) | 0/12 | Visual system, shell and dashboard built; the workflow milestones in the [design brief](ADMIN_PANEL_REDESIGN.md) remain |
 | [F12 — Polish](IMPLEMENTATION_PLAN.md#f12) | 0/8 | Accessibility, performance and production acceptance |
 
 See the plan's [status table](IMPLEMENTATION_PLAN.md#status) for the complete
 iteration map.
+
+F13 adds twelve planned milestones; completed work remains at 66. The redesign
+brief records the 2026-09-23 browser observations, screen organization, the
+reference-led light palette, mobile behavior, shared/backend dependencies and
+acceptance journeys.
+
+**Implemented on 2026-09-23:** the admin token system and category accents, the
+grouped navy navigation rail with its account controls, the mobile bottom
+navigation and the dashboard's colored operational summaries — F13.2.1, F13.2.5,
+F13.3.1, F13.4.1 and F13.4.4. **No F13 milestone is complete**, because each one
+still has tasks that depend on new shared/backend contracts (F13.1), on the dark
+appearance preference, or on the calendar, booking-form, work-order, register and
+inventory workflow changes. A redesigned surface is not a delivered workflow.
+Iteration IDs are stable, so F13 intentionally precedes F12 acceptance.
 
 ## ✨ Experiences
 
@@ -152,6 +167,21 @@ The detailed design direction and its historical acceptance evidence remain in
 the [implementation plan](IMPLEMENTATION_PLAN.md#design-direction). The
 completed cross-cutting review is recorded in
 [`UI_UX_AUDIT.md`](UI_UX_AUDIT.md).
+
+The admin design is specified in
+[`ADMIN_PANEL_REDESIGN.md`](ADMIN_PANEL_REDESIGN.md) and tracked as F13.
+`PROJECT_SPEC.md` §9.8 scopes the changes to admin surfaces; the existing public
+design and domain-status meanings remain in force.
+
+Its visual half is now in the application. The admin panel is a **light, colorful
+workspace**: a deep navy navigation rail (`--color-navy`) against a pale canvas
+(`--color-canvas`), white work panels, pastel overview cards and a warm orange
+principal action. Section identity comes from a **category-accent** family
+(`--color-cat-*`, `components/admin/accent.tsx`) that is deliberately separate
+from the status tokens — a violet work-order icon is not a violet status, and a
+rose customer icon is not an error. `components/admin/status.ts` remains the only
+authority on what a colour means. Every pair was measured with `lib/contrast.ts`
+before it was written down, and `/admin/styleguide` re-measures them live.
 
 ## 🔄 Data and forms
 

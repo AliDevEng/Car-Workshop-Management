@@ -1,8 +1,25 @@
 'use client';
 
-import { PackageIcon } from 'lucide-react';
+import {
+  BoxesIcon,
+  CalendarDaysIcon,
+  CarFrontIcon,
+  CheckCircle2Icon,
+  ClipboardListIcon,
+  FileTextIcon,
+  PackageIcon,
+  SettingsIcon,
+  UsersRoundIcon,
+  type LucideIcon,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { ore, type Ore } from 'shared';
+import {
+  accentEdge,
+  accentInk,
+  accentSurface,
+  type Accent,
+} from '@/components/admin/accent';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { ContrastTable } from '@/components/admin/contrast-table';
 import { DataTable } from '@/components/admin/data-table';
@@ -49,6 +66,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ApiError } from '@/lib/api';
 import { formatCurrency, formatOdometer, formatRegNr } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
 /**
  * `/admin/styleguide` (F1.6.1): every component, in every state.
@@ -88,6 +106,29 @@ function Section({
     </section>
   );
 }
+
+/**
+ * One sample per category accent, with the icon that section actually uses,
+ * so a drifted pairing shows up here rather than on a real screen.
+ */
+const ACCENT_SAMPLES: readonly {
+  readonly accent: Accent;
+  readonly label: string;
+  readonly icon: LucideIcon;
+}[] = [
+  { accent: 'peach', label: 'Idag', icon: CheckCircle2Icon },
+  { accent: 'blue', label: 'Planering', icon: CalendarDaysIcon },
+  {
+    accent: 'lilac',
+    label: 'Arbetsordrar och dokument',
+    icon: ClipboardListIcon,
+  },
+  { accent: 'rose', label: 'Kunder', icon: UsersRoundIcon },
+  { accent: 'teal', label: 'Fordon', icon: CarFrontIcon },
+  { accent: 'amber', label: 'Lager', icon: BoxesIcon },
+  { accent: 'mint', label: 'Klart och hämtning', icon: FileTextIcon },
+  { accent: 'neutral', label: 'Inställningar', icon: SettingsIcon },
+];
 
 function Row({ children }: { readonly children: ReactNode }) {
   return <div className="flex flex-wrap items-end gap-3">{children}</div>;
@@ -153,6 +194,61 @@ export function Styleguide() {
         description="Färg är information, inte dekoration. Kontrastvärdena nedan mäts i webbläsaren mot den yta sidan faktiskt använder."
       >
         <ContrastTable />
+      </Section>
+
+      <Section
+        id="accents"
+        title="Sektionsfärger"
+        description="Färgfamiljen som säger vilken del av verkstaden du tittar på. Den är skild från status: en lila ikon för arbetsordrar betyder inte att ordern har en lila status, och en rosa kundikon är inte ett fel. Status uttrycks alltid med StatusBadge."
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {ACCENT_SAMPLES.map((sample) => (
+            <div
+              key={sample.accent}
+              className={cn(
+                'flex items-center gap-3 rounded-soft border p-4',
+                accentSurface(sample.accent),
+                accentEdge(sample.accent),
+              )}
+            >
+              <span className="grid size-10 shrink-0 place-items-center rounded-soft bg-card">
+                <sample.icon
+                  aria-hidden="true"
+                  className={cn('size-5', accentInk(sample.accent))}
+                />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-foreground">
+                  {sample.label}
+                </span>
+                <span className="block font-mono text-xs text-muted-foreground">
+                  {sample.accent}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="admin-rail flex flex-col gap-2 rounded-soft p-4">
+          <p className="text-sm font-medium">
+            Navigationsskenan (<code>.admin-rail</code>)
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Samma semantiska lager, en nivå in. Primitiv som hamnar här — en
+            knapp, en bricka, en fokusring — blir rätt utan att veta var de är.
+          </p>
+          <Row>
+            <Button size="sm">Primär</Button>
+            <Button variant="secondary" size="sm">
+              Sekundär
+            </Button>
+            <Button variant="ghost" size="sm">
+              Diskret
+            </Button>
+            <StatusBadge status={workOrderStatus('IN_PROGRESS')} />
+            <StatusBadge status={workOrderStatus('READY_FOR_PICKUP')} />
+          </Row>
+        </div>
       </Section>
 
       <Section

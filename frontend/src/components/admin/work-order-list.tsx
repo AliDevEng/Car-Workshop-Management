@@ -256,6 +256,8 @@ export function WorkOrderListPage({
           { label: 'Admin', href: '/admin' },
           { label: 'Arbetsordrar' },
         ]}
+        icon={ClipboardListIcon}
+        accent="lilac"
         title="Arbetsordrar"
         description="Arbetsordrar som matchar det valda filtret."
         actions={

@@ -1,6 +1,7 @@
-import { ChevronLeftIcon } from 'lucide-react';
+import { ChevronLeftIcon, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Fragment, type ReactNode } from 'react';
+import { IconTile, type Accent } from '@/components/admin/accent';
 import { cn } from '@/lib/utils';
 
 /**
@@ -75,6 +76,8 @@ export function PageHeader({
   breadcrumb,
   description,
   actions,
+  icon,
+  accent = 'neutral',
   className,
 }: {
   readonly title: string;
@@ -82,6 +85,14 @@ export function PageHeader({
   readonly breadcrumb?: readonly BreadcrumbItem[];
   readonly description?: string;
   readonly actions?: ReactNode;
+  /**
+   * The section's identity icon, in the section's own colour (F13, §10.4).
+   * Decorative: it repeats what the heading beside it already says, so it is
+   * hidden from assistive technology by `IconTile`. A page that omits it
+   * simply renders the heading, unchanged.
+   */
+  readonly icon?: LucideIcon;
+  readonly accent?: Accent;
   readonly className?: string;
 }) {
   return (
@@ -91,23 +102,28 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="min-w-0">
-        {breadcrumb === undefined || breadcrumb.length === 0 ? null : (
-          <Breadcrumbs items={breadcrumb} />
+      <div className="flex min-w-0 items-start gap-3">
+        {icon === undefined ? null : (
+          <IconTile icon={icon} accent={accent} size="lg" className="mt-1" />
         )}
-        {eyebrow === undefined ? null : (
-          <p className="mb-1 text-xs font-medium text-muted-foreground">
-            {eyebrow}
-          </p>
-        )}
-        <h1 className="type-display text-2xl font-semibold text-foreground">
-          {title}
-        </h1>
-        {description === undefined ? null : (
-          <p className="mt-2 max-w-[68ch] text-sm text-muted-foreground">
-            {description}
-          </p>
-        )}
+        <div className="min-w-0">
+          {breadcrumb === undefined || breadcrumb.length === 0 ? null : (
+            <Breadcrumbs items={breadcrumb} />
+          )}
+          {eyebrow === undefined ? null : (
+            <p className="mb-1 text-sm font-medium text-muted-foreground">
+              {eyebrow}
+            </p>
+          )}
+          <h1 className="type-display text-2xl font-semibold text-foreground">
+            {title}
+          </h1>
+          {description === undefined ? null : (
+            <p className="mt-2 max-w-[68ch] text-sm text-muted-foreground">
+              {description}
+            </p>
+          )}
+        </div>
       </div>
       {actions === undefined ? null : (
         <div className="flex shrink-0 flex-wrap items-center gap-2">

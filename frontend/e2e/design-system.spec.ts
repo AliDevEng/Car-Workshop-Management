@@ -71,7 +71,10 @@ test.describe('tokens and type', () => {
       .evaluate((element) =>
         getComputedStyle(element).getPropertyValue('--background').trim(),
       );
-    expect(background).toBe('#1c2b33');
+    // #f3f6fb — the pale canvas F13 moved the admin workspace to. The public
+    // `:root` still resolves `--background` to concrete, which is what makes
+    // this a scope check rather than a colour check.
+    expect(background).toBe('#f3f6fb');
   });
 });
 

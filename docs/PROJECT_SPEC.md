@@ -801,6 +801,10 @@ Staff side:
 
 - Search across name, phone, registration number and article SKU from one field
   in the top bar, debounced, keyboard-navigable. Staff live in this box.
+  **Planned F13 extension (2026-09-23):** also find work orders and quotes by
+  exact/prefix document number, returning authorized, bounded results with the
+  parent identity needed for existing detail routes. This requires shared/backend
+  contract work; it is not implemented by searching a downloaded browser list.
 - A customer can own several vehicles; a vehicle's owner can change without
   losing service history, because history hangs off the vehicle.
 - The vehicle page is the system's centrepiece: technical data, inspection
@@ -884,6 +888,16 @@ What the two owners see first, in order of usefulness:
 4. Vehicles in the customer base with inspection due within 60 days — the
    workshop's cheapest source of repeat business.
 5. Articles below minimum stock.
+
+**Planned F13 presentation and contract amendment (2026-09-23):** put compact
+operational summaries and productive actions before the schedule, and keep
+pending work visible when the schedule is empty. Add a bounded actionable queue,
+in-progress count and mechanic-scoped active-work summaries through the shared
+dashboard contract. Mechanics default to their own work with shared queues still
+reachable; this changes presentation defaults, not permissions. The selected date
+describes the schedule, while pending-work counts describe current queues and
+must be labelled accordingly. Detailed behavior and verification are owned by
+the [F13 brief](../frontend/ADMIN_PANEL_REDESIGN.md).
 
 ---
 
@@ -1178,6 +1192,12 @@ personality. Details, tokens and component rules live in the
 [frontend implementation plan](../frontend/IMPLEMENTATION_PLAN.md);
 this section fixes the intent.
 
+The baseline in §§9.1–9.7 remains the public design and the record of the
+implemented admin design. **§9.8 explicitly amends the admin design for the
+accepted, not-yet-implemented F13 iteration.** Use that scoped amendment when
+implementing F13 rather than treating historical palette/layout rules as a
+reason to discard the user's accepted direction.
+
 ### 9.1 Concept
 
 Swedish workshop signage and measuring instruments — road-sign blue, hi-vis
@@ -1262,6 +1282,68 @@ apologising.
 
 All code, comments, commit messages, file names, database identifiers and
 documentation are in English.
+
+### 9.8 Admin redesign (F13)
+
+**Accepted direction recorded 2026-09-23. The visual system, shell and dashboard
+are implemented; the workflow milestones are not.** The user accepted the browser
+review's recommendations, then supplied a reference dashboard image and asked for
+a welcoming, lively, icon-rich admin panel. The
+[admin redesign brief](../frontend/ADMIN_PANEL_REDESIGN.md)
+defines screen behavior, proposed tokens, mobile layouts, contract dependencies
+and acceptance scenarios; [F13](../frontend/IMPLEMENTATION_PLAN.md#f13) tracks
+delivery. F13 precedes final F12 release acceptance, while existing feature
+iterations retain their integration owners.
+
+The following scoped changes supersede conflicting admin-only interpretations
+of §§9.1–9.4 and the old frontend token/layout baseline:
+
+- Group navigation into daily work, registers and utility/account functions.
+  Preserve existing URLs; organize planning into calendar and request sections.
+- Prioritize actionable dashboard content, readable overlap handling and an
+  explicit unassigned-booking queue. Mobile defaults to an agenda, compact
+  filters and task-focused navigation; full-screen forms preserve draft state.
+- Promote productive contextual actions on customer/vehicle pages and maintain
+  a work-order workspace with visible identity, next action, totals and saving
+  state. Secondary/destructive actions retain permissions and confirmations.
+- Use a **light, colorful admin workspace**: a deep navy navigation rail against
+  a pale canvas, white work panels, pastel overview cards and abundant colored
+  iconography, with a warm orange principal action. A **category-accent** token
+  family carries section identity and is kept strictly separate from the
+  semantic status tokens, whose meanings are unchanged. This supersedes both the
+  earlier fixed dark admin surface and this section's own first proposal of
+  graphite surfaces with blue actions and a dark initial default — the user
+  supplied a reference dashboard and asked for a welcoming, lively panel.
+  A dark **admin** appearance preference remains permitted and unbuilt; light is
+  the initial and fallback default, and no public-site theme switch is
+  introduced either way.
+- Keep self-hosted Archivo and tabular figures. Admin working headings may use
+  normal width; control radii may be 6–8 px, with deliberate panel/grid geometry.
+  Public typography, palette and the public/PDF font arrangements are unchanged.
+- Theme body-mounted overlays consistently, including initial rendering and
+  navigation cleanup. Preserve the single main page scroll, 44 px touch targets,
+  AA contrast, keyboard/focus behavior and functional reduced-motion support.
+
+The brief's hex values and dimensions are starting points, not previously
+verified contrast or usability results. Semantic status meanings remain stable
+across screens and appearances. Search/dashboard extensions are declared in
+§§6.3/6.8. F13 also owns correct server-side filtering/pagination for its order
+views and an authorized record-scoped work-order activity source where needed;
+the latter never exposes the privileged global audit log to mechanics.
+
+No stock, money, document numbering, immutability, booking collision, versioning,
+privacy or authorization invariant changes through this amendment. Existing
+provider, settings, document-list and privacy activation dependencies remain
+explicit.
+
+**Implemented on 2026-09-23:** the admin token system and category accents, the
+grouped navy navigation rail with account controls at its foot, the mobile
+bottom navigation, and the dashboard's colored operational summaries. Measured
+contrast is recorded in `frontend/src/styles/globals.css` and re-measured live
+on `/admin/styleguide`. **Not implemented:** everything that depends on new
+shared/backend contracts (F13.1), the dark appearance preference, the calendar,
+booking-form, work-order, register and inventory workflow milestones. Those keep
+their unticked F13 tasks; the redesigned surface does not imply they are done.
 
 ---
 

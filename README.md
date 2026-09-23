@@ -111,14 +111,16 @@ short public overview.
 | 5 — Documents | Quotes, service protocols and PDFs | 🚧 In progress |
 | 6 — Intelligence | Service rules, settings and real vehicle-data provider | 🚧 In progress |
 | 7 — Hardening | Audit, GDPR, scheduled jobs, deployment and restore | ✅ Done |
-| 8 — Polish | Accessibility, final performance work and production acceptance | 🚧 In progress |
+| 8 — Polish | Admin workflow/design refresh, accessibility, performance and production acceptance | 🚧 In progress |
 
 ### Current snapshot
 
 As of **2026-09-23**:
 
 - Backend: **93/96 milestones**, with **12/15 iterations done**.
-- Frontend: **66/84 milestones**, with **8/13 iterations done**.
+- Frontend: **66/96 milestones**, with **8/14 iterations done**. The twelve F13
+  admin-redesign milestones are still open: its visual system, navigation shell
+  and dashboard are built, and every milestone retains tasks that are not.
 - The full backend, frontend and UI/UX audit records are linked under
   [Documentation](#documentation).
 - AI-assisted diagnostics is a proposal only and is not part of the implemented
@@ -224,6 +226,7 @@ in the backend iteration tracker.
 | [`frontend/README.md`](frontend/README.md) | Frontend architecture, routes, design system and local workflow |
 | [`frontend/IMPLEMENTATION_PLAN.md`](frontend/IMPLEMENTATION_PLAN.md) | Frontend milestones, active work and acceptance history |
 | [`frontend/UI_UX_AUDIT.md`](frontend/UI_UX_AUDIT.md) | Completed cross-cutting UI and UX audit |
+| [`frontend/ADMIN_PANEL_REDESIGN.md`](frontend/ADMIN_PANEL_REDESIGN.md) | F13 admin redesign: rationale, screen behavior, colors, contracts, acceptance criteria and what is built so far |
 | [`backend/perf/README.md`](backend/perf/README.md) | Dataset, query audit, performance budgets and load harness |
 | [`docs/proposals/AI_DIAGNOSTICS_SPEC.md`](docs/proposals/AI_DIAGNOSTICS_SPEC.md) | Proposed, not-yet-approved AI diagnostics feature |
 | [`CLAUDE.md`](CLAUDE.md) | Implementation rules for coding agents and maintainers |

@@ -13,7 +13,11 @@ import { CreateCustomerDialog } from '@/components/admin/create-customer-dialog'
 import { DataTable, type DataTableColumn } from '@/components/admin/data-table';
 import { ListPage } from '@/components/admin/list-page';
 import { PageHeader } from '@/components/admin/page-header';
-import { EmptyState, ErrorState, TableSkeleton } from '@/components/admin/states';
+import {
+  EmptyState,
+  ErrorState,
+  TableSkeleton,
+} from '@/components/admin/states';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -99,6 +103,8 @@ export function CustomerListPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         breadcrumb={[{ label: 'Admin', href: '/admin' }, { label: 'Kunder' }]}
+        icon={UsersRoundIcon}
+        accent="rose"
         title="Kunder"
         description="Sök på namn, telefon eller e-post."
         actions={<CreateCustomerDialog />}

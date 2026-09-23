@@ -167,7 +167,15 @@ test.describe('customers and vehicles (F6)', () => {
 
     // A non-standard plate (not six characters) is accepted, not rejected,
     // and flagged for a human rather than blocking the booking (§4.2).
-    const nonStandardPlate = `MINBIL${stamp % 100}`;
+    /*
+     * Four digits, not two. `stamp % 100` gave this test exactly 100 possible
+     * plates against a development database that is never reset, and after a
+     * few dozen runs 29 of them existed — so roughly one run in three failed
+     * here with the *duplicate* error that the block below deliberately
+     * triggers twenty lines later. `shared/regnr.ts` caps a non-standard plate
+     * at 10 characters, and `MINBIL` plus four digits is exactly 10.
+     */
+    const nonStandardPlate = `MINBIL${stamp % 10_000}`;
     await page.getByRole('button', { name: 'Lägg till fordon' }).click();
     await page.getByLabel('Registreringsnummer').fill(nonStandardPlate);
     // The warning shows once the field is blurred, not while still typing.
