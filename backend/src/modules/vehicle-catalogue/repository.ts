@@ -63,7 +63,7 @@ export function toVehicleMakeDto(record: VehicleMakeRecord): VehicleMake {
  * Every active make with its active models, ordered by how common each is in
  * the Swedish car park and then alphabetically.
  *
- * Not paginated: eighty rows in total, and a picker that paged would be worse
+ * Not paginated: a hundred-odd rows in total, and a picker that paged would be worse
  * than the free-text field it replaces. `name` breaks a `sortOrder` tie so the
  * order is deterministic rather than whatever Postgres returns — the same
  * reason `listPartnerLinks` falls back to `id`.

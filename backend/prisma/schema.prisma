@@ -225,7 +225,7 @@ model Vehicle {
 /// stay free text and carry no foreign key here, for the same reason §4.2
 /// refuses to block a booking over a plate format: a car this table has never
 /// heard of must never stop a customer being booked in. The catalogue exists
-/// so that the ten makes a Swedish workshop actually sees are two clicks away
+/// so that the makes a Swedish workshop actually sees are two clicks away
 /// instead of typed; anything else is entered by hand.
 ///
 /// There is deliberately **no "Övrigt" row**. A row called Övrigt would be

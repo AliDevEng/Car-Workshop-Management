@@ -20,8 +20,8 @@ import { useVehicleMakes } from '@/lib/api/vehicle-catalogue';
  * Make, then model — two dropdowns over the seeded catalogue, with a free-text
  * field behind "Övrigt" in each.
  *
- * The catalogue covers the ten makes a Swedish workshop actually sees and the
- * eight models under each, which is most telephone calls answered in two
+ * The catalogue covers the fourteen makes a Swedish workshop actually sees and
+ * the eight models under each, which is most telephone calls answered in two
  * clicks instead of two spellings of "Volkswagen". **It is a shortcut, never a
  * gate:** choosing Övrigt in either list swaps that dropdown for a text input,
  * because a 1987 Saab must not be harder to book than a new Golf.

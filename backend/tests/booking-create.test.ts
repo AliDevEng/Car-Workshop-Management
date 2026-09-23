@@ -83,11 +83,30 @@ describe('the make/model catalogue', () => {
       jsonBody(await get(harness, staff, '/api/vehicle-makes').expect(200)),
     );
 
-    expect(body.data.length).toBeGreaterThanOrEqual(10);
+    // Fourteen makes across the two catalogue migrations. A floor rather than
+    // an equality, so adding a make is an append and not a test to edit.
+    expect(body.data.length).toBeGreaterThanOrEqual(14);
 
     const volvo = body.data.find((make: VehicleMake) => make.name === 'Volvo');
     expect(volvo).toBeDefined();
     expect(volvo?.models.map((model) => model.name)).toContain('V70');
+
+    // The four added by the follow-up migration, one of which carries an
+    // accent — the column is UTF-8 and the value is copied verbatim onto a
+    // printed protocol, so it has to survive the round trip intact.
+    const names = body.data.map((make: VehicleMake) => make.name);
+    expect(names).toEqual(
+      expect.arrayContaining(['Peugeot', 'Renault', 'Opel', 'Hyundai']),
+    );
+    const renault = body.data.find(
+      (make: VehicleMake) => make.name === 'Renault',
+    );
+    expect(renault?.models.map((model) => model.name)).toContain('Mégane');
+
+    // Every make carries its eight models.
+    for (const make of body.data) {
+      expect(make.models.length).toBeGreaterThanOrEqual(8);
+    }
 
     // The order is the point of `sortOrder`: the picker's first entries have
     // to be the makes the workshop actually sees.

@@ -4164,22 +4164,35 @@ to see what actually arrived from the website.
       `20260923073417_b14_vehicle_catalogue`. **No foreign key from `Vehicle`**
       — `make` and `model` stay free text. A foreign key would make the list a
       gate, which is the same mistake §4.2 refuses to make about plate formats.
-- [x] **B14.1.2** The ten makes most common in the Swedish passenger-car park,
-      eight models each, **seeded by the migration rather than `seed.ts`**.
-      `seed.ts` refuses to run against production by design, and the booking
-      form needs this list in every environment. The insert is idempotent on
-      the models' own unique keys, so a re-applied migration or a restored dump
-      is a no-op. `sortOrder` counts in tens so a row can be slotted between
-      two others without renumbering.
+- [x] **B14.1.2** **Fourteen makes, eight models each — 112 rows — seeded by
+      the migrations rather than by `seed.ts`.** `seed.ts` refuses to run
+      against production by design, and the booking form needs this list in
+      every environment. The inserts are idempotent on the models' own unique
+      keys, so a re-applied migration or a restored dump is a no-op.
+      `sortOrder` counts in tens so a row can be slotted between two others
+      without renumbering.
+
+      The first ten (Volvo, Volkswagen, Toyota, Audi, BMW, Mercedes-Benz, Kia,
+      Skoda, Ford, Nissan) shipped in `20260923073417_b14_vehicle_catalogue`.
+      Peugeot, Renault, Opel and Hyundai followed in
+      `20260923104500_b14_vehicle_catalogue_four_more_makes` — **a second
+      migration, not an edit to the first.** Prisma records a checksum per
+      applied migration, so editing one in place makes every environment that
+      already ran it fail on the next `migrate deploy`: the same silent
+      divergence §8.2 bans `db push` for. Growing the catalogue is therefore
+      always an append, which is also what makes it safe for the workshop to
+      ask for more.
 - [x] **B14.1.3** The models are the ones the car park is *made of*, not this
-      year's brochure — a workshop sees fifteen-year-old cars, so V70 and
-      Avensis earn their place over recent launches.
+      year's brochure — a workshop sees fifteen-year-old cars, so V70,
+      Avensis, Vectra and the 206 earn their place over recent launches. A few
+      electric models (ID.4, Enyaq, EV6, Leaf, Zoe, Ioniq) are in because they
+      are now reaching workshop age.
 - [x] **B14.1.4** **No "Övrigt" row.** It would be copied verbatim into
       `Vehicle.make` and the register would fill with cars whose make is the
       word "other". The escape hatch is a free-text field in the UI.
 - [x] **B14.1.5** `GET /api/vehicle-makes`, `authenticated`, unpaginated, makes
       nested with their models. One request rather than one per selection: the
-      whole catalogue is eighty rows, and a round trip per dropdown would make
+      whole catalogue is 112 rows, and a round trip per dropdown would make
       the picker feel broken. Not `public` — the public form collects nothing
       about the car beyond a plate (§5.5), so there is nothing here for a
       stranger. Read-only: adding a make is a migration, which is the right
@@ -4267,7 +4280,7 @@ through the test harness.
 | `pnpm check` | Clean — typecheck, lint (0 warnings), **1 318 tests** (804 backend + 1 skipped, 171 frontend, 343 shared), `type-coverage` **99.59 %** |
 | `pnpm --filter backend exec vitest run tests/booking-create.test.ts` | 17 passed |
 | Existing booking suites | `bookings`, `booking-requests`, `booking-journey`, `authorisation`, `audit-coverage`, `vehicles` — 81 passed after the B14.3 refactor |
-| `prisma migrate dev` | `20260923073417_b14_vehicle_catalogue` applied; 10 makes × 8 models verified by `psql` |
+| `prisma migrate dev` | `20260923073417_b14_vehicle_catalogue` and `20260923104500_b14_vehicle_catalogue_four_more_makes` applied; **14 makes × 8 models = 112 rows** verified by `psql` |
 | `playwright test booking-by-phone.spec.ts` | 4 passed against the running dev stack |
 | `playwright test bookings-calendar.spec.ts` | 4 passed — the shared availability panel did not regress the confirmation dialog |
 

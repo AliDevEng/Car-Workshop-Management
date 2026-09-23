@@ -25,7 +25,7 @@ export type VehicleModel = z.infer<typeof vehicleModelSchema>;
 
 /**
  * A make together with its models. Nested rather than a second endpoint: the
- * whole catalogue is some eighty rows, the picker needs the models the instant
+ * whole catalogue is a hundred-odd rows, the picker needs the models the instant
  * a make is chosen, and a round trip per selection would make the dropdown
  * feel broken on a workshop's connection.
  */

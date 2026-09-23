@@ -168,8 +168,8 @@ commonest case in the business (§1.2: "Customers phone in for bookings") had
 no endpoint at all. `POST /api/bookings` is the staff-side path that rule
 always assumed existed, writing **no** `BookingRequest`, because the inbox is
 the record of what arrived from the website. It ships with a browsable
-make/model catalogue — ten makes, eight models each, seeded by its own
-migration — which is reference data with no foreign key from `Vehicle` and no
+make/model catalogue — fourteen makes, eight models each, seeded by its own
+migrations — which is reference data with no foreign key from `Vehicle` and no
 "Övrigt" row; both dropdowns offer free text instead, because an unlisted car
 must not be harder to book than a listed one. See §6.2, §4.2 and four rows in
 the decision log below.

@@ -763,8 +763,9 @@ typo must never make a request permanently unconfirmable, while the staff path
 rejects it with a field error, because there the typo is the staff member's own
 and they are looking at the form.
 
-**A make/model catalogue exists to make that fast.** The ten makes most common
-in the Swedish car park, with eight models each, browsable as two dropdowns.
+**A make/model catalogue exists to make that fast.** The fourteen makes most
+common in the Swedish car park, with eight models each, browsable as two
+dropdowns.
 It is **reference data, not a constraint**: `Vehicle.make` and `Vehicle.model`
 remain free text with no foreign key to it, and both dropdowns offer a
 free-text alternative. Blocking a booking over an unlisted model would be the
