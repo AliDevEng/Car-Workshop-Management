@@ -94,7 +94,8 @@ PERF_FORWARDED_FOR=true pnpm --filter backend perf:load
 
 Run either one **without** `PERF_FORWARDED_FOR` to measure what the ceiling
 itself does: the run then reports `429`s as the errors they are. Both numbers
-are worth having, and `backend/IMPLEMENTATION_PLAN.md`'s B13 record has both.
+are worth having, and the [backend plan](../IMPLEMENTATION_PLAN.md)'s B13 record
+has both.
 
 ## Configuration
 
@@ -116,7 +117,8 @@ rather than printing a number nobody measured.
 
 B13.4.1 offered either. Both were declined, with the human, on 2026-09-21:
 
-- Neither is named in `PROJECT_SPEC.md`, and CLAUDE.md requires asking before
+- Neither is named in [`PROJECT_SPEC.md`](../../docs/PROJECT_SPEC.md), and
+  [`CLAUDE.md`](../../CLAUDE.md) requires asking before
   adding a dependency it does not name. This harness adds none — `fetch` and
   `performance` are in the runtime, and `tsx` already runs the seed.
 - B13.3 sets **five separate budgets on different endpoints**. autocannon

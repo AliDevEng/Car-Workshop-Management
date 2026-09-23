@@ -175,7 +175,7 @@ Performance tooling and measured budgets are documented separately in
 ## 📚 Related documentation
 
 - [Project overview](../README.md)
-- [Product and engineering specification](../PROJECT_SPEC.md)
-- [Architecture decisions](../DECISIONS.md)
+- [Product and engineering specification](../docs/PROJECT_SPEC.md)
+- [Architecture decisions](../docs/DECISIONS.md)
 - [Backend implementation plan](IMPLEMENTATION_PLAN.md)
 - [Performance and load testing](perf/README.md)

@@ -5,9 +5,10 @@
 **Audience:** Claude Code (implementation agent) and the human developer
 
 > This document is the single source of truth for *what* is built and *why*.
-> Iteration order and progress tracking live in `README.md`,
-> `backend/IMPLEMENTATION_PLAN.md` and `frontend/IMPLEMENTATION_PLAN.md`. If
-> those documents ever contradict this one, this
+> Iteration order and progress tracking live in the
+> [root README](../README.md), [backend plan](../backend/IMPLEMENTATION_PLAN.md)
+> and [frontend plan](../frontend/IMPLEMENTATION_PLAN.md). If those documents
+> ever contradict this one, this
 > document wins and the others must be corrected.
 
 ---
@@ -192,7 +193,7 @@ that type optional fields as `T | undefined`. Prisma's generated update inputs
 are the usual offender. Handle it by building explicit input objects rather than
 spreading partials — that is better code anyway. If a specific third-party
 boundary makes it untenable, relax the flag for that **package only**, and add a
-row to `DECISIONS.md`. Do not relax it globally and do not
+row to [`DECISIONS.md`](DECISIONS.md). Do not relax it globally and do not
 reach for `as` instead.
 
 ESLint, as errors (not warnings):
@@ -1041,7 +1042,7 @@ finns" rather than implying a vehicle needs nothing.
 
 - All multi-step writes run inside `prisma.$transaction`.
 - Stock and numbering use explicit row locks; the ordering of locks is
-  documented in `CLAUDE.md` to prevent deadlocks.
+  documented in [`CLAUDE.md`](../CLAUDE.md) to prevent deadlocks.
 - Indexes are created deliberately, at minimum on:
   `Vehicle.registrationNumber` (unique), `Vehicle.nextInspectionDueDate` (the
   dashboard scans it daily), `Customer.phoneNormalised`, `Article.sku`
@@ -1173,8 +1174,8 @@ record of what work was done on which car.
 ## 9. Design direction
 
 Two interfaces with deliberately different jobs, sharing tokens but not
-personality. Details, tokens and component rules live in
-`frontend/IMPLEMENTATION_PLAN.md`;
+personality. Details, tokens and component rules live in the
+[frontend implementation plan](../frontend/IMPLEMENTATION_PLAN.md);
 this section fixes the intent.
 
 ### 9.1 Concept

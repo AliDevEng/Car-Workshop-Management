@@ -7,7 +7,7 @@ Next.js 16 · React 19 · TypeScript 6 strict · Tailwind CSS 4 · Zod 4 · shad
 > the [frontend README](README.md). This document preserves the active plan and
 > completed acceptance evidence.
 
-> Read [PROJECT_SPEC.md](../PROJECT_SPEC.md), especially §9, and
+> Read [PROJECT_SPEC.md](../docs/PROJECT_SPEC.md), especially §9, and
 > [CLAUDE.md](../CLAUDE.md) before implementation. The root
 > [README.md](../README.md#phases) defines the phase order.
 
@@ -95,7 +95,7 @@ Keep TypeScript 6.0.3: the installed `typescript-eslint@8.69.0` accepts
 `>=4.8.4 <6.1.0`. Upgrading to 7 currently violates that peer range. Root ESLint
 9.39.5 also remains intentional: the installed React, import and JSX
 accessibility plugins do not accept ESLint 10. These are the compatibility
-exceptions already recorded in [`DECISIONS.md`](../DECISIONS.md).
+exceptions already recorded in [`DECISIONS.md`](../docs/DECISIONS.md).
 
 **Updated 2026-09-08: the baseline is now verified as a working application.**
 F0.7 completed its checks against a running B0 backend and PostgreSQL — the
@@ -659,7 +659,7 @@ styled.
       affects how anything looks, and Radix is the mature option nearly all
       shadcn documentation assumes — which matters in a project whose traps
       are mostly copied setups that do not match the installed versions.
-      Recorded in [`DECISIONS.md`](../DECISIONS.md).
+      Recorded in [`DECISIONS.md`](../docs/DECISIONS.md).
       **Reviewing the generated diff was not a formality — it had to be
       substantially undone.** See F1.1.2 and F1.1.6.
 - [x] **F1.1.2** Restyled to the tokens above — not left on shadcn defaults
@@ -710,7 +710,7 @@ styled.
       source or its runtime dependencies.
       Added and pinned exactly: `radix-ui` 1.6.7, `sonner` 2.0.8,
       `tw-animate-css` 1.4.0. All three recorded in
-      [`DECISIONS.md`](../DECISIONS.md).
+      [`DECISIONS.md`](../docs/DECISIONS.md).
       **Removed two the CLI added:** `next-themes` (see F1.1.5) and `cn`
       0.2.6 — a third-party package for four lines of code, when `clsx` and
       `tailwind-merge` were already direct dependencies and are what
@@ -2888,7 +2888,7 @@ All 41 are fixed and verified in a browser against the live backend. The
 audit document holds the full fix record — what was changed, the four
 decisions that were larger than "apply the suggested fix", the two
 suggestions deliberately not followed, and the measurements taken afterwards.
-The four entries in [`DECISIONS.md`](../DECISIONS.md) carry the reasoning for
+The four entries in [`DECISIONS.md`](../docs/DECISIONS.md) carry the reasoning for
 the contract and layout changes.
 
 **The one API contract change**, agreed with the human before building, as

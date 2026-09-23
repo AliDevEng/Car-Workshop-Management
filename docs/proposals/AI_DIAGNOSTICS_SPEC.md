@@ -1,13 +1,15 @@
 # AI-assisted diagnostics — implementation specification
 
-**Status:** Proposed feature; not yet part of the frozen `PROJECT_SPEC.md`  
+**Status:** Proposed feature; not yet part of the frozen
+[`PROJECT_SPEC.md`](../PROJECT_SPEC.md)  
 **Audience:** Human maintainer and a future Claude/Codex implementation agent  
 **Last reviewed:** 2026-09-23
 
 > This document describes what to build and how it should fit the existing
 > application. Before implementation starts, obtain approval to add the feature
-> as a new project iteration, update `PROJECT_SPEC.md`, and record the
-> architectural decisions in `DECISIONS.md`. Follow `CLAUDE.md` and build
+> as a new project iteration, update [`PROJECT_SPEC.md`](../PROJECT_SPEC.md),
+> and record the architectural decisions in
+> [`DECISIONS.md`](../DECISIONS.md). Follow [`CLAUDE.md`](../../CLAUDE.md) and build
 > only the first approved, unticked step.
 
 ## 1. Product decision
@@ -734,7 +736,8 @@ corrected.
 
 Create a new approved project iteration and implement in this dependency order:
 
-1. Add the feature decision and scope to `PROJECT_SPEC.md` and the phase map.
+1. Add the feature decision and scope to
+   [`PROJECT_SPEC.md`](../PROJECT_SPEC.md) and the phase map.
 2. Add shared Zod contracts and tests.
 3. Add the approved Prisma migration and persistence tests.
 4. Add environment configuration, provider boundary, mock provider, privacy

@@ -189,7 +189,7 @@ contract, concurrency or session failures.
 ## 📚 Related documentation
 
 - [Project overview](../README.md)
-- [Product and engineering specification](../PROJECT_SPEC.md)
-- [Architecture decisions](../DECISIONS.md)
+- [Product and engineering specification](../docs/PROJECT_SPEC.md)
+- [Architecture decisions](../docs/DECISIONS.md)
 - [Frontend implementation plan](IMPLEMENTATION_PLAN.md)
 - [UI/UX audit](UI_UX_AUDIT.md)

@@ -6,7 +6,7 @@ Node.js 22 · Fastify 5 · Prisma 7 · PostgreSQL 16 · TypeScript 6 strict · Z
 > the [backend README](README.md). This document preserves the active plan and
 > completed implementation evidence.
 
-> Read [PROJECT_SPEC.md](../PROJECT_SPEC.md) and [CLAUDE.md](../CLAUDE.md). The
+> Read [PROJECT_SPEC.md](../docs/PROJECT_SPEC.md) and [CLAUDE.md](../CLAUDE.md). The
 > root [phase map](../README.md#phases) controls execution order.
 
 Each iteration starts with a short checklist of things to build. Expand its
@@ -113,7 +113,7 @@ mirroring `sendQuoteInTransaction`. A correction afterwards is a new
 `revision` pointing at the one it replaces, which required reconciling §4.2's
 plain `workOrderId` unique index against §6.7's correction requirement —
 resolved with the same `revision`/`supersedesId` shape B7.5 already gave
-`Quote`, and documented in [`DECISIONS.md`](../DECISIONS.md). 53 new backend
+`Quote`, and documented in [`DECISIONS.md`](../docs/DECISIONS.md). 53 new backend
 tests; one
 pre-existing flaky test in `quotes.test.ts` (unrelated to this iteration, a
 UTC-vs-Stockholm day arithmetic bug in the test itself) was found and fixed
@@ -135,7 +135,7 @@ accept/dismiss endpoints that record the actor and never create a work-order
 line by themselves; and B9.7's settings write endpoint, rule-match preview and
 CSV dry-run/import. 31 new shared tests at 100% branch coverage on the engine,
 51 new backend tests. Two real defects were found writing them and are in
-[`DECISIONS.md`](../DECISIONS.md) — a `Promise.all` of three reads on one
+[`DECISIONS.md`](../docs/DECISIONS.md) — a `Promise.all` of three reads on one
 transaction
 connection that raced rather than parallelised (present identically, and
 independently, in `config/settings.ts#getSettings` once B9.7.1 became its
@@ -504,7 +504,7 @@ scope rather than an encapsulated child).
 
 The workspace uses pnpm 12.3.4, ESLint 9.39.5 and TypeScript 6.0.3. Keep the
 existing lint compatibility exceptions documented in
-[`DECISIONS.md`](../DECISIONS.md).
+[`DECISIONS.md`](../docs/DECISIONS.md).
 
 **Implementation notes for these versions:**
 
@@ -835,11 +835,11 @@ handler and a typed response comes back.
 Four unknowns in this plan can only be answered by running code, and each would
 be expensive to hit in the middle of a later iteration. They are resolved here,
 in throwaway branches, before anything depends on them. **Write the answer into
-[`DECISIONS.md`](../DECISIONS.md), then delete the spike.**
+[`DECISIONS.md`](../docs/DECISIONS.md), then delete the spike.**
 
 All four were run on 2026-09-08 with `@react-pdf/renderer` 4.9.0, Prisma 7.10.0
 and PostgreSQL 16.15. The spikes are deleted; the answers are below and in
-[`DECISIONS.md`](../DECISIONS.md).
+[`DECISIONS.md`](../docs/DECISIONS.md).
 
 - [x] **B0.10.1** **PDF determinism — achievable. B7 gets the strict test.**
       Two renders of the same fixture, with `creationDate` and
@@ -1144,7 +1144,7 @@ import from `shared` and typecheck.
         what §4.2 says the field exists to survive.
 
       Two readings of the specification were resolved rather than guessed at,
-      and both are in [`DECISIONS.md`](../DECISIONS.md): work-order and quote
+      and both are in [`DECISIONS.md`](../docs/DECISIONS.md): work-order and quote
       `number` are
       **nullable while the record is a `DRAFT`** (§4.4 assigns a number on
       finalisation), and the checklist result enum is **provisional pending
@@ -2757,14 +2757,14 @@ Automatic pre-filling from accepted recommendations is verified in B9.6.
       four-value `OK | NOT_OK | NOT_APPLICABLE | VALUE` with a measured unit
       this line originally named. B1.5 had already declared
       `CHECKLIST_RESULTS` as `OK | ATTENTION | NOT_APPLICABLE` and flagged it
-      "provisional pending B8" in [`DECISIONS.md`](../DECISIONS.md) — confirming or
+      "provisional pending B8" in [`DECISIONS.md`](../docs/DECISIONS.md) — confirming or
       replacing that enum **is** this task, and PROJECT_SPEC.md §6.7 never
       itself promises a measured value with a unit, only "a checklist". A
       measured-value item is real inspection-sheet material but is a second,
       larger feature (a value type, a unit, a pass/fail threshold) with no
       spec text asking for it; adding it speculatively is exactly what
       CLAUDE.md asks to avoid. Confirmed as written, and this line corrected
-      to match — see [`DECISIONS.md`](../DECISIONS.md).
+      to match — see [`DECISIONS.md`](../docs/DECISIONS.md).
 - [x] **B8.1.3** The template is copied into the protocol, never referenced —
       old protocols keep the checklist that existed at the time. Verified by
       `checklist-templates.test.ts`: editing a template's item label after a
@@ -2843,7 +2843,7 @@ Automatic pre-filling from accepted recommendations is verified in B9.6.
       resolved the identical tension for `Quote`: `revision` (counting from 1)
       plus a unique `supersedesProtocolId` chain, with `@@unique([workOrderId,
       revision])` replacing the bare unique column. Documented in
-      PROJECT_SPEC.md §4.2 and [`DECISIONS.md`](../DECISIONS.md) rather than
+      PROJECT_SPEC.md §4.2 and [`DECISIONS.md`](../docs/DECISIONS.md) rather than
       silently changed.
 
 <a id="b8-6"></a>
@@ -2900,7 +2900,7 @@ Stockholm during CEST). Fixed to call the same `stockholmDate`/
 `addStockholmDays` helpers the code under test calls.
 
 Two decisions from this iteration are recorded in
-[`DECISIONS.md`](../DECISIONS.md): the `ServiceProtocol` schema reconciliation
+[`DECISIONS.md`](../docs/DECISIONS.md): the `ServiceProtocol` schema reconciliation
 (B8.5.3) and the checklist-result enum
 confirmation (B8.1.2).
 
@@ -3636,7 +3636,7 @@ backup, and the elapsed time is written into this iteration's completion record.
       log, 2026-09-17): Caddy's own internal CA today, a real Let's Encrypt
       certificate automatically the moment `.env` names a real domain.
 - [x] **B12.2.3** Security headers, gzip and brotli. **Corrected to `encode
-      zstd gzip`** ([decision log](../DECISIONS.md), 2026-09-17): the stock `caddy:2`
+      zstd gzip`** ([decision log](../docs/DECISIONS.md), 2026-09-17): the stock `caddy:2`
       image has no `http.encoders.br` module — `caddy validate` refuses a
       Caddyfile naming it, confirmed by running it — and brotli needs a custom
       `xcaddy` build for a compression algorithm zstd already matches or beats.
@@ -3685,7 +3685,7 @@ backup, and the elapsed time is written into this iteration's completion record.
       container that mounts it — no host-installed `pg_dump`/`psql` assumed.
 - [x] **B12.4.2** 30-day retention, with an off-site copy. Local retention is
       unconditional (`find … -mtime +30 -delete`). The off-site copy is
-      **pluggable, not credentialed** ([decision log](../DECISIONS.md), 2026-09-17,
+      **pluggable, not credentialed** ([decision log](../docs/DECISIONS.md), 2026-09-17,
       decided with the human): it runs via `rclone` only when
       `BACKUP_OFFSITE_RCLONE_REMOTE` is set in `.env`, because no off-site
       destination exists yet to copy to.

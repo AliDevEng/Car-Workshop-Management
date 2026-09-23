@@ -4,8 +4,8 @@ Append a row whenever a decision in `PROJECT_SPEC.md` is changed. Never edit a
 past row.
 
 > [!NOTE]
-> Historical rows that name `backend/README.md` refer to the document now
-> located at `backend/IMPLEMENTATION_PLAN.md`.
+> Historical rows that name `backend/README.md` refer to the
+> [backend implementation plan](../backend/IMPLEMENTATION_PLAN.md).
 
 | Date | Decision | Reason |
 |---|---|---|

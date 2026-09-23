@@ -85,9 +85,13 @@ containers run in UTC, and Swedish local-time conversion happens explicitly.
 ├── backend/        Fastify API, Prisma schema, jobs, PDFs and performance tools
 ├── shared/         Schemas, types and pure domain rules used by both apps
 ├── infra/          Docker Compose, Caddy, backup and restore tooling
-├── PROJECT_SPEC.md Product and engineering source of truth
-├── DECISIONS.md    Append-only architecture decision history
-└── AI_DIAGNOSTICS_SPEC.md  Proposed AI-assisted diagnostics feature
+├── docs/
+│   ├── PROJECT_SPEC.md
+│   ├── DECISIONS.md
+│   └── proposals/
+│       └── AI_DIAGNOSTICS_SPEC.md
+│
+└── CLAUDE.md       Working rules for coding agents and maintainers
 ```
 
 <a id="phases"></a>
@@ -205,7 +209,7 @@ in the backend iteration tracker.
 - Changes follow Conventional Commits, for example
   `feat(backend): add stock ledger`.
 - `pnpm check` should pass before every commit.
-- The complete Definition of Done is in `PROJECT_SPEC.md` §10.
+- The complete Definition of Done is in `docs/PROJECT_SPEC.md` §10.
 
 <a id="documentation"></a>
 
@@ -213,15 +217,15 @@ in the backend iteration tracker.
 
 | Document | Purpose |
 |---|---|
-| [`PROJECT_SPEC.md`](PROJECT_SPEC.md) | Product requirements, domain rules and Definition of Done |
-| [`DECISIONS.md`](DECISIONS.md) | Durable architecture and product decisions with their reasoning |
+| [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) | Product requirements, domain rules and Definition of Done |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Durable architecture and product decisions with their reasoning |
 | [`backend/README.md`](backend/README.md) | Backend architecture, local workflow and engineering conventions |
 | [`backend/IMPLEMENTATION_PLAN.md`](backend/IMPLEMENTATION_PLAN.md) | Backend milestones, active work and verification history |
 | [`frontend/README.md`](frontend/README.md) | Frontend architecture, routes, design system and local workflow |
 | [`frontend/IMPLEMENTATION_PLAN.md`](frontend/IMPLEMENTATION_PLAN.md) | Frontend milestones, active work and acceptance history |
 | [`frontend/UI_UX_AUDIT.md`](frontend/UI_UX_AUDIT.md) | Completed cross-cutting UI and UX audit |
 | [`backend/perf/README.md`](backend/perf/README.md) | Dataset, query audit, performance budgets and load harness |
-| [`AI_DIAGNOSTICS_SPEC.md`](AI_DIAGNOSTICS_SPEC.md) | Proposed, not-yet-approved AI diagnostics feature |
+| [`docs/proposals/AI_DIAGNOSTICS_SPEC.md`](docs/proposals/AI_DIAGNOSTICS_SPEC.md) | Proposed, not-yet-approved AI diagnostics feature |
 | [`CLAUDE.md`](CLAUDE.md) | Implementation rules for coding agents and maintainers |
 
 ---

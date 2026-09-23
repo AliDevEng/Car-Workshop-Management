@@ -5,12 +5,12 @@ load-bearing.
 
 ## Documents, in reading order
 
-1. `PROJECT_SPEC.md` — what is built and why. The source of truth.
+1. `docs/PROJECT_SPEC.md` — what is built and why. The source of truth.
 2. `README.md` — phase map and progress.
 3. `backend/IMPLEMENTATION_PLAN.md` or `frontend/IMPLEMENTATION_PLAN.md` —
    the step you are on.
 
-If a README contradicts `PROJECT_SPEC.md`, the spec wins and the README is
+If a README contradicts `docs/PROJECT_SPEC.md`, the spec wins and the README is
 corrected in the same commit.
 
 ## How to work
@@ -42,7 +42,7 @@ wrong — fix the type.
 issue and a plan to remove it.
 
 **Money is integer öre.** Never a float, never a `Decimal`. See
-`PROJECT_SPEC.md` §3.2 and use `shared/money.ts`.
+`docs/PROJECT_SPEC.md` §3.2 and use `shared/money.ts`.
 
 **Quantities are `Decimal`, serialised as strings.** Never `Number()` a Prisma
 `Decimal`.
@@ -69,7 +69,8 @@ messages returned by the API, which are shown to users directly.
 
 Ask the human. Do not invent a requirement and build it.
 
-Specifically, ask before: adding a dependency not named in `PROJECT_SPEC.md`,
+Specifically, ask before: adding a dependency not named in
+`docs/PROJECT_SPEC.md`,
 changing the database schema in a way the spec does not describe, adding a
 feature listed under non-goals (§1.4), or changing anything in the decision log.
 
@@ -77,8 +78,8 @@ feature listed under non-goals (§1.4), or changing anything in the decision log
 
 Say so, and explain. The spec has reasons behind its choices, and some of them
 are less obvious than they look — but it is not sacred. If you have a better
-approach, propose it, get agreement, then update `PROJECT_SPEC.md` and add a row
-to `DECISIONS.md` before writing code.
+approach, propose it, get agreement, then update `docs/PROJECT_SPEC.md` and add
+a row to `docs/DECISIONS.md` before writing code.
 
 ## Traps specific to this project
 
@@ -131,5 +132,5 @@ start those iterations before the answers are in the decision log.
 
 ## Definition of done
 
-`PROJECT_SPEC.md` §10. Every box, every time. A step is not finished because the
+`docs/PROJECT_SPEC.md` §10. Every box, every time. A step is not finished because the
 code runs.
