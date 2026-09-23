@@ -204,11 +204,82 @@ test.describe('public routes', () => {
       320,
     );
   });
+
+  test('the mobile menu closes itself once the new page is on screen', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    const panel = page.locator('.mobile-nav-panel');
+    const openMenu = async () => {
+      await page
+        .locator('summary[aria-label="Öppna eller stäng meny"]')
+        .click();
+      await expect(panel).toBeVisible();
+    };
+
+    // Next navigates on the client, so nothing re-mounts the header: an
+    // uncontrolled `<details>` stayed open and covered the page it had just
+    // been asked to show.
+    await openMenu();
+    await page
+      .getByRole('navigation', { name: 'Mobilmeny' })
+      .getByRole('link', { name: 'Tjänster' })
+      .click();
+    await expect(page).toHaveURL(/\/tjanster$/);
+    await expect(panel).toBeHidden();
+
+    // And on the way back, where no click of ours closes anything.
+    await openMenu();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(panel).toBeHidden();
+
+    // The dimmed page behind the panel is a way out too.
+    await openMenu();
+    await page
+      .locator('.mobile-nav-backdrop')
+      .click({ position: { x: 10, y: 400 } });
+    await expect(panel).toBeHidden();
+  });
 });
 
 test.describe('vehicle lookup hero', () => {
   test.beforeEach(async ({ page }) => {
     await mockToken(page);
+  });
+
+  test('“Hitta bilen” sits beside the plate on a desktop and below it on a phone', async ({
+    page,
+  }) => {
+    const boxes = async () => {
+      const field = await page.locator('.lookup-field').boundingBox();
+      const submit = await page
+        .getByRole('button', { name: 'Hitta bilen' })
+        .boundingBox();
+      expect(field).not.toBeNull();
+      expect(submit).not.toBeNull();
+      return {
+        fieldBottom: (field?.y ?? 0) + (field?.height ?? 0),
+        fieldTop: field?.y ?? 0,
+        submitTop: submit?.y ?? 0,
+      };
+    };
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/');
+    const wide = await boxes();
+    expect(wide.submitTop).toBeLessThan(wide.fieldBottom);
+    expect(wide.submitTop).toBeGreaterThanOrEqual(wide.fieldTop);
+
+    // The bug: below 640 px the button wrapped onto a second row *inside* the
+    // white frame, so a hi-vis pill appeared to sit in the registration
+    // number field. It belongs under the field, clear of its frame.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    const narrow = await boxes();
+    expect(narrow.submitTop).toBeGreaterThanOrEqual(narrow.fieldBottom);
   });
 
   test('renders a cached result, suggestions and a prefilled booking link', async ({

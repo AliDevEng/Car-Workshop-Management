@@ -27,6 +27,7 @@ import {
 } from '@/components/admin/vehicle-model-picker';
 import { DatePicker } from '@/components/form/date-picker';
 import { RegNrInput } from '@/components/form/reg-nr-input';
+import { TimePicker } from '@/components/form/time-picker';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -508,13 +509,11 @@ export function CreateBookingDialog({
               >
                 Starttid
               </label>
-              <Input
+              <TimePicker
                 id="create-booking-start-time"
-                type="time"
+                label="Starttid"
                 value={startTime}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  setStartTime(event.currentTarget.value);
-                }}
+                onChange={setStartTime}
               />
             </div>
 

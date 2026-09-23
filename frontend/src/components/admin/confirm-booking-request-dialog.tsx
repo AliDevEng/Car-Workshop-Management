@@ -20,6 +20,7 @@ import {
 import { isConflictError } from '@/components/admin/conflict';
 import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { DatePicker } from '@/components/form/date-picker';
+import { TimePicker } from '@/components/form/time-picker';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -435,13 +436,11 @@ export function ConfirmBookingRequestDialog({
               >
                 Starttid
               </label>
-              <Input
+              <TimePicker
                 id="confirm-booking-start-time"
-                type="time"
+                label="Starttid"
                 value={startTime}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  setStartTime(event.currentTarget.value);
-                }}
+                onChange={setStartTime}
               />
             </div>
 

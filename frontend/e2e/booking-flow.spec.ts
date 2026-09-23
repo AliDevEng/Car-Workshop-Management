@@ -1,7 +1,9 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import {
+  addStockholmDays,
   formTokenResponseSchema,
   publicBookingRequestInputSchema,
+  stockholmDate,
 } from 'shared';
 
 async function fulfilJson(route: Route, body: unknown, status = 200) {
@@ -80,6 +82,40 @@ test.describe('public booking flow', () => {
     await expect(
       page.getByText('Tiden är bokad först när vi har bekräftat den med dig.'),
     ).toBeVisible();
+  });
+
+  test('the wanted day is picked in the project’s own calendar, not the browser’s', async ({
+    page,
+  }) => {
+    const tomorrow = addStockholmDays(stockholmDate(new Date()), 1);
+    await mockToken(page);
+    await page.route('**/api/public/booking-requests', async (route) => {
+      const rawBody = route.request().postData();
+      const requestBody: unknown =
+        rawBody === null ? null : JSON.parse(rawBody);
+      expect(publicBookingRequestInputSchema.parse(requestBody)).toMatchObject({
+        requestedDate: tomorrow,
+      });
+      await fulfilJson(route, { received: true }, 201);
+    });
+
+    await page.goto('/boka');
+
+    // Not an `<input type="date">`: a trigger that opens the same month grid
+    // the staff calendar uses, where a past day is a disabled button rather
+    // than something the browser decides for itself.
+    await expect(page.locator('#booking-date')).toHaveJSProperty(
+      'tagName',
+      'BUTTON',
+    );
+    await page.getByRole('button', { name: 'Önskad dag' }).click();
+    const yesterday = addStockholmDays(stockholmDate(new Date()), -1);
+    await expect(page.locator(`[data-date="${yesterday}"]`)).toBeDisabled();
+    await page.locator(`[data-date="${tomorrow}"]`).click();
+
+    await fillRequiredBookingFields(page);
+    await submitBooking(page);
+    await expect(page).toHaveURL(/\/boka\/tack$/);
   });
 
   test('rejects a filled honeypot before submitting to the API', async ({

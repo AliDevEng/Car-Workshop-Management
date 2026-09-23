@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import {
   stockholmDate,
   stockholmWallClock,
@@ -16,6 +16,7 @@ import { notifyError, notifySuccess } from '@/components/admin/notify';
 import { bookingStatus } from '@/components/admin/status';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { DatePicker } from '@/components/form/date-picker';
+import { TimePicker } from '@/components/form/time-picker';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -25,7 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -189,13 +189,11 @@ export function BookingDetailDialog({
                 >
                   Starttid
                 </label>
-                <Input
+                <TimePicker
                   id="booking-detail-time"
-                  type="time"
+                  label="Starttid"
                   value={startTime}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                    setStartTime(event.currentTarget.value);
-                  }}
+                  onChange={setStartTime}
                 />
               </div>
               <div className="flex flex-col gap-1.5">

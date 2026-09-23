@@ -9,11 +9,14 @@ export function PublicNavLink({
   href,
   className,
   activeClassName,
+  onClick,
   children,
 }: {
   readonly href: string;
   readonly className: string;
   readonly activeClassName: string;
+  /** The mobile menu closes itself here — see `MobileNav`. */
+  readonly onClick?: () => void;
   readonly children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -27,6 +30,7 @@ export function PublicNavLink({
       href={href}
       aria-current={isActive ? 'page' : undefined}
       className={cn(className, isActive && activeClassName)}
+      {...(onClick === undefined ? {} : { onClick })}
     >
       {children}
     </Link>

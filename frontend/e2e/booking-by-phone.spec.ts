@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { addStockholmDays, stockholmDate } from 'shared';
+import { pickStartTime } from './pickers';
 
 const ADMIN_EMAIL = 'admin@verkstaden.se';
 const ADMIN_PASSWORD = 'utveckling-admin-2026';
@@ -73,7 +74,7 @@ test.describe('taking a booking over the telephone', () => {
 
     // The dialog opens on the day the calendar was showing, so the commonest
     // case — "kan du imorgon?" — needs no date picking at all.
-    await page.getByLabel('Starttid').fill('09:00');
+    await pickStartTime(page, '09:00');
 
     await page.getByLabel('Namn').fill(caller);
     await page.getByLabel('Telefon').fill(uniquePhone(stamp));
@@ -121,7 +122,7 @@ test.describe('taking a booking over the telephone', () => {
     await page.goto(`/admin/bokningar?vy=dag&date=${tomorrow}`);
 
     await page.getByRole('button', { name: 'Ny bokning' }).click();
-    await page.getByLabel('Starttid').fill('14:00');
+    await pickStartTime(page, '14:00');
     await page.getByLabel('Namn').fill(oddCustomer);
     await page.getByLabel('Telefon').fill(uniquePhone(stamp + 1));
     await page.getByLabel('Registreringsnummer').fill(uniquePlate(stamp + 1));
@@ -165,7 +166,7 @@ test.describe('taking a booking over the telephone', () => {
     // person (§4.2).
     await expect(submit).toBeDisabled();
 
-    await page.getByLabel('Starttid').fill('16:00');
+    await pickStartTime(page, '16:00');
     await page.getByLabel('Namn').fill(`E2E Utan bil ${stamp}`);
     await page.getByLabel('Telefon').fill(uniquePhone(stamp + 2));
 

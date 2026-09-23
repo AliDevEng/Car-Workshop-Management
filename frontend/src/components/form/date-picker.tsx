@@ -20,7 +20,23 @@ export interface DatePickerProps {
   readonly disablePast?: boolean;
   readonly optional?: boolean;
   readonly disabled?: boolean;
+  /**
+   * How the trigger is drawn. `secondary` is the raised control the admin
+   * panel uses everywhere; `outline` borrows `Input`'s own border and
+   * transparent ground, which is what the public booking form needs — there
+   * the card is already `concrete-2`, so a `secondary` trigger would be the
+   * same colour as the surface it sits on and read as a hole rather than a
+   * field.
+   */
+  readonly variant?: 'secondary' | 'outline';
   readonly className?: string;
+  /**
+   * The field's own name, for the surfaces where the trigger is not wired to
+   * a `<label>` that a screen reader will use: the trigger is a button whose
+   * visible text is the chosen date, and "12 oktober 2026" does not say
+   * *which* date it is.
+   */
+  readonly 'aria-label'?: string | undefined;
   readonly 'aria-describedby'?: string | undefined;
   readonly 'aria-invalid'?: boolean | undefined;
   readonly 'aria-required'?: boolean | undefined;
@@ -38,6 +54,7 @@ export function DatePicker({
   disablePast = false,
   optional = false,
   disabled = false,
+  variant = 'secondary',
   className,
   ...aria
 }: DatePickerProps) {
@@ -50,7 +67,7 @@ export function DatePicker({
           <Button
             id={id}
             type="button"
-            variant="secondary"
+            variant={variant}
             disabled={disabled}
             className={cn(
               'h-11 min-w-0 flex-1 justify-start px-3 tabular-nums',

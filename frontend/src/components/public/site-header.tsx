@@ -1,6 +1,7 @@
-import { Menu, Phone, X } from 'lucide-react';
+import { Phone } from 'lucide-react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/public/brand-mark';
+import { MobileNav } from '@/components/public/mobile-nav';
 import { PublicNavLink } from '@/components/public/public-nav-link';
 
 const navigation = [
@@ -57,53 +58,7 @@ export function SiteHeader({
           </Link>
         </div>
 
-        <details className="mobile-nav shrink-0 lg:hidden">
-          <summary
-            className="site-icon-button"
-            aria-label="Öppna eller stäng meny"
-          >
-            <Menu aria-hidden="true" className="mobile-nav-open-icon size-5" />
-            <X aria-hidden="true" className="mobile-nav-close-icon size-5" />
-          </summary>
-          <div className="mobile-nav-backdrop" aria-hidden="true" />
-          <div className="mobile-nav-panel">
-            <div className="border-b border-white/15 p-6 pr-20">
-              <p className="font-sans text-base font-semibold text-white">
-                Meny
-              </p>
-              <p className="mt-1 text-sm text-concrete/70">
-                Hitta rätt väg till verkstaden.
-              </p>
-            </div>
-            <nav aria-label="Mobilmeny" className="flex flex-col p-4">
-              {navigation.map((item, index) => (
-                <PublicNavLink
-                  href={item.href}
-                  key={item.href}
-                  className="mobile-nav-link"
-                  activeClassName="mobile-nav-link-active"
-                >
-                  <span>{item.label}</span>
-                  <span className="text-sm font-normal text-concrete/55">
-                    0{String(index + 1)}
-                  </span>
-                </PublicNavLink>
-              ))}
-            </nav>
-            <div className="mt-auto grid gap-3 p-6">
-              <a
-                href={phoneHref}
-                className="site-button border border-white/25 text-white"
-              >
-                <Phone aria-hidden="true" className="size-4" />
-                {phone}
-              </a>
-              <Link href="/boka" className="site-button site-button-hivis">
-                Boka tid
-              </Link>
-            </div>
-          </div>
-        </details>
+        <MobileNav items={navigation} phone={phone} phoneHref={phoneHref} />
       </div>
     </header>
   );

@@ -362,14 +362,29 @@
     }
   }
 
+  /*
+   * The white plate field and the submit button are siblings, not one box.
+   * On a wide screen the button sits inside the field's frame; below 640 px
+   * the frame belongs to `.lookup-field` alone and the button steps out from
+   * under it. Painting the frame on the outer element instead — which is how
+   * this started — put a hi-vis pill inside the registration-number field on
+   * every phone, reading as part of the input rather than as the action.
+   */
   .lookup-control {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    display: flex;
+    align-items: stretch;
     overflow: hidden;
     border: 1px solid rgb(255 255 255 / 18%);
     border-radius: var(--radius-soft);
     background: white;
     color: var(--color-steel);
+  }
+
+  .lookup-field {
+    display: grid;
+    min-width: 0;
+    flex: 1;
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .lookup-country {
@@ -409,6 +424,7 @@
     display: inline-flex;
     min-width: 9.5rem;
     align-items: center;
+    align-self: center;
     justify-content: center;
     gap: 0.5rem;
     margin: 0.35rem;
@@ -685,13 +701,25 @@
     }
 
     .lookup-control {
-      grid-template-columns: auto minmax(0, 1fr);
+      flex-direction: column;
+      overflow: visible;
+      border: 0;
+      border-radius: 0;
+      background: none;
+      gap: 0.75rem;
+    }
+
+    .lookup-field {
+      overflow: hidden;
+      border: 1px solid rgb(255 255 255 / 18%);
+      border-radius: var(--radius-soft);
+      background: white;
     }
 
     .lookup-submit {
-      grid-column: 1 / -1;
-      min-height: 3rem;
-      margin: 0 0.35rem 0.35rem;
+      min-height: 3.25rem;
+      align-self: stretch;
+      margin: 0;
     }
 
     .lookup-result {

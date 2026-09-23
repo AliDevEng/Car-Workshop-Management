@@ -11,6 +11,7 @@ import {
   type RequestedTimeOfDay,
 } from 'shared';
 import { z } from 'zod';
+import { DatePicker } from '@/components/form/date-picker';
 import { RegNrInput as RegistrationNumberInput } from '@/components/form/reg-nr-input';
 import { Input } from '@/components/ui/input';
 import { ApiError } from '@/lib/api/errors';
@@ -351,17 +352,35 @@ export function BookingForm({
           label="Önskad dag"
           error={errors.requestedDate?.message}
         >
-          <Input
-            id="booking-date"
-            type="date"
-            autoComplete="off"
-            {...register('requestedDate')}
-            aria-invalid={errors.requestedDate === undefined ? undefined : true}
-            aria-describedby={
-              errors.requestedDate === undefined
-                ? undefined
-                : 'booking-date-error'
-            }
+          <Controller
+            control={control}
+            name="requestedDate"
+            render={({ field }) => (
+              <DatePicker
+                id="booking-date"
+                variant="outline"
+                value={
+                  field.value === undefined || field.value === ''
+                    ? null
+                    : field.value
+                }
+                onChange={(next) => {
+                  field.onChange(next ?? '');
+                }}
+                aria-label="Önskad dag"
+                placeholder="Välj dag"
+                disablePast
+                optional
+                aria-invalid={
+                  errors.requestedDate === undefined ? undefined : true
+                }
+                aria-describedby={
+                  errors.requestedDate === undefined
+                    ? undefined
+                    : 'booking-date-error'
+                }
+              />
+            )}
           />
         </BookingTextField>
 

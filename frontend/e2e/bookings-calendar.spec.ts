@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { addStockholmDays, stockholmDate } from 'shared';
+import { pickStartTime } from './pickers';
 
 const ADMIN_EMAIL = 'admin@verkstaden.se';
 const ADMIN_PASSWORD = 'utveckling-admin-2026';
@@ -147,7 +148,7 @@ test.describe('calendar and booking requests (F8)', () => {
     // Reschedule without ever touching drag-and-drop: the same
     // `PATCH /bookings/:id` the drag gesture also calls, reached entirely
     // by keyboard (F8.6.4).
-    await page.getByLabel('Starttid').fill('10:00');
+    await pickStartTime(page, '10:00');
     await page.getByRole('button', { name: 'Spara ändringar' }).click();
 
     await expect(page.getByText('Bokningen är uppdaterad.')).toBeVisible();

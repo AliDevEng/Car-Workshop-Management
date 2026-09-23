@@ -95,25 +95,31 @@ export function VehicleLookup() {
           Sök på din bil
         </label>
         <div className="lookup-control">
-          <span aria-hidden="true" className="lookup-country">
-            <span className="text-[9px]">🇪🇺</span>
-            <strong>S</strong>
-          </span>
-          <input
-            id={fieldId}
-            name="registrationNumber"
-            value={registrationNumber}
-            onChange={(event) =>
-              setRegistrationNumber(event.target.value.toUpperCase())
-            }
-            placeholder="ABC 123"
-            maxLength={12}
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
-            aria-describedby="lookup-help lookup-result"
-            className="lookup-input"
-          />
+          {/* The plate itself. Its own element, so that on a phone — where
+              the button drops onto a second row — the white field can keep
+              the border and the submit button can step outside it, instead
+              of a yellow pill appearing to sit inside the number field. */}
+          <div className="lookup-field">
+            <span aria-hidden="true" className="lookup-country">
+              <span className="text-[9px]">🇪🇺</span>
+              <strong>S</strong>
+            </span>
+            <input
+              id={fieldId}
+              name="registrationNumber"
+              value={registrationNumber}
+              onChange={(event) =>
+                setRegistrationNumber(event.target.value.toUpperCase())
+              }
+              placeholder="ABC 123"
+              maxLength={12}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              aria-describedby="lookup-help lookup-result"
+              className="lookup-input"
+            />
+          </div>
           <button
             type="submit"
             className="lookup-submit"
