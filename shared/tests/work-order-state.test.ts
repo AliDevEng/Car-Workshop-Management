@@ -5,6 +5,7 @@ import {
   assertTransition,
   canTransition,
   isTerminalStatus,
+  isWorkOrderLocked,
   WORK_ORDER_STATUS_LABELS,
   WORK_ORDER_STATUSES,
   type WorkOrderStatus,
@@ -173,4 +174,25 @@ describe('Swedish labels', () => {
       'Avbruten',
     ]);
   });
+});
+
+describe('isWorkOrderLocked — what the backend refuses to rewrite', () => {
+  // Written out by hand, like the transition table above: deriving it from
+  // `LOCKED_WORK_ORDER_STATUSES` would only assert the constant agrees with
+  // itself. Deliberately not `isTerminalStatus` — a completed order is locked
+  // but can still be reopened.
+  const expected: Readonly<Record<WorkOrderStatus, boolean>> = {
+    DRAFT: false,
+    IN_PROGRESS: false,
+    AWAITING_PARTS: false,
+    READY_FOR_PICKUP: false,
+    COMPLETED: true,
+    CANCELLED: true,
+  };
+
+  for (const status of WORK_ORDER_STATUSES) {
+    it(`${status} is ${expected[status] ? 'locked' : 'open'}`, () => {
+      expect(isWorkOrderLocked(status)).toBe(expected[status]);
+    });
+  }
 });

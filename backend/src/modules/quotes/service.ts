@@ -29,6 +29,7 @@ import {
 } from '../../lib/document-numbering.js';
 import { toDecimalString } from '../../lib/dto-decimal.js';
 import { toIsoDateOrNull } from '../../lib/dto-dates.js';
+import { fieldError } from '../../lib/field-error.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { AnyDbClient, Database } from '../../lib/prisma.js';
 import { renderPdf } from '../../pdf/renderer.js';
@@ -81,6 +82,12 @@ const NOT_SENT = 'Bara en skickad offert kan besvaras. Skicka offerten först.';
 
 const ALREADY_REVISED =
   'Offerten har redan en nyare version. Utgå från den i stället.';
+
+const VALID_UNTIL_PASSED =
+  'Giltighetsdatumet har redan passerat. Välj dagens datum eller senare.';
+
+const LAPSED_DRAFT =
+  'Offertens giltighetsdatum har passerat. Ändra datumet innan den skickas.';
 
 const CANNOT_REVISE_DRAFT =
   'Ett utkast ändras direkt — en ny version skapas först när offerten har ' +
@@ -147,6 +154,33 @@ function toLocalDate(value: Date): string {
 async function defaultValidUntil(db: Database, now: Date): Promise<string> {
   const settings = await getOperationalSettings(db);
   return addStockholmDays(stockholmDate(now), settings.quoteValidityDays);
+}
+
+/**
+ * A validity date that has already passed is refused wherever one is chosen.
+ *
+ * It was accepted, so a draft could be dated `2000-01-01`, sent, handed to the
+ * customer — and flipped to `EXPIRED` by the next nightly sweep, with the
+ * customer holding an offer the workshop's own list calls lapsed. "Passed" is
+ * `isQuoteExpired`, the sweep's own rule, so the two cannot disagree about a
+ * quote valid until today.
+ */
+function assertValidUntilOpen(validUntil: string, now: Date): void {
+  if (isQuoteExpired(validUntil, stockholmDate(now))) {
+    throw fieldError('validUntil', VALID_UNTIL_PASSED);
+  }
+}
+
+async function resolveValidUntil(
+  db: Database,
+  requested: string | undefined,
+  now: Date = new Date(),
+): Promise<string> {
+  if (requested === undefined) {
+    return defaultValidUntil(db, now);
+  }
+  assertValidUntilOpen(requested, now);
+  return requested;
 }
 
 // --- Reads -------------------------------------------------------------------
@@ -376,8 +410,7 @@ export async function createQuote(
   // Resolved before the transaction opens: the validity default is workshop
   // configuration, not part of the atomic unit, and reading it inside would
   // hold a connection open for a lookup unrelated to the write.
-  const validUntil =
-    input.validUntil ?? (await defaultValidUntil(db, new Date()));
+  const validUntil = await resolveValidUntil(db, input.validUntil);
 
   return db.$transaction((tx) =>
     createQuoteInTransaction(tx, actorId, ipHash, { workOrderId, validUntil }),
@@ -402,6 +435,8 @@ export async function updateQuote(
   id: string,
   input: UpdateQuoteInput,
 ): Promise<QuoteResponse> {
+  assertValidUntilOpen(input.validUntil, new Date());
+
   return db.$transaction(async (tx) => {
     const before = await loadQuote(tx, id);
 
@@ -470,6 +505,16 @@ export async function sendQuoteInTransaction(
 ): Promise<QuoteResponse> {
   const before = await loadQuote(tx, id);
   assertQuoteTransition(before.status, 'SENT');
+  // A draft left lying until its date passed must not go out already lapsed;
+  // there is no date in this request to blame, so this is a conflict with the
+  // quote's state rather than a field error.
+  if (
+    isQuoteExpired(toLocalDate(before.validUntil), stockholmDate(new Date()))
+  ) {
+    throw new ConflictError(LAPSED_DRAFT, {
+      details: { validUntil: toLocalDate(before.validUntil) },
+    });
+  }
 
   // The document's own copy of the customer and the vehicle — every field it
   // prints, not the summary the API returns. Selected here rather than taken
@@ -671,8 +716,7 @@ export async function reviseQuote(
   id: string,
   input: CreateQuoteInput,
 ): Promise<QuoteResponse> {
-  const validUntil =
-    input.validUntil ?? (await defaultValidUntil(db, new Date()));
+  const validUntil = await resolveValidUntil(db, input.validUntil);
 
   return db.$transaction(async (tx) => {
     const original = await loadQuote(tx, id);

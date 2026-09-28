@@ -34,15 +34,18 @@ export async function reconcileStockLedger(
   db: AnyDbClient,
   logger: JobLogger,
 ): Promise<readonly StockDrift[]> {
-  const [articles, sums] = await Promise.all([
-    db.article.findMany({
-      select: { id: true, sku: true, stockQuantity: true },
-    }),
-    db.stockMovement.groupBy({
-      by: ['articleId'],
-      _sum: { quantity: true },
-    }),
-  ]);
+  // Sequential, not `Promise.all`: the scheduler hands this job the
+  // transaction that holds its advisory lock, and concurrent queries on one
+  // transaction connection race rather than parallelise — `pg` already
+  // deprecates it and 9.0 will throw, which would take the nightly drift
+  // check down with it (see the B9 decision-log row on the same bug).
+  const articles = await db.article.findMany({
+    select: { id: true, sku: true, stockQuantity: true },
+  });
+  const sums = await db.stockMovement.groupBy({
+    by: ['articleId'],
+    _sum: { quantity: true },
+  });
 
   const ledgerByArticleId = new Map(
     sums.map((row) => [row.articleId, row._sum.quantity]),

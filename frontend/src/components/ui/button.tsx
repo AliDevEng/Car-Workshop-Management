@@ -62,14 +62,18 @@ const buttonVariants = cva(
         // text itself on the steel ground (2.55:1).
         link: 'text-link underline underline-offset-4 hover:no-underline',
       },
+      // The compact sizes are for a mouse at a desk. On a touch screen every
+      // size grows to the 44 px floor (§9.4) — measured on the workshop
+      // tablet, the calendar's controls and most header actions were 32–38 px
+      // high, which is exactly where a gloved finger misses.
       size: {
-        sm: 'h-8 gap-1.5 px-3 text-[0.8125rem]',
-        md: 'h-[38px] gap-2 px-4',
+        sm: 'h-8 gap-1.5 px-3 text-[0.8125rem] pointer-coarse:h-11',
+        md: 'h-[38px] gap-2 px-4 pointer-coarse:h-11',
         // 44 px — the minimum touch target for the admin panel and the
         // tablet in the workshop. Not a "large" button, a reachable one.
         lg: 'h-11 gap-2 px-5 text-base',
-        icon: 'size-[38px]',
-        'icon-sm': 'size-8',
+        icon: 'size-[38px] pointer-coarse:size-11',
+        'icon-sm': 'size-8 pointer-coarse:size-11',
         'icon-lg': 'size-11',
       },
     },

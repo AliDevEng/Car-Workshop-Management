@@ -3,7 +3,6 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type QueryClient,
 } from '@tanstack/react-query';
 import {
   articleSchema,
@@ -20,6 +19,7 @@ import {
   type UpdateArticleInput,
 } from 'shared';
 import { apiFetch } from './client';
+import { invalidateDomains, type AffectedDomain } from './invalidation';
 import { queryKeys } from './keys';
 
 const articleListResponseSchema = paginatedResponseSchema(articleSchema);
@@ -93,15 +93,15 @@ export function lowStockExportPath(): string {
   return '/api/articles/low-stock/export';
 }
 
-async function invalidateArticleQueries(
-  queryClient: QueryClient,
-  id: string,
-): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.articlesRoot() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.article(id) }),
-  ]);
-}
+/**
+ * What every article write makes stale. The `articles` root also matches each
+ * article's detail and its movement list; stock, minimum quantity and
+ * activation all move the dashboard's low-stock list.
+ */
+const ARTICLE_WRITE_EFFECTS: readonly AffectedDomain[] = [
+  'articles',
+  'dashboard',
+];
 
 export function useCreateArticle() {
   const queryClient = useQueryClient();
@@ -109,9 +109,7 @@ export function useCreateArticle() {
     mutationFn: (input: CreateArticleInput) =>
       apiFetch('/articles', articleSchema, { method: 'POST', body: input }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.articlesRoot(),
-      });
+      await invalidateDomains(queryClient, ARTICLE_WRITE_EFFECTS);
     },
   });
 }
@@ -125,7 +123,7 @@ export function useUpdateArticle(id: string) {
         body: input,
       }),
     onSuccess: async () => {
-      await invalidateArticleQueries(queryClient, id);
+      await invalidateDomains(queryClient, ARTICLE_WRITE_EFFECTS);
     },
   });
 }
@@ -141,7 +139,7 @@ export function useSetArticleActive(id: string) {
         { method: 'POST' },
       ),
     onSuccess: async () => {
-      await invalidateArticleQueries(queryClient, id);
+      await invalidateDomains(queryClient, ARTICLE_WRITE_EFFECTS);
     },
   });
 }
@@ -179,7 +177,10 @@ export function useStockMovements(
   return useQuery({
     queryKey: queryKeys.stockMovements(articleId, params),
     queryFn: () =>
-      apiFetch(stockMovementsPath(articleId, params), movementListResponseSchema),
+      apiFetch(
+        stockMovementsPath(articleId, params),
+        movementListResponseSchema,
+      ),
     placeholderData: keepPreviousData,
   });
 }
@@ -195,12 +196,7 @@ export function useStocktake(articleId: string) {
         body: input,
       }),
     onSuccess: async () => {
-      await Promise.all([
-        invalidateArticleQueries(queryClient, articleId),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.stockMovementsRoot(articleId),
-        }),
-      ]);
+      await invalidateDomains(queryClient, ARTICLE_WRITE_EFFECTS);
     },
   });
 }
@@ -216,12 +212,7 @@ export function useStockAdjustment(articleId: string) {
         { method: 'POST', body: input },
       ),
     onSuccess: async () => {
-      await Promise.all([
-        invalidateArticleQueries(queryClient, articleId),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.stockMovementsRoot(articleId),
-        }),
-      ]);
+      await invalidateDomains(queryClient, ARTICLE_WRITE_EFFECTS);
     },
   });
 }

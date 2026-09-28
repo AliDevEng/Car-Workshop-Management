@@ -29,7 +29,7 @@ function Breadcrumbs({ items }: { readonly items: readonly BreadcrumbItem[] }) {
       {parent === undefined || parent.href === undefined ? null : (
         <Link
           href={parent.href}
-          className="inline-flex min-h-8 items-center gap-1 rounded-sharp pr-2 hover:text-foreground sm:hidden"
+          className="inline-flex min-h-8 items-center gap-1 rounded-sharp pr-2 hover:text-foreground pointer-coarse:min-h-11 sm:hidden"
         >
           <ChevronLeftIcon aria-hidden="true" className="size-3.5" />
           {parent.label}

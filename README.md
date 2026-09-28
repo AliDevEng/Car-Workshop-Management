@@ -115,9 +115,13 @@ short public overview.
 
 ### Current snapshot
 
-As of **2026-09-23**:
+As of **2026-09-28**:
 
 - Backend: **93/96 milestones**, with **12/15 iterations done**.
+- Hardening pass **H2** (2026-09-28) fixed seven API defects and six
+  frontend ones found by driving the running stack across phone, tablet and
+  desktop — among them a partial article update that silently reset VAT. No
+  milestone counts change; see the backend and frontend implementation plans.
 - Frontend: **66/96 milestones**, with **8/14 iterations done**. The twelve F13
   admin-redesign milestones are still open: its visual system, navigation shell
   and dashboard are built, and every milestone retains tasks that are not.

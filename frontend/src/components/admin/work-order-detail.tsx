@@ -244,7 +244,7 @@ export function WorkOrderDetailPage({
       <div className="flex flex-wrap gap-2">
         <Link
           href={`/admin/kunder/${workOrder.customer.id}`}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-sharp border border-border px-3 text-sm hover:bg-accent"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-sharp border border-border px-3 text-sm hover:bg-accent pointer-coarse:min-h-11"
         >
           <span className="text-muted-foreground">Kund:</span>
           <span className="font-medium">{workOrder.customer.name}</span>
@@ -252,7 +252,7 @@ export function WorkOrderDetailPage({
         </Link>
         <Link
           href={`/admin/fordon/${workOrder.vehicle.id}`}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-sharp border border-border px-3 text-sm hover:bg-accent"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-sharp border border-border px-3 text-sm hover:bg-accent pointer-coarse:min-h-11"
         >
           <span className="text-muted-foreground">Fordon:</span>
           <span className="font-medium tabular-nums">

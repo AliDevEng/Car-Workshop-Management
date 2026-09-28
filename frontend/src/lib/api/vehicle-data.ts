@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { vehicleDetailSchema, type VehicleDetail } from 'shared';
 import { apiFetch } from './client';
+import { invalidateDomains } from './invalidation';
 import { queryKeys } from './keys';
 
 /**
@@ -21,9 +22,13 @@ export function useRefreshVehicleData(vehicleId: string) {
       ),
     onSuccess: async (updated: VehicleDetail) => {
       queryClient.setQueryData(queryKeys.vehicle(vehicleId), updated);
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.vehicle(vehicleId),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.vehicle(vehicleId),
+        }),
+        // The register is where the inspection dates come from.
+        invalidateDomains(queryClient, ['dashboard']),
+      ]);
     },
   });
 }

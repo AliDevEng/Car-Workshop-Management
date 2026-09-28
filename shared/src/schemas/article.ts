@@ -104,21 +104,51 @@ export type ArticleSummary = z.infer<typeof articleSummarySchema>;
  * transaction with the article row locked (§4.2). A settable balance field
  * would be a second, unaudited way to change it.
  */
-export const createArticleInputSchema = z.object({
+const articleInputFields = {
   sku: skuSchema,
   name: nameSchema,
-  description: noteSchema.optional(),
+  description: noteSchema,
   unit: unitSchema,
   salesPriceOre: nonNegativeOreSchema,
-  purchasePriceOre: nonNegativeOreSchema.optional(),
-  vatRateBps: vatRateBpsSchema.default(VAT_RATE_BPS_STANDARD),
-  minimumQuantity: quantityStringSchema.default('0'),
-  location: shortTextSchema.optional(),
-  oeNumbers: oeNumbersSchema.default([]),
+  purchasePriceOre: nonNegativeOreSchema,
+  vatRateBps: vatRateBpsSchema,
+  minimumQuantity: quantityStringSchema,
+  location: shortTextSchema,
+  oeNumbers: oeNumbersSchema,
+};
+
+export const createArticleInputSchema = z.object({
+  ...articleInputFields,
+  description: articleInputFields.description.optional(),
+  purchasePriceOre: articleInputFields.purchasePriceOre.optional(),
+  vatRateBps: articleInputFields.vatRateBps.default(VAT_RATE_BPS_STANDARD),
+  minimumQuantity: articleInputFields.minimumQuantity.default('0'),
+  location: articleInputFields.location.optional(),
+  oeNumbers: articleInputFields.oeNumbers.default([]),
 });
 export type CreateArticleInput = z.infer<typeof createArticleInputSchema>;
 
-export const updateArticleInputSchema = createArticleInputSchema.partial();
+/**
+ * Built from the bare fields, **never** from `createArticleInputSchema`.
+ *
+ * `.partial()` over the create schema looked equivalent and was not: Zod 4
+ * still applies a `.default()` wrapped in `.optional()`, so a PATCH that only
+ * renamed an article arrived as `{ name, vatRateBps: 2500, minimumQuantity:
+ * '0', oeNumbers: [] }` — resetting the VAT rate every later work-order line
+ * snapshots, blinding the low-stock view and erasing the OE numbers the
+ * partner links depend on, while answering 200.
+ *
+ * Nullable columns take `.nullable().optional()`, per §8.1: `undefined`
+ * leaves the value alone and `null` clears it.
+ */
+export const updateArticleInputSchema = z
+  .object(articleInputFields)
+  .partial()
+  .extend({
+    description: articleInputFields.description.nullable().optional(),
+    purchasePriceOre: articleInputFields.purchasePriceOre.nullable().optional(),
+    location: articleInputFields.location.nullable().optional(),
+  });
 export type UpdateArticleInput = z.infer<typeof updateArticleInputSchema>;
 
 export const articleListQuerySchema = cursorQuerySchema.extend({

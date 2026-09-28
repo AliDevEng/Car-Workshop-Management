@@ -1,4 +1,4 @@
-import { useQuery, type QueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { dashboardSchema, type Dashboard } from 'shared';
 import { apiFetch } from './client';
 import { queryKeys } from './keys';
@@ -17,14 +17,6 @@ export function useDashboard(date: string | null) {
     queryKey: queryKeys.dashboard(date),
     queryFn: () => apiFetch(dashboardPath(date), dashboardSchema),
     staleTime: 15_000,
-  });
-}
-
-export async function invalidateDashboardQueries(
-  queryClient: QueryClient,
-): Promise<void> {
-  await queryClient.invalidateQueries({
-    queryKey: queryKeys.dashboardRoot(),
   });
 }
 

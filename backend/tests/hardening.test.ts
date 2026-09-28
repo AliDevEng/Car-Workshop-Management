@@ -6,8 +6,10 @@ import { runQuoteExpirySweep } from '../src/jobs/quote-expiry.js';
 import { DEFAULT_SCHEDULES } from '../src/jobs/scheduler.js';
 import { createTestApp, type TestApp } from './helpers/app.js';
 import { loginAs, withAgent, type Agent } from './helpers/auth.js';
+import { submit, validSubmission } from './helpers/bookings.js';
 import { jsonBody } from './helpers/http.js';
 import {
+  completeWorkOrder,
   get,
   patch,
   post,
@@ -632,5 +634,182 @@ describe('an article with thousands of OE numbers', () => {
       .expect(400);
 
     expect(errorBody(response).code).toBe('VALIDATION_FAILED');
+  });
+});
+
+// --- Found by the 2026-09-28 probe of the running system ---------------------
+
+describe('a partial article update', () => {
+  async function newArticle(): Promise<string> {
+    const response = await post(harness, admin, '/api/articles', {
+      sku: `H2-${crypto.randomUUID()}`,
+      name: 'Motorolja 5W-30',
+      unit: 'LITRE',
+      salesPriceOre: 12_900,
+      purchasePriceOre: 8_000,
+      vatRateBps: 1200,
+      minimumQuantity: '20',
+      location: 'Hylla B3',
+      oeNumbers: ['A0009898301'],
+    }).expect(201);
+    return (jsonBody(response) as { id: string }).id;
+  }
+
+  it('leaves the fields it does not name alone', async () => {
+    const id = await newArticle();
+    // `.partial()` over the create schema re-applied its defaults, so this
+    // rename reset VAT to 25 %, the minimum to 0 and erased the OE numbers.
+    await patch(harness, admin, `/api/articles/${id}`, {
+      name: 'Motorolja 5W-30 Longlife',
+    }).expect(200);
+
+    const after = await harness.app.prisma.article.findUniqueOrThrow({
+      where: { id },
+    });
+    expect(after.vatRateBps).toBe(1200);
+    expect(after.minimumQuantity.toString()).toBe('20');
+    expect(after.oeNumbers).toEqual(['A0009898301']);
+  });
+
+  it('clears a nullable field with null (§8.1)', async () => {
+    const id = await newArticle();
+    await patch(harness, admin, `/api/articles/${id}`, {
+      purchasePriceOre: null,
+      location: null,
+      description: null,
+    }).expect(200);
+
+    const after = await harness.app.prisma.article.findUniqueOrThrow({
+      where: { id },
+    });
+    expect(after.purchasePriceOre).toBeNull();
+    expect(after.location).toBeNull();
+  });
+
+  it('does not turn a mechanic’s shelf edit into a price change', async () => {
+    const id = await newArticle();
+    const mechanic = await loginAs(harness, { role: 'MECHANIC' });
+    await patch(harness, mechanic, `/api/articles/${id}`, {
+      location: 'Hylla C1',
+    }).expect(200);
+  });
+});
+
+describe('a NUL byte where nothing stores it', () => {
+  it('is a 400 on a list search, not a Postgres encoding error', async () => {
+    for (const path of ['/api/customers', '/api/vehicles', '/api/articles']) {
+      const response = await get(harness, admin, `${path}?q=%00`).expect(400);
+      expect(errorBody(response).code).toBe('VALIDATION_FAILED');
+    }
+  });
+
+  it('is a 400 in a public booking request’s plate and services', async () => {
+    const plate = await submit(
+      harness,
+      validSubmission(harness, { regNr: 'AB\u0000123' }),
+    ).expect(400);
+    expect(errorBody(plate).code).toBe('VALIDATION_FAILED');
+
+    const services = await submit(
+      harness,
+      validSubmission(harness, { serviceTypeIds: ['bil\u0000service'] }),
+    ).expect(400);
+    expect(errorBody(services).code).toBe('VALIDATION_FAILED');
+  });
+});
+
+describe('a routing failure', () => {
+  it('answers in the §3.7 envelope, not in Fastify’s own shape', async () => {
+    const tooLong = await get(
+      harness,
+      admin,
+      `/api/customers/${'x'.repeat(300)}`,
+    );
+    expect(tooLong.status).toBeGreaterThanOrEqual(400);
+    expect(errorBody(tooLong).message).toMatch(/[åäö]|Förfrågan/);
+
+    const badEncoding = await get(harness, admin, '/api/customers/%E0%A4%A');
+    expect(badEncoding.status).toBe(400);
+    expect(errorBody(badEncoding).code).toBe('VALIDATION_FAILED');
+  });
+});
+
+describe('a completed work order’s header', () => {
+  it('refuses a change to what the documents print, and still takes a note', async () => {
+    const order = await newWorkOrder();
+    await post(harness, admin, `/api/work-orders/${order.id}/lines`, {
+      type: 'LABOUR',
+      description: 'Service',
+      quantity: '1',
+      unit: 'HOUR',
+      unitPriceOre: 89_500,
+      vatRateBps: 2500,
+    }).expect(201);
+    await completeWorkOrder(harness, admin, order.id);
+    const current = jsonBody(
+      await get(harness, admin, `/api/work-orders/${order.id}`).expect(200),
+    ) as { version: number };
+
+    const refused = await patch(
+      harness,
+      admin,
+      `/api/work-orders/${order.id}`,
+      {
+        description: 'Omskriven i efterhand',
+        version: current.version,
+      },
+    ).expect(409);
+    expect(errorBody(refused).code).toBe('CONFLICT');
+
+    await patch(harness, admin, `/api/work-orders/${order.id}`, {
+      internalNote: 'Kunden hämtade bilen själv.',
+      version: current.version,
+    }).expect(200);
+  });
+});
+
+describe('a quote’s validity date', () => {
+  async function draftQuote(): Promise<string> {
+    const order = await newWorkOrder();
+    await post(harness, admin, `/api/work-orders/${order.id}/lines`, {
+      type: 'LABOUR',
+      description: 'Felsökning',
+      quantity: '1',
+      unit: 'HOUR',
+      unitPriceOre: 85_000,
+      vatRateBps: 2500,
+    }).expect(201);
+    const created = jsonBody(
+      await post(
+        harness,
+        admin,
+        `/api/work-orders/${order.id}/quotes`,
+        {},
+      ).expect(201),
+    ) as { quote: { id: string } };
+    return created.quote.id;
+  }
+
+  it('may not be set in the past', async () => {
+    const id = await draftQuote();
+    const response = await patch(harness, admin, `/api/quotes/${id}`, {
+      validUntil: '2000-01-01',
+    }).expect(400);
+    expect(errorBody(response).code).toBe('VALIDATION_FAILED');
+  });
+
+  it('stops a draft that has lapsed from being sent', async () => {
+    const id = await draftQuote();
+    await harness.app.prisma.quote.update({
+      where: { id },
+      data: { validUntil: new Date('2000-01-01T00:00:00Z') },
+    });
+    const response = await post(
+      harness,
+      admin,
+      `/api/quotes/${id}/send`,
+      undefined,
+    ).expect(409);
+    expect(errorBody(response).code).toBe('CONFLICT');
   });
 });

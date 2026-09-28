@@ -68,6 +68,11 @@ that was a cross-cutting fix pass, not a milestone. It did change shared
 primitives every later iteration builds on, and one API contract — see
 [the record](#ui-ux-audit-pass) before building on the old shapes.
 
+**2026-09-28 — hardening pass H2.** A cross-device sweep and live journey
+testing; no milestone count changes. It adds `lib/api/invalidation.ts`, which
+every new mutation should use to declare what else it makes stale — see
+[the record](#hardening-pass-h2-2026-09-28).
+
 | Iteration   | Title                                     | Phase | Depends on                         | Milestones done | Status      |
 | ----------- | ----------------------------------------- | ----- | ---------------------------------- | --------------- | ----------- |
 | [F0](#f0)   | Next.js foundation                        | 0     | B0, B1 shared contracts            | 7/7             | Done        |
@@ -2969,6 +2974,41 @@ get Next's white English 404. The admin's is fixed (a `not-found.tsx` plus a
 `[...unmatched]` catch-all, because the file alone only catches a `notFound()`
 thrown inside its own segment); the public equivalent was outside this audit's
 scope and is not claimed.
+
+<a id="hardening-pass-h2-2026-09-28"></a>
+
+## Hardening pass H2 — 2026-09-28
+
+**Not an iteration.** Every public and admin route was swept at 390, 768,
+1280 (touch) and 1440 px for console errors, failed requests, sideways
+overflow, unnamed controls and touch-target size, and the main journeys were
+driven in a browser against the live backend. The existing 79 Playwright
+journeys passed before and after. The backend half, including the API
+defects this pass found, is recorded in the
+[backend plan](../backend/IMPLEMENTATION_PLAN.md#hardening-pass-h2-2026-09-28).
+
+**What was wrong, and what changed**
+
+| Finding | Fix |
+|---|---|
+| Mutations refreshed only their own records. Completing a work order left the article page's stock, the vehicle's odometer and the dashboard's queues showing pre-completion values while their cache was fresh; confirming or rejecting a request left the dashboard's unhandled count unchanged. `invalidateDashboardQueries` existed and nothing called it. | `lib/api/invalidation.ts`: each mutation declares the domains it makes stale (`invalidateDomains(queryClient, ['articles', 'vehicles', 'dashboard'])`), resolved to query keys in one place. The dead helper is removed. Verified in a browser: rejecting a request moves the dashboard from 18 to 17 on client-side navigation. |
+| The public form token was fetched once per page and never renewed, while the server refuses one older than two hours — a visitor returning to an open `/boka` was told the form "behöver uppdateras", and a later vehicle lookup was reported as the register being down. A browser-autofilled booking sent inside the three-second time trap was refused as a bot. | `usePublicFormToken` replaces a token near expiry and holds back one younger than the time trap, using the pure, tested `lib/public/form-token-age.ts`. |
+| Editing an article sent the whole create-shaped form, so a cleared purchase price or description was omitted — "leave alone" — and the old value stayed after "Artikeln är sparad"; a cleared shelf location failed validation outright. | `lib/admin/article-update.ts` sends only the changed fields, with `null` for a cleared one (§8.1), against the corrected `updateArticleInputSchema`. |
+| On touch screens, most buttons were 32–38 px high and the calendar's view tabs 25 px (§9.4 requires 44 px). | `Button` and `Tabs` grow to 44 px under `pointer-coarse`; desktop density is unchanged. The phone breadcrumb and the work order's customer/vehicle chips follow. |
+| `/kontakt` at 1280 px broke the e-mail address mid-word (`break-all`). | Wraps after the `@` (`<wbr>` plus `wrap-anywhere` as last resort). |
+| The completion dialog said it could be undone by "sätta tillbaka statusen till Pågår"; the control that does so is "Återöppna arbetsorder" (§9.7). | Copy names the button, and says the parts go back to stock. |
+
+**Checked and found correct.** No console error, failed request or sideways
+scroll on any route at any of the four widths; every dialog fits a 390 × 844
+viewport with its footer reachable; the honeypot is off-screen, not merely
+small. A floating palm-tree button over the phone header is TanStack Query's
+devtools, which ship as a no-op in production builds.
+
+**Left for the milestones that own them.** At tablet width the work-order
+totals sit below the quotes and protocols, far from the lines being edited —
+F13's work-order workspace ("visible identity, next action, totals and saving
+state"). Row links in the register tables measure 20–36 px, inside rows that
+are themselves the tap target; F13's register milestone owns their redesign.
 
 <a id="f13"></a>
 

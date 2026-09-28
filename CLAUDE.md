@@ -120,6 +120,9 @@ a real bug in a system like this.
 | Rotating the session id without reissuing the CSRF cookie | Reissue in the same response, or the user is logged in and cannot save |
 | Setting `TZ=Europe/Stockholm` in a container | Containers run UTC; convert explicitly in code |
 | Building `shared` but forgetting `transpilePackages`, or the reverse | Both are required; each alone breaks one of the two apps |
+| Deriving an update schema as `.partial()` of a create schema with `.default()`s | Zod 4 re-applies the defaults on every PATCH; build update schemas from the bare fields |
+| `Promise.all` over a Prisma transaction client | Sequential; one connection races rather than parallelises (found four times) |
+| A frontend mutation that refreshes only its own queries | Declare every other domain it changes via `lib/api/invalidation.ts` |
 
 ## Before you build on an assumption
 

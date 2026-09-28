@@ -46,11 +46,15 @@ export default async function ContactPage() {
                 </a>
               </ContactItem>
               <ContactItem icon={Mail} label="E-post">
+                {/*
+                 * Breaks after the "@" when the column is narrow, rather than
+                 * `break-all` splitting it anywhere ("…solna.s / e" at 1280 px).
+                 */}
                 <a
-                  className="break-all underline underline-offset-4"
+                  className="wrap-anywhere underline underline-offset-4"
                   href={`mailto:${info.workshop.email}`}
                 >
-                  {info.workshop.email}
+                  {withBreakAfterAt(info.workshop.email)}
                 </a>
               </ContactItem>
               <ContactItem icon={MapPin} label="Besöksadress">
@@ -115,12 +119,27 @@ function ContactItem({
   return (
     <div className="flex gap-4">
       <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-hivis" />
-      <div>
+      <div className="min-w-0">
         <h3 className="font-sans text-sm font-semibold text-white/55">
           {label}
         </h3>
         <div className="mt-2 leading-relaxed">{children}</div>
       </div>
     </div>
+  );
+}
+
+/** An e-mail address that may wrap after its "@", and nowhere else first. */
+function withBreakAfterAt(email: string): React.ReactNode {
+  const at = email.indexOf('@');
+  if (at === -1) {
+    return email;
+  }
+  return (
+    <>
+      {email.slice(0, at + 1)}
+      <wbr />
+      {email.slice(at + 1)}
+    </>
   );
 }

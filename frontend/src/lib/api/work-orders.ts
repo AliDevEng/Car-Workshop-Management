@@ -21,6 +21,7 @@ import {
   type WorkOrderStatus,
 } from 'shared';
 import { apiFetch } from './client';
+import { invalidateDomains } from './invalidation';
 import { queryKeys } from './keys';
 
 export interface WorkOrderListParams {
@@ -133,8 +134,10 @@ export function useUpdateWorkOrder(id: string) {
         method: 'PATCH',
         body: input,
       }),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       applyWorkOrderResponse(queryClient, response);
+      // An odometer field is also a reading on the vehicle (B6.7.1).
+      await invalidateDomains(queryClient, ['vehicles']);
     },
   });
 }
@@ -161,8 +164,15 @@ export function useChangeWorkOrderStatus(id: string) {
         body: input,
         headers: { [IDEMPOTENCY_KEY_HEADER]: idempotencyKey },
       }),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       applyWorkOrderResponse(queryClient, response);
+      // Completion deducts stock and records the out-odometer, a revert
+      // returns the stock, and every move changes the dashboard's queues.
+      await invalidateDomains(queryClient, [
+        'articles',
+        'vehicles',
+        'dashboard',
+      ]);
     },
   });
 }

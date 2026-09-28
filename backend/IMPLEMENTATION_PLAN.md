@@ -72,6 +72,14 @@ unconstrained at the API; a phone-in booking route is real but new scope,
 recorded as backlog). It changes no milestone count — nothing in it was in
 anyone's checklist, which is exactly why none of it had been found.
 
+**[Hardening pass H2](#hardening-pass-h2-2026-09-28) — 7/7 findings fixed,
+2026-09-28.** The same method as H1, repeated against the current stack. Its
+most serious finding was a partial article update that silently reset VAT,
+minimum quantity and OE numbers (H2.1); the others were `500`s and envelope
+gaps on input H1 had not reached, header edits on locked work orders, quotes
+that could be sent already expired, and a `Promise.all` race in the nightly
+stock job. No milestone count changes.
+
 Entry points, schema, migrations and test configuration are implemented as of
 2026-09-08. B0.9 remains open because branch protection is a repository setting
 that cannot be applied from the working tree, and because the workflow has not
@@ -4535,6 +4543,105 @@ reproduced as a failing test first — H1.15's by the pre-existing
 `tests/vehicle-data.test.ts`, which failed identically on the untouched `HEAD`
 before this pass touched anything, confirming it was pre-existing and
 unrelated to H1.1–H1.11's changes rather than a regression introduced by them.
+
+---
+
+## Hardening pass H2 (2026-09-28)
+
+**Not a planned iteration.** A second cross-cutting pass, run the same way as
+H1: scenario scripts driven against the running stack (real Postgres, real
+cookies, CSRF and idempotency keys), plus a sweep of every admin and public
+route at 390, 768, 1280 and 1440 px. Its frontend half is recorded in the
+[frontend plan](../frontend/IMPLEMENTATION_PLAN.md#hardening-pass-h2-2026-09-28).
+Seven backend defects reproduced; all seven are fixed and covered by
+`backend/tests/hardening.test.ts` (10 new route-level tests) and
+`shared/tests/work-order-state.test.ts`. Each was reproduced against the
+running API before its fix. It changes no milestone count.
+
+### What was wrong
+
+- [x] **H2.1 — A partial article update silently reset three fields.**
+      `updateArticleInputSchema` was `createArticleInputSchema.partial()`, and
+      Zod 4 still applies a `.default()` wrapped in `.optional()`. A `PATCH`
+      that only renamed an article therefore wrote `vatRateBps: 2500`,
+      `minimumQuantity: '0'` and `oeNumbers: []` and answered `200` —
+      resetting the VAT rate every later work-order line snapshots, blinding
+      the low-stock view and erasing the OE numbers the partner links use. On
+      an article with a non-standard VAT rate, the injected field also made a
+      mechanic's shelf-location edit look like a price change and it was
+      refused. The update schema is now built from the bare fields, with
+      `.nullable().optional()` on the three nullable columns (§8.1), so an
+      article's description, purchase price and location can also be cleared
+      — which was impossible before.
+- [x] **H2.2 — `?q=%00` on a list search was a `500`.** H1.4 closed NUL bytes
+      in stored text, but `searchQuerySchema` never got the rule, so the
+      customer, vehicle and article lists passed one to `ILIKE`. It now uses
+      the same printable-single-line rule.
+- [x] **H2.3 — The anonymous booking form could still store a NUL.**
+      `registrationNumberInputSchema` had no printable-text rule and
+      `normaliseRegNr` only strips whitespace and hyphens, so a NUL survived
+      into the `INSERT`. `serviceTypeIds` accepted any string of any length
+      into a `text[]`; it is now a bounded slug (`serviceTypeIdSchema`),
+      which is what the form has always sent.
+- [x] **H2.4 — Routing failures bypassed the §3.7 envelope.** A path
+      parameter over 100 characters (`414`) and a malformed percent-encoding
+      (`400`) are raised by Fastify's router before any hook runs, so
+      `setErrorHandler` never saw them and they answered in Fastify's own
+      English shape with no `requestId`. `frameworkErrors` now routes them
+      through the same `mapError`/`send` pair as everything else.
+- [x] **H2.5 — A completed work order's header could still be rewritten.**
+      The screen disabled description, odometer and mechanic on a locked order
+      and said so, and `shared/work-order-state.ts` documented the same rule,
+      but `PATCH /api/work-orders/:id` accepted all four with `200` — under a
+      service protocol already printed from them. §6.5 asks for the API, not
+      the UI, to refuse. It now answers `409`; the internal note stays
+      writable, as the UI always intended. Line and header locks both read
+      `LOCKED_WORK_ORDER_STATUSES` from `shared`, replacing the line
+      service's private copy of the same list.
+- [x] **H2.6 — A quote could be dated, and sent, already expired.**
+      `validUntil: '2000-01-01'` was accepted on create, update and revision,
+      and a draft left lying past its date could still be sent — so the
+      customer received an offer the next 04:45 sweep marked `EXPIRED`. A past
+      date is now a field error wherever one is chosen, and sending a lapsed
+      draft is a `409` asking for a new date. "Past" is `isQuoteExpired`, the
+      sweep's own rule. Four B7.3.3 tests had used the API to create
+      back-dated quotes as a fixture shortcut; they now send while valid and
+      move the date through Prisma, as time would.
+- [x] **H2.7 — The nightly stock reconciliation raced on its own
+      connection.** It ran two reads under `Promise.all` on the transaction
+      `runScheduledJob` holds for its advisory lock — the pattern the B9
+      decision-log row records as a race rather than parallelism, now the
+      fourth time it has been found. `pg` already deprecates it and `pg@9`
+      throws, which would take the drift check down. The reads are
+      sequential.
+
+### Checked and found correct
+
+Booking overlap `409` in Swedish, `[)` adjacency, a cancelled booking freeing
+its slot, and reviving it into an occupied one refused; a returning caller's
+phone number reusing the customer; exact totals from rounded lines (§3.3);
+parallel double-tapped completion with one `Idempotency-Key` (both `200`,
+stock deducted once), the same key with a different body (`409`), revert
+writing `RETURN` rows and re-completion deducting again; every mechanic `403`
+on the §5.3 `ADMIN` surface; CSRF refusal without the header; a deactivated
+user's session dying on the next request; future odometer readings refused;
+and cursor pagination over 1 554 audit rows, 348 customers and 247 vehicles —
+default and name-sorted — with no row repeated or skipped at any page size.
+
+**Recorded, not changed.** A `pg` deprecation warning ("client.query() when the
+client is already executing a query") still appears in the suite after H2.7.
+Its stack is entirely inside Prisma 7's query interpreter
+(`PgTransaction.queryRaw` from `interpretNode`): Prisma itself issues
+concurrent sub-queries for one nested read inside an interactive transaction.
+It is harmless on `pg@8` and must be re-checked before any `pg@9` upgrade.
+
+### Verification
+
+2026-09-28: `pnpm typecheck` and `eslint --max-warnings 0` clean; 1 365 tests
+(349 shared, 813 backend, 203 frontend unit; 1 backend test skipped) and 79 Playwright
+journeys pass; `type-coverage` 99.59 %. `shared` is back at its 100 %
+threshold — it had slipped with the untested `isWorkOrderLocked`, which now
+has a hand-written table test.
 
 ---
 

@@ -19,6 +19,7 @@ import {
   type UpdateBookingInput,
 } from 'shared';
 import { apiFetch } from './client';
+import { invalidateDomains } from './invalidation';
 import { queryKeys } from './keys';
 
 // --- The staff inbox (F8.1) --------------------------------------------------
@@ -29,9 +30,7 @@ export interface BookingRequestListParams {
   readonly limit?: number;
 }
 
-export function bookingRequestsPath(
-  params: BookingRequestListParams,
-): string {
+export function bookingRequestsPath(params: BookingRequestListParams): string {
   const search = new URLSearchParams();
   if (params.status !== undefined) {
     search.set('status', params.status);
@@ -57,14 +56,6 @@ export function useBookingRequests(params: BookingRequestListParams) {
   });
 }
 
-async function invalidateBookingRequestQueries(
-  queryClient: QueryClient,
-): Promise<void> {
-  await queryClient.invalidateQueries({
-    queryKey: queryKeys.bookingRequestsRoot(),
-  });
-}
-
 export function useConfirmBookingRequest() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -80,9 +71,13 @@ export function useConfirmBookingRequest() {
         body: input,
       }),
     onSuccess: async () => {
-      await Promise.all([
-        invalidateBookingRequestQueries(queryClient),
-        queryClient.invalidateQueries({ queryKey: queryKeys.calendarRoot() }),
+      // Confirming can also create the customer and the vehicle (§6.2).
+      await invalidateDomains(queryClient, [
+        'bookingRequests',
+        'calendar',
+        'customers',
+        'vehicles',
+        'dashboard',
       ]);
     },
   });
@@ -103,7 +98,7 @@ export function useRejectBookingRequest() {
         body: input,
       }),
     onSuccess: async () => {
-      await invalidateBookingRequestQueries(queryClient);
+      await invalidateDomains(queryClient, ['bookingRequests', 'dashboard']);
     },
   });
 }
@@ -174,10 +169,11 @@ export function useCreateBooking() {
         body: input,
       }),
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.calendarRoot() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.customersRoot() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.vehiclesRoot() }),
+      await invalidateDomains(queryClient, [
+        'calendar',
+        'customers',
+        'vehicles',
+        'dashboard',
       ]);
     },
   });
@@ -259,7 +255,7 @@ export function useUpdateBooking() {
       }
     },
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.calendarRoot() });
+      await invalidateDomains(queryClient, ['calendar', 'dashboard']);
     },
   });
 }

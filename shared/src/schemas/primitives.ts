@@ -288,11 +288,13 @@ export const orgNumberSchema = z
  * normalises it; validating the canonical form here would reject the plate the
  * customer is reading off their key ring.
  */
-export const registrationNumberInputSchema = z
-  .string()
-  .trim()
-  .min(2, { message: 'Registreringsnumret är för kort.' })
-  .max(12, { message: 'Registreringsnumret är för långt.' });
+export const registrationNumberInputSchema = singleLine(
+  z
+    .string()
+    .trim()
+    .min(2, { message: 'Registreringsnumret är för kort.' })
+    .max(12, { message: 'Registreringsnumret är för långt.' }),
+);
 
 /**
  * The stored, canonical form. This is the invariant that makes the unique
@@ -318,8 +320,14 @@ export const normalisedRegistrationNumberSchema = z
  */
 export const booleanQuerySchema = z.stringbool();
 
-/** A free-text search term. Trimmed, bounded, and never optional-but-empty. */
-export const searchQuerySchema = z.string().trim().min(1).max(100);
+/**
+ * A free-text search term. Trimmed, bounded, and never optional-but-empty.
+ *
+ * Printable for the same reason as every stored text field: a `?q=%00` on a
+ * list endpoint reached the `ILIKE` and came back as SQLSTATE `22021`, a
+ * `500`, although the term is never stored.
+ */
+export const searchQuerySchema = singleLine(z.string().trim().min(1).max(100));
 
 /**
  * A point in time in a **query string**, accepting either a full instant

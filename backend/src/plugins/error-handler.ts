@@ -248,6 +248,21 @@ function send(
     .send(buildEnvelope(mapped, request.id));
 }
 
+/**
+ * Fastify's `frameworkErrors` option: failures raised while *routing*, before
+ * any hook or handler runs, so `setErrorHandler` never sees them — a path
+ * parameter longer than the router allows (`414`) and a malformed
+ * percent-encoding (`400`). Without this they answer in Fastify's own English
+ * shape with no `requestId`, which the frontend cannot parse.
+ */
+export function sendFrameworkError(
+  error: unknown,
+  request: FastifyRequest,
+  reply: FastifyReply,
+): void {
+  send(request, reply, error, mapError(error));
+}
+
 const errorHandlerPlugin: FastifyPluginCallback = (app, _options, done) => {
   app.setErrorHandler((error, request, reply) => {
     send(request, reply, error, mapError(error));

@@ -88,13 +88,22 @@ export function isTerminalStatus(status: WorkOrderStatus): boolean {
  * Deliberately **not** {@link isTerminalStatus}. That answers "can this
  * status move anywhere", which is false for `CANCELLED` but *true* for
  * `COMPLETED` — a completed order can still revert to `IN_PROGRESS`. The
- * backend's own line lock (`bumpVersionForLineWrite`'s `status: { notIn }`
- * guard) is this exact pair, and the screen must match it rather than a
- * same-shaped but differently-meant helper. It lives here so the lock is
- * stated once for both sides instead of being re-derived per component.
+ * backend's line lock (`bumpVersionForLineWrite`'s `status: { notIn }` guard)
+ * and its header lock both read {@link LOCKED_WORK_ORDER_STATUSES}, and the
+ * screen must match them rather than a same-shaped but differently-meant
+ * helper. It lives here so the lock is stated once for both sides instead of
+ * being re-derived per component.
+ *
+ * The internal note is the one exception, by design: it is the workshop's own
+ * record of a finished job and is printed on no document.
  */
+export const LOCKED_WORK_ORDER_STATUSES: readonly WorkOrderStatus[] = [
+  'COMPLETED',
+  'CANCELLED',
+];
+
 export function isWorkOrderLocked(status: WorkOrderStatus): boolean {
-  return status === 'COMPLETED' || status === 'CANCELLED';
+  return LOCKED_WORK_ORDER_STATUSES.includes(status);
 }
 
 /**

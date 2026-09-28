@@ -1,6 +1,8 @@
 import {
   ConflictError,
   NotFoundError,
+  WORK_ORDER_STATUS_LABELS,
+  isWorkOrderLocked,
   stockholmDate,
   type CreateWorkOrderInput,
   type UpdateWorkOrderInput,
@@ -320,6 +322,42 @@ export async function createWorkOrder(
  * effects, and folding it into a general patch would hide stock deduction
  * behind a field assignment. It is `changeWorkOrderStatus` instead.
  */
+/** Every header field except `internalNote`, which a locked order still takes. */
+const LOCKED_HEADER_FIELDS = [
+  'description',
+  'odometerKmIn',
+  'odometerKmOut',
+  'assignedUserId',
+] as const satisfies readonly (keyof UpdateWorkOrderInput)[];
+
+/**
+ * A completed or cancelled order's header is frozen, like its lines.
+ *
+ * The screen disabled these fields and said so, while the API went on
+ * accepting them — so a finished job's description and odometer could still
+ * be rewritten under the service protocol printed from them, and §6.5 asks
+ * that an illegal change be refused by the API, not merely hidden in the UI.
+ * No race needs a lock here: a completion committing after `before` was read
+ * bumps the version, and `updateWithVersion` then refuses this write anyway.
+ */
+function assertHeaderWritable(
+  before: WorkOrderRecord,
+  input: UpdateWorkOrderInput,
+): void {
+  if (!isWorkOrderLocked(before.status)) {
+    return;
+  }
+  const fields = LOCKED_HEADER_FIELDS.filter(
+    (field) => input[field] !== undefined,
+  );
+  if (fields.length > 0) {
+    throw new ConflictError(
+      `Arbetsordern är ${WORK_ORDER_STATUS_LABELS[before.status].toLowerCase()} och låst. Återöppna den först om något behöver rättas.`,
+      { details: { status: before.status, fields } },
+    );
+  }
+}
+
 export async function updateWorkOrder(
   db: Database,
   actorId: string,
@@ -329,6 +367,7 @@ export async function updateWorkOrder(
 ): Promise<WorkOrderResponse> {
   return db.$transaction(async (tx) => {
     const before = await loadWorkOrder(tx, id);
+    assertHeaderWritable(before, input);
 
     if (typeof input.assignedUserId === 'string') {
       await assertAssignableUser(tx, input.assignedUserId);

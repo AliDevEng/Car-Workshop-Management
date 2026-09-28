@@ -3,7 +3,6 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type QueryClient,
 } from '@tanstack/react-query';
 import {
   odometerReadingResponseSchema,
@@ -18,6 +17,7 @@ import {
   type VehicleDetail,
 } from 'shared';
 import { apiFetch } from './client';
+import { invalidateDomains } from './invalidation';
 import { queryKeys } from './keys';
 
 const vehicleListResponseSchema = paginatedResponseSchema(vehicleSchema);
@@ -74,16 +74,6 @@ export function useVehicle(id: string | null) {
   });
 }
 
-async function invalidateVehicleQueries(
-  queryClient: QueryClient,
-  id: string,
-): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.vehiclesRoot() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.vehicle(id) }),
-  ]);
-}
-
 export function useCreateVehicle() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -112,8 +102,15 @@ export function useUpdateVehicle(id: string) {
     // pointing at the *previous* owner after a reassignment — exactly the
     // wrong direction for `ReassignOwnerDialog` to be wrong in. Invalidating
     // costs one extra round trip and is correct every time.
+    //
+    // Beyond the vehicle itself: a new owner changes two customers' vehicle
+    // lists, and inspection dates feed the dashboard's "besiktning" list.
     onSuccess: async () => {
-      await invalidateVehicleQueries(queryClient, id);
+      await invalidateDomains(queryClient, [
+        'vehicles',
+        'customers',
+        'dashboard',
+      ]);
     },
   });
 }

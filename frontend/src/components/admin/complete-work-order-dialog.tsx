@@ -122,9 +122,9 @@ export function CompleteWorkOrderDialog({
         <DialogHeader>
           <DialogTitle>Slutför arbetsorder</DialogTitle>
           <DialogDescription>
-            Arbetsordern markeras som slutförd och kan inte längre redigeras på
-            samma sätt. Detta går att ångra genom att sätta tillbaka statusen
-            till Pågår.
+            Arbetsordern markeras som slutförd och låses. Behöver något rättas
+            efteråt kan du återöppna arbetsordern — delarna går då tillbaka till
+            lagret.
           </DialogDescription>
         </DialogHeader>
 

@@ -9,7 +9,9 @@ import { getDummyPasswordHash } from './lib/password.js';
 import { createPrismaClient, type Database } from './lib/prisma.js';
 import authPlugin from './plugins/auth.js';
 import csrfPlugin from './plugins/csrf.js';
-import errorHandlerPlugin from './plugins/error-handler.js';
+import errorHandlerPlugin, {
+  sendFrameworkError,
+} from './plugins/error-handler.js';
 import requestIdPlugin, {
   requestIdServerOptions,
 } from './plugins/request-id.js';
@@ -67,6 +69,9 @@ export async function buildApp(
     // silently describe one client. See `config/env.ts` for why it defaults
     // off rather than on.
     trustProxy: env.TRUST_PROXY,
+    // Routing failures never reach `setErrorHandler`; this keeps them inside
+    // the §3.7 envelope too.
+    frameworkErrors: sendFrameworkError,
     ...requestIdServerOptions,
   });
 

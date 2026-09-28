@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { toArticleUpdate } from '@/lib/admin/article-update';
 import { useCreateArticle, useUpdateArticle } from '@/lib/api/articles';
 
 /**
@@ -143,7 +144,10 @@ export function ArticleFormDialog({
         router.push(`/admin/lager/${created.id}`);
         return;
       }
-      await updateArticle.mutateAsync(input);
+      const patch = toArticleUpdate(mode.article, input);
+      if (Object.keys(patch).length > 0) {
+        await updateArticle.mutateAsync(patch);
+      }
       notifySuccess('Artikeln är sparad.');
       setOpen(false);
     } catch (error) {
@@ -358,7 +362,17 @@ export function ArticleFormDialog({
 
           <FormField control={form.control} name="location" label="Hyllplats">
             {({ field, aria }: FormFieldControlProps<ArticleFormValues, 'location'>) => (
-              <Input {...aria} value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} />
+              <Input
+                {...aria}
+                value={field.value ?? ''}
+                onChange={(event) => {
+                  // Emptied means "no shelf", not an empty string the
+                  // schema's `min(1)` would reject before the save is sent.
+                  const next = event.target.value;
+                  field.onChange(next.trim() === '' ? undefined : next);
+                }}
+                onBlur={field.onBlur}
+              />
             )}
           </FormField>
 

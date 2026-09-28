@@ -1,8 +1,10 @@
 import {
   ConflictError,
+  LOCKED_WORK_ORDER_STATUSES,
   NotFoundError,
   WORK_ORDER_STATUS_LABELS,
   isNegativeQuantity,
+  isWorkOrderLocked,
   isZeroQuantity,
   parseQuantity,
   type CreateWorkOrderLineInput,
@@ -40,7 +42,8 @@ import { loadWorkOrder, loadWorkOrderResponse } from './service.js';
  */
 
 /**
- * The statuses a line may not be written in.
+ * Lines may not be written in a locked status (`shared`'s
+ * `LOCKED_WORK_ORDER_STATUSES`).
  *
  * B6.2.3 names `COMPLETED`, and `CANCELLED` belongs with it: it is terminal
  * (§4.3, B1.4), so editing the lines of one would be editing a record that can
@@ -48,13 +51,11 @@ import { loadWorkOrder, loadWorkOrderResponse } from './service.js';
  * completed order can be reverted to `IN_PROGRESS`, which is the supported way
  * to correct it and which writes the compensating stock movements on the way.
  */
-const LINES_LOCKED_IN: readonly WorkOrderStatus[] = ['COMPLETED', 'CANCELLED'];
-
 const LINES_LOCKED_MESSAGE =
   'Arbetsordern är låst och dess rader kan inte ändras. Återöppna den först.';
 
 function assertLinesWritable(status: WorkOrderStatus): void {
-  if (LINES_LOCKED_IN.includes(status)) {
+  if (isWorkOrderLocked(status)) {
     throw new ConflictError(
       `Rader kan inte ändras när arbetsordern är ${WORK_ORDER_STATUS_LABELS[
         status
@@ -86,7 +87,10 @@ async function bumpVersionForLineWrite(
   workOrderId: string,
 ): Promise<void> {
   const result = await tx.workOrder.updateMany({
-    where: { id: workOrderId, status: { notIn: [...LINES_LOCKED_IN] } },
+    where: {
+      id: workOrderId,
+      status: { notIn: [...LOCKED_WORK_ORDER_STATUSES] },
+    },
     data: { version: { increment: 1 } },
   });
 
@@ -140,7 +144,11 @@ function assertUsableQuantity(
     throw fieldError('quantity', 'Ange ett antal skilt från noll.');
   }
 
-  if (isNegativeQuantity(parsed) && line.type === 'PART' && line.articleId !== null) {
+  if (
+    isNegativeQuantity(parsed) &&
+    line.type === 'PART' &&
+    line.articleId !== null
+  ) {
     throw fieldError(
       'quantity',
       'Antalet kan inte vara negativt på en rad som är kopplad till en ' +

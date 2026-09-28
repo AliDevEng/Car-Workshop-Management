@@ -854,6 +854,11 @@ hands: large tap targets, high contrast, no hover-dependent controls.
 - Completion requires: an out-odometer reading, at least one line, and a
   confirmation dialog. It triggers stock deduction and unlocks protocol
   generation.
+- **A `COMPLETED` or `CANCELLED` order is locked, and the API enforces it.**
+  *Clarified 2026-09-28 (decision log).* Lines, description, odometer readings
+  and the assigned mechanic are refused with `409`; reopening a completed order
+  is the way to correct it. The internal note stays writable — it is the
+  workshop's own record and appears on no document.
 
 ### 6.6 Quotes
 
@@ -861,6 +866,10 @@ hands: large tap targets, high contrast, no hover-dependent controls.
 - Snapshot on send: a `Document` is written and the quote becomes immutable.
   Changing it afterwards creates a **new version**, so what the customer
   received always still exists.
+- **A validity date may not already have passed** when it is chosen, and a
+  draft whose date has passed cannot be sent until it is given a new one.
+  *Clarified 2026-09-28 (decision log).* A sent quote past its date can still
+  be answered until the expiry sweep runs.
 - Sent as a downloadable PDF, given by hand or attached to an email the staff
   member sends themselves. No email infrastructure in v1 (§1.4).
 

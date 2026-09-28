@@ -98,6 +98,25 @@ async function sendQuote(quoteId: string): Promise<QuoteResponse> {
   return quoteResponseSchema.parse(jsonBody(response));
 }
 
+/**
+ * A sent quote whose validity is `validUntil`, however far that lies in the
+ * past. The API refuses a date that has already passed, and refuses to send a
+ * lapsed draft, so the quote is sent while still valid and the date is then
+ * moved the way time would move it.
+ */
+async function sentQuoteValidUntil(
+  workOrderId: string,
+  validUntil: string,
+): Promise<string> {
+  const { quote } = await createQuote(workOrderId);
+  await sendQuote(quote.id);
+  await harness.app.prisma.quote.update({
+    where: { id: quote.id },
+    data: { validUntil: new Date(`${validUntil}T00:00:00.000Z`) },
+  });
+  return quote.id;
+}
+
 describe('B7.3.2 — creating a quote snapshots the work order', () => {
   it('copies the lines and freezes the totals', async () => {
     const { workOrderId } = await seedQuotableWorkOrder();
@@ -414,14 +433,7 @@ describe('B7.3.3 — recording the customer’s answer', () => {
     // The customer who rings back a day late is a customer. `EXPIRED` means
     // nobody answered, not that the workshop stopped listening.
     const { workOrderId } = await seedQuotableWorkOrder();
-    const draft = await post(
-      harness,
-      agent,
-      `/api/work-orders/${workOrderId}/quotes`,
-      { validUntil: '2020-01-01' },
-    ).expect(201);
-    const quoteId = quoteResponseSchema.parse(jsonBody(draft)).quote.id;
-    await sendQuote(quoteId);
+    const quoteId = await sentQuoteValidUntil(workOrderId, '2020-01-01');
 
     await post(harness, agent, `/api/quotes/${quoteId}/respond`, {
       status: 'ACCEPTED',
@@ -599,30 +611,16 @@ describe('the quote list', () => {
 describe('B7.3.3 — the expiry sweep', () => {
   it('expires a sent quote whose validity has passed, and leaves today’s alone', async () => {
     const overdue = await seedQuotableWorkOrder();
-    const overdueQuote = quoteResponseSchema.parse(
-      jsonBody(
-        await post(
-          harness,
-          agent,
-          `/api/work-orders/${overdue.workOrderId}/quotes`,
-          { validUntil: '2026-06-30' },
-        ).expect(201),
-      ),
+    const overdueQuoteId = await sentQuoteValidUntil(
+      overdue.workOrderId,
+      '2026-06-30',
     );
-    await sendQuote(overdueQuote.quote.id);
 
     const current = await seedQuotableWorkOrder();
-    const currentQuote = quoteResponseSchema.parse(
-      jsonBody(
-        await post(
-          harness,
-          agent,
-          `/api/work-orders/${current.workOrderId}/quotes`,
-          { validUntil: '2026-07-01' },
-        ).expect(201),
-      ),
+    const currentQuoteId = await sentQuoteValidUntil(
+      current.workOrderId,
+      '2026-07-01',
     );
-    await sendQuote(currentQuote.quote.id);
 
     // 1 July in Stockholm, which is the last day the second quote is valid.
     const result = await expireOverdueQuotes(
@@ -634,7 +632,7 @@ describe('B7.3.3 — the expiry sweep', () => {
     expect(
       (
         await harness.app.prisma.quote.findUniqueOrThrow({
-          where: { id: overdueQuote.quote.id },
+          where: { id: overdueQuoteId },
           select: { status: true },
         })
       ).status,
@@ -642,7 +640,7 @@ describe('B7.3.3 — the expiry sweep', () => {
     expect(
       (
         await harness.app.prisma.quote.findUniqueOrThrow({
-          where: { id: currentQuote.quote.id },
+          where: { id: currentQuoteId },
           select: { status: true },
         })
       ).status,
@@ -651,15 +649,8 @@ describe('B7.3.3 — the expiry sweep', () => {
 
   it('does not touch a quote that has already been answered', async () => {
     const { workOrderId } = await seedQuotableWorkOrder();
-    const draft = quoteResponseSchema.parse(
-      jsonBody(
-        await post(harness, agent, `/api/work-orders/${workOrderId}/quotes`, {
-          validUntil: '2026-06-30',
-        }).expect(201),
-      ),
-    );
-    await sendQuote(draft.quote.id);
-    await post(harness, agent, `/api/quotes/${draft.quote.id}/respond`, {
+    const quoteId = await sentQuoteValidUntil(workOrderId, '2026-06-30');
+    await post(harness, agent, `/api/quotes/${quoteId}/respond`, {
       status: 'ACCEPTED',
     }).expect(200);
 
@@ -671,7 +662,7 @@ describe('B7.3.3 — the expiry sweep', () => {
     expect(
       (
         await harness.app.prisma.quote.findUniqueOrThrow({
-          where: { id: draft.quote.id },
+          where: { id: quoteId },
           select: { status: true },
         })
       ).status,
@@ -680,14 +671,7 @@ describe('B7.3.3 — the expiry sweep', () => {
 
   it('audits each expiry with no actor, because a job is not a person', async () => {
     const { workOrderId } = await seedQuotableWorkOrder();
-    const draft = quoteResponseSchema.parse(
-      jsonBody(
-        await post(harness, agent, `/api/work-orders/${workOrderId}/quotes`, {
-          validUntil: '2026-05-31',
-        }).expect(201),
-      ),
-    );
-    await sendQuote(draft.quote.id);
+    const quoteId = await sentQuoteValidUntil(workOrderId, '2026-05-31');
 
     await expireOverdueQuotes(
       harness.app.prisma,
@@ -695,7 +679,7 @@ describe('B7.3.3 — the expiry sweep', () => {
     );
 
     const entry = await harness.app.prisma.auditLog.findFirst({
-      where: { entityId: draft.quote.id, action: 'quote.expired' },
+      where: { entityId: quoteId, action: 'quote.expired' },
       select: { userId: true },
     });
 

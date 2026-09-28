@@ -107,6 +107,17 @@ export const FORM_TOKEN_MIN_AGE_SECONDS = 3;
 export const FORM_TOKEN_MAX_AGE_SECONDS = 2 * 60 * 60;
 
 /**
+ * A service the visitor ticked — the slug of a public service page
+ * (`bilservice`, `bromsar`). A slug rather than a bare `idSchema`: this is an
+ * anonymous endpoint writing into a `text[]`, and an unbounded arbitrary
+ * string there was both a payload and a NUL-byte `500`.
+ */
+export const serviceTypeIdSchema = z
+  .string()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { message: 'Okänd tjänst.' })
+  .max(64, { message: 'Okänd tjänst.' });
+
+/**
  * The public submission body. Three of the four anti-spam layers in §6.2 are
  * visible here; the fourth (a content heuristic that flags as `SPAM` rather
  * than rejecting) runs server-side, because telling a bot why it was caught is
@@ -126,7 +137,7 @@ export const publicBookingRequestInputSchema = z.object({
   email: emailSchema.optional(),
   requestedDate: isoDateSchema.optional(),
   requestedTimeOfDay: requestedTimeOfDaySchema.optional(),
-  serviceTypeIds: z.array(idSchema).max(10).default([]),
+  serviceTypeIds: z.array(serviceTypeIdSchema).max(10).default([]),
   message: noteSchema.optional(),
 });
 export type PublicBookingRequestInput = z.infer<
