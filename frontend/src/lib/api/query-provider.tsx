@@ -28,16 +28,12 @@ export function QueryProvider({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {process.env.NODE_ENV === 'development' && (
-        /*
-         * Top-left. The devtools toggle defaults to the bottom-left corner,
-         * which is where F13 put the mobile bottom navigation — its circular
-         * hit area sat over "Mer" and swallowed the tap. It is a development
-         * overlay, so this never reached a user, but it did make the phone
-         * layout untestable and unusable for anyone developing against it.
-         */
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
-      )}
+      {/* The floating toggle covers the brand in the top-left and navigation
+          at the bottom. Enable it explicitly for query debugging. */}
+      {process.env.NODE_ENV === 'development' &&
+        process.env.NEXT_PUBLIC_QUERY_DEVTOOLS === 'true' && (
+          <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
+        )}
     </QueryClientProvider>
   );
 }

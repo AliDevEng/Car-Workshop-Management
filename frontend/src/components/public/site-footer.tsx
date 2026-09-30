@@ -14,15 +14,15 @@ export function SiteFooter({ info }: { readonly info: PublicWorkshopInfo }) {
 
   return (
     <footer className="bg-steel text-concrete-2">
-      <div className="site-container py-16 sm:py-20">
-        <div className="grid gap-12 border-b border-white/15 pb-14 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
-          <div>
+      <div className="site-container py-10 sm:py-14 lg:py-20">
+        <div className="grid gap-8 border-b border-white/15 pb-8 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.8fr_0.8fr] lg:gap-12 lg:pb-14">
+          <div className="sm:col-span-2 lg:col-span-1">
             <Link
               href="/"
-              className="inline-flex items-center gap-3 font-sans text-xl font-bold"
+              className="inline-flex max-w-full items-center gap-4 font-sans text-xl font-bold sm:text-2xl"
             >
-              <BrandMark className="size-16" />
-              {info.workshop.name}
+              <BrandMark size="feature" surface="dark" />
+              <span className="min-w-0 text-balance">{info.workshop.name}</span>
             </Link>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-concrete/75">
               Modern teknik. Gammald hederlighet. Vi tar hand om bilen och
@@ -31,7 +31,7 @@ export function SiteFooter({ info }: { readonly info: PublicWorkshopInfo }) {
           </div>
           <div>
             <h2 className="font-sans text-sm font-bold">Hitta hit</h2>
-            <address className="mt-5 grid gap-4 not-italic text-concrete/75">
+            <address className="mt-3 grid gap-1 not-italic text-concrete/75 lg:mt-5 lg:gap-2">
               <a
                 className="footer-link"
                 href={getMapUrl(info)}

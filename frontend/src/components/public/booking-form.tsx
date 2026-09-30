@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Loader2, Phone, RotateCw } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type UseFormSetError } from 'react-hook-form';
@@ -144,6 +145,10 @@ function getInitialServiceIds(
 }
 
 export interface BookingFormProps {
+  readonly idPrefix?: string;
+  readonly actionsContainer?: HTMLElement | null;
+  readonly onSuccess?: () => void;
+  readonly onPendingChange?: (pending: boolean) => void;
   readonly defaultRegistrationNumber: string;
   readonly selectedServiceSlug: string | undefined;
   readonly services: readonly Service[];
@@ -152,6 +157,10 @@ export interface BookingFormProps {
 }
 
 export function BookingForm({
+  idPrefix = 'booking',
+  actionsContainer,
+  onSuccess,
+  onPendingChange,
   defaultRegistrationNumber,
   selectedServiceSlug,
   services,
@@ -181,6 +190,7 @@ export function BookingForm({
 
   async function submit(values: BookingFormValues) {
     setStatus({ kind: 'submitting' });
+    onPendingChange?.(true);
 
     try {
       const formToken = await token.getToken();
@@ -212,7 +222,11 @@ export function BookingForm({
         },
       );
 
-      router.push('/boka/tack');
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push('/boka/tack');
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         const tokenError = hasFormTokenError(error.details);
@@ -242,22 +256,55 @@ export function BookingForm({
         variant: 'general',
         message: 'Något gick fel. Försök igen eller ring oss.',
       });
+    } finally {
+      onPendingChange?.(false);
     }
   }
 
   const pending = isSubmitting || status.kind === 'submitting';
   const tokenUnavailable = token.status === 'error';
 
+  const actions = (
+    <div className="booking-form-actions flex flex-col gap-3 sm:flex-row sm:items-center">
+      <button
+        type="submit"
+        form={`${idPrefix}-form`}
+        className="site-button site-button-hivis relative min-w-[13rem]"
+        disabled={pending}
+        aria-busy={pending}
+      >
+        <span className={pending ? 'invisible' : undefined}>
+          Skicka förfrågan
+        </span>
+        {pending ? (
+          <span className="absolute inset-0 grid place-items-center">
+            <Loader2 aria-hidden="true" className="size-5 animate-spin" />
+            <span className="sr-only">Skickar förfrågan</span>
+          </span>
+        ) : null}
+      </button>
+      <a
+        href={telephoneHref}
+        className="site-button site-button-outline"
+        aria-label={`Ring ${workshopPhone}`}
+      >
+        <Phone aria-hidden="true" className="size-4" />
+        <span className="booking-phone-label">Ring {workshopPhone}</span>
+      </a>
+    </div>
+  );
+
   return (
     <form
-      className="grid gap-8"
+      id={`${idPrefix}-form`}
+      className="booking-form @container grid gap-7"
       onSubmit={(event) => void handleSubmit(submit)(event)}
       noValidate
     >
       <div className="absolute left-[-100vw] top-auto h-px w-px overflow-hidden">
-        <label htmlFor="booking-website">Webbplats</label>
+        <label htmlFor={`${idPrefix}-website`}>Webbplats</label>
         <input
-          id="booking-website"
+          id={`${idPrefix}-website`}
           type="text"
           tabIndex={-1}
           autoComplete="off"
@@ -265,34 +312,34 @@ export function BookingForm({
         />
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 @md:grid-cols-2">
         <BookingTextField
-          id="booking-customer-name"
+          id={`${idPrefix}-customer-name`}
           label="Namn"
           error={errors.customerName?.message}
           required
         >
           <Input
-            id="booking-customer-name"
+            id={`${idPrefix}-customer-name`}
             autoComplete="name"
             {...register('customerName')}
             aria-invalid={errors.customerName === undefined ? undefined : true}
             aria-describedby={
               errors.customerName === undefined
                 ? undefined
-                : 'booking-customer-name-error'
+                : `${idPrefix}-customer-name-error`
             }
           />
         </BookingTextField>
 
         <BookingTextField
-          id="booking-phone"
+          id={`${idPrefix}-phone`}
           label="Telefon"
           error={errors.phone?.message}
           required
         >
           <Input
-            id="booking-phone"
+            id={`${idPrefix}-phone`}
             type="tel"
             inputMode="tel"
             autoComplete="tel"
@@ -300,18 +347,18 @@ export function BookingForm({
             {...register('phone')}
             aria-invalid={errors.phone === undefined ? undefined : true}
             aria-describedby={
-              errors.phone === undefined ? undefined : 'booking-phone-error'
+              errors.phone === undefined ? undefined : `${idPrefix}-phone-error`
             }
           />
         </BookingTextField>
 
         <BookingTextField
-          id="booking-email"
+          id={`${idPrefix}-email`}
           label="E-post"
           error={errors.email?.message}
         >
           <Input
-            id="booking-email"
+            id={`${idPrefix}-email`}
             type="email"
             inputMode="email"
             autoComplete="email"
@@ -319,13 +366,13 @@ export function BookingForm({
             {...register('email')}
             aria-invalid={errors.email === undefined ? undefined : true}
             aria-describedby={
-              errors.email === undefined ? undefined : 'booking-email-error'
+              errors.email === undefined ? undefined : `${idPrefix}-email-error`
             }
           />
         </BookingTextField>
 
         <BookingTextField
-          id="booking-regnr"
+          id={`${idPrefix}-regnr`}
           label="Registreringsnummer"
           error={errors.regNr?.message}
         >
@@ -334,13 +381,15 @@ export function BookingForm({
             name="regNr"
             render={({ field }) => (
               <RegistrationNumberInput
-                id="booking-regnr"
+                id={`${idPrefix}-regnr`}
                 value={field.value ?? ''}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 aria-invalid={errors.regNr === undefined ? undefined : true}
                 aria-describedby={
-                  errors.regNr === undefined ? undefined : 'booking-regnr-error'
+                  errors.regNr === undefined
+                    ? undefined
+                    : `${idPrefix}-regnr-error`
                 }
               />
             )}
@@ -348,7 +397,7 @@ export function BookingForm({
         </BookingTextField>
 
         <BookingTextField
-          id="booking-date"
+          id={`${idPrefix}-date`}
           label="Önskad dag"
           error={errors.requestedDate?.message}
         >
@@ -357,7 +406,7 @@ export function BookingForm({
             name="requestedDate"
             render={({ field }) => (
               <DatePicker
-                id="booking-date"
+                id={`${idPrefix}-date`}
                 variant="outline"
                 value={
                   field.value === undefined || field.value === ''
@@ -377,7 +426,7 @@ export function BookingForm({
                 aria-describedby={
                   errors.requestedDate === undefined
                     ? undefined
-                    : 'booking-date-error'
+                    : `${idPrefix}-date-error`
                 }
               />
             )}
@@ -385,12 +434,12 @@ export function BookingForm({
         </BookingTextField>
 
         <BookingTextField
-          id="booking-time"
+          id={`${idPrefix}-time`}
           label="Tid på dagen"
           error={errors.requestedTimeOfDay?.message}
         >
           <select
-            id="booking-time"
+            id={`${idPrefix}-time`}
             className="h-11 w-full rounded-sharp border border-input bg-transparent px-3 font-sans text-sm"
             {...register('requestedTimeOfDay')}
             aria-invalid={
@@ -399,7 +448,7 @@ export function BookingForm({
             aria-describedby={
               errors.requestedTimeOfDay === undefined
                 ? undefined
-                : 'booking-time-error'
+                : `${idPrefix}-time-error`
             }
           >
             <option value="">Välj om du vill</option>
@@ -421,19 +470,19 @@ export function BookingForm({
         <p className="text-sm text-steel/65">
           Välj en eller flera tjänster. Är du osäker kan du lämna alla tomma.
         </p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 @sm:grid-cols-2 @3xl:grid-cols-3">
           {services.map((service) => (
             <label
               key={service.slug}
               className={cn(
-                'flex min-h-14 items-center gap-3 rounded-sharp border border-steel/20 bg-white px-4 py-3',
+                'flex min-h-14 min-w-0 items-center gap-3 rounded-sharp border border-steel/20 bg-white px-4 py-3 has-checked:border-signal has-checked:bg-signal/5',
                 'font-sans text-sm font-semibold hover:border-signal',
               )}
             >
               <input
                 type="checkbox"
                 value={service.slug}
-                className="size-4 accent-signal"
+                className="size-4 shrink-0 accent-signal"
                 {...register('serviceTypeIds')}
               />
               <span>{service.name}</span>
@@ -448,19 +497,21 @@ export function BookingForm({
       </fieldset>
 
       <BookingTextField
-        id="booking-message"
+        id={`${idPrefix}-message`}
         label="Meddelande"
         error={errors.message?.message}
       >
         <textarea
-          id="booking-message"
-          rows={5}
+          id={`${idPrefix}-message`}
+          rows={4}
           className="w-full rounded-sharp border border-input bg-white px-3 py-3 font-sans text-sm leading-relaxed"
           placeholder="Berätta kort vad bilen behöver hjälp med."
           {...register('message')}
           aria-invalid={errors.message === undefined ? undefined : true}
           aria-describedby={
-            errors.message === undefined ? undefined : 'booking-message-error'
+            errors.message === undefined
+              ? undefined
+              : `${idPrefix}-message-error`
           }
         />
       </BookingTextField>
@@ -482,27 +533,7 @@ export function BookingForm({
         />
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <button
-          type="submit"
-          className="site-button site-button-hivis relative min-w-[13rem]"
-          disabled={pending}
-          aria-busy={pending}
-        >
-          <span className={pending ? 'invisible' : undefined}>
-            Skicka förfrågan
-          </span>
-          {pending ? (
-            <span className="absolute inset-0 grid place-items-center">
-              <Loader2 aria-hidden="true" className="size-5 animate-spin" />
-              <span className="sr-only">Skickar förfrågan</span>
-            </span>
-          ) : null}
-        </button>
-        <a href={telephoneHref} className="site-button site-button-outline">
-          <Phone aria-hidden="true" className="size-4" /> Ring {workshopPhone}
-        </a>
-      </div>
+      {actionsContainer ? createPortal(actions, actionsContainer) : actions}
     </form>
   );
 }

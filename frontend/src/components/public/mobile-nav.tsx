@@ -1,7 +1,7 @@
 'use client';
 
 import { Menu, Phone, X } from 'lucide-react';
-import Link from 'next/link';
+import { BookingButton } from '@/components/public/booking-provider';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { PublicNavLink } from '@/components/public/public-nav-link';
@@ -100,13 +100,12 @@ export function MobileNav({
             <Phone aria-hidden="true" className="size-4" />
             {phone}
           </a>
-          <Link
-            href="/boka"
+          <BookingButton
             className="site-button site-button-hivis"
             onClick={close}
           >
             Boka tid
-          </Link>
+          </BookingButton>
         </div>
       </div>
     </details>

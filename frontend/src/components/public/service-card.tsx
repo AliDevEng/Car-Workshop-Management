@@ -29,7 +29,7 @@ export function ServiceCard({
           src={service.image.src}
           alt={service.image.alt}
           fill
-          sizes="(max-width: 1023px) 100vw, 33vw"
+          sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1439px) 46vw, 640px"
           className="object-cover transition duration-500 group-hover:scale-[1.035]"
         />
         <div className="service-card-media-shade" />
@@ -40,13 +40,13 @@ export function ServiceCard({
         />
       </div>
       <div className="service-card-body">
-        <h2 className="type-display text-3xl font-bold sm:text-4xl">
+        <h2 className="type-display text-[clamp(1.5rem,3vw,2.25rem)] font-bold wrap-anywhere">
           {service.name}
         </h2>
-        <p className="mt-4 max-w-md text-base leading-relaxed text-steel/75">
+        <p className="mt-4 mb-6 max-w-md text-base leading-relaxed text-steel/75">
           {service.shortDescription}
         </p>
-        <div className="mt-6 flex items-center justify-between gap-4 border-t border-steel/20 pt-5 font-sans text-sm font-semibold">
+        <div className="mt-auto flex items-center justify-between gap-4 border-t border-steel/20 pt-5 font-sans text-sm font-semibold">
           <span className="tabular-nums">{service.fromPrice}</span>
           {/* `min-h-11` and vertical padding: the link's own box was
               51 × 20 px, well under the 44 px touch target the project

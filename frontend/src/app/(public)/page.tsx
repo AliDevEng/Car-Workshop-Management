@@ -1,23 +1,11 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
-import {
-  ArrowRight,
-  Check,
-  Clock3,
-  MapPin,
-  ShieldCheck,
-  Sparkles,
-  Wrench,
-} from 'lucide-react';
-import { VehicleLookup } from '@/components/public/vehicle-lookup';
+import { ArrowRight, Check, ShieldCheck, Sparkles, Wrench } from 'lucide-react';
+import { BookingButton } from '@/components/public/booking-provider';
 import { ServiceCard } from '@/components/public/service-card';
 import { services } from '@/lib/public/services';
-import {
-  formatOpeningHours,
-  getMapUrl,
-  getWorkshopInfo,
-} from '@/lib/public/workshop';
+import { getWorkshopInfo } from '@/lib/public/workshop';
 
 const promises = [
   {
@@ -55,37 +43,15 @@ const processSteps = [
   },
 ] as const;
 
-const heroImages = [
-  {
-    src: '/images/workshop-team.png',
-    alt: 'Två mekaniker som arbetar vid en bil i verkstaden',
-    objectPosition: '18%',
-  },
-  {
-    src: '/images/services/bilservice.jpg',
-    alt: '',
-    objectPosition: '50%',
-  },
-  {
-    src: '/images/services/felsokning.jpg',
-    alt: '',
-    objectPosition: '72%',
-  },
-] as const;
-
 export const metadata: Metadata = {
   title: 'Bilverkstad i Solna',
   description:
-    'Bilservice, felsökning och avancerade reparationer i Solna. Sök på registreringsnumret och boka en tid som passar.',
+    'Bilservice, felsökning och avancerade reparationer i Solna. Skicka en bokningsförfrågan så hjälper vi dig att hitta en tid som passar.',
   alternates: { canonical: '/' },
 };
 
 export default async function HomePage() {
   const info = await getWorkshopInfo();
-  // Every day, not the first five. Showing Mon–Fri alone told a visitor
-  // reading this section that the workshop is closed on Saturdays, while
-  // the footer on the same page said "Lördag 09–13" (UI_UX_AUDIT P2).
-  const openingHours = formatOpeningHours(info.openingHours);
 
   return (
     <main id="main-content">
@@ -103,32 +69,41 @@ export default async function HomePage() {
               Från rutinservice till avancerad mekanik. Du får raka besked,
               dokumenterat arbete och en bil som känns rätt igen.
             </p>
-            <div className="mt-9 max-w-xl">
-              <VehicleLookup />
+            <div className="mt-8 max-w-xl rounded-2xl border border-white/15 bg-white/6 p-5 sm:p-6">
+              <h2 className="font-sans text-lg font-semibold text-white">
+                Nästa steg för din bil.
+              </h2>
+              <p className="mt-2 max-w-md text-base leading-relaxed text-concrete/75">
+                Service eller något som inte känns rätt? Berätta vad du behöver
+                hjälp med, så tar vi det därifrån.
+              </p>
+              <div className="mt-5 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <BookingButton className="site-button site-button-hivis min-h-12 w-full sm:w-auto sm:shrink-0">
+                  Boka nu <ArrowRight aria-hidden="true" className="size-4" />
+                </BookingButton>
+                <span className="text-sm leading-relaxed text-concrete/65">
+                  Vi bekräftar alltid tiden med dig.
+                </span>
+              </div>
             </div>
           </div>
 
           <div className="hero-visual">
-            <div className="hero-visual-image-grid">
-              {heroImages.map((image, index) => (
-                <div className="hero-visual-image-panel" key={image.src}>
-                  <Image
-                    src={image.src}
-                    alt={image.alt}
-                    fill
-                    loading="eager"
-                    fetchPriority={index === 0 ? 'high' : 'auto'}
-                    quality={60}
-                    sizes="(max-width: 639px) 45vw, (max-width: 1023px) 100vw, 48vw"
-                    className="object-cover"
-                    style={{ objectPosition: `${image.objectPosition} center` }}
-                  />
-                </div>
-              ))}
-            </div>
+            {/* Allow for the landscape source covering a taller frame; sizing
+                only to the column width makes the cropped photo blurry. */}
+            <Image
+              src="/images/workshop-team.png"
+              alt="Två mekaniker som arbetar vid en bil i verkstaden"
+              fill
+              loading="eager"
+              fetchPriority="high"
+              quality={75}
+              sizes="(max-width: 639px) 134vw, (max-width: 1023px) 92vw, 1200px"
+              className="hero-image object-cover"
+            />
             <div className="hero-visual-overlay" />
             <div className="hero-proof">
-              <span className="grid size-11 place-items-center rounded-full bg-hivis text-steel">
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-hivis text-steel">
                 <ShieldCheck aria-hidden="true" className="size-5" />
               </span>
               <div>
@@ -180,7 +155,7 @@ export default async function HomePage() {
               <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
           </div>
-          <div className="mt-9 grid gap-5 md:grid-cols-2 lg:mt-10 lg:grid-cols-3">
+          <div className="mt-9 grid gap-5 md:grid-cols-3 lg:mt-10">
             {services.slice(0, 3).map((service, index) => (
               <ServiceCard key={service.slug} service={service} index={index} />
             ))}
@@ -189,18 +164,18 @@ export default async function HomePage() {
       </section>
 
       <section className="site-section bg-[#d8e8f5]">
-        <div className="site-container grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
+        <div className="site-container grid gap-8 xl:grid-cols-[0.8fr_1.2fr] xl:items-end xl:gap-12">
           <div>
             <p className="section-kicker">Så arbetar vi</p>
             <h2 className="section-title">Mät först. Byt sedan.</h2>
           </div>
-          <div className="grid gap-px overflow-hidden rounded-soft bg-steel/15 lg:grid-cols-3">
+          <div className="grid gap-px overflow-hidden rounded-soft bg-steel/15 md:grid-cols-3">
             {processSteps.map((step) => {
               const ItemIcon = step.icon;
               return (
-                <article key={step.title} className="bg-concrete-2 p-7 sm:p-8">
+                <article key={step.title} className="bg-concrete-2 p-6 xl:p-8">
                   <ItemIcon aria-hidden="true" className="size-6 text-signal" />
-                  <h3 className="type-display mt-12 text-2xl font-bold">
+                  <h3 className="type-display mt-5 text-2xl font-bold md:mt-8 xl:mt-12">
                     {step.title}
                   </h3>
                   <p className="mt-3 text-sm leading-relaxed text-steel/70">
@@ -213,48 +188,35 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="site-section bg-hivis text-steel">
-        <div className="site-container grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+      <section
+        className="bg-hivis py-10 text-steel sm:py-12 lg:py-16"
+        aria-labelledby="home-booking-heading"
+      >
+        <div className="site-container grid items-center gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-12 xl:gap-16">
           <div>
-            <p className="section-kicker">Nära när det behövs</p>
-            <h2 className="type-display max-w-4xl text-[clamp(3rem,7vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em]">
-              Mome Bilservice runt hörnet.
+            <p className="section-kicker">Nästa steg</p>
+            <h2
+              id="home-booking-heading"
+              className="type-display max-w-3xl text-[clamp(2.25rem,5vw,4.5rem)] leading-[1] font-bold tracking-[-0.04em]"
+            >
+              Låt oss ta hand om bilen.
             </h2>
           </div>
-          <div className="grid gap-7 border-l border-steel/25 pl-7 sm:grid-cols-2">
-            <div>
-              <h3 className="flex items-center gap-2 font-sans text-sm font-bold">
-                <Clock3 aria-hidden="true" className="size-4" /> Öppettider
-              </h3>
-              <dl className="mt-4 grid grid-cols-[1fr_auto] gap-x-5 gap-y-1 text-sm">
-                {openingHours.map((day) => (
-                  <div className="contents" key={day.weekday}>
-                    <dt>{day.weekday}</dt>
-                    <dd className="tabular-nums">{day.hours}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-            <div>
-              <h3 className="flex items-center gap-2 font-sans text-sm font-bold">
-                <MapPin aria-hidden="true" className="size-4" /> Adress
-              </h3>
-              <p className="mt-4 text-sm leading-relaxed">
-                {info.workshop.address}
-                <br />
-                {info.workshop.postalCode} {info.workshop.city}
-              </p>
-              <a
-                href={getMapUrl(info)}
-                target="_blank"
-                rel="noreferrer"
-                /* `min-h-11` and vertical padding — a 44 px touch target
-                   (UI_UX_AUDIT P3). */
-                className="mt-2 inline-flex min-h-11 items-center gap-2 py-3 font-sans text-sm font-bold underline underline-offset-4"
+          <div className="lg:border-l lg:border-steel/25 lg:pl-8 xl:pl-12">
+            <p className="max-w-xl text-lg leading-relaxed text-steel/80 lg:max-w-md">
+              Berätta vad bilen behöver. Vi hör av oss med nästa steg och
+              bekräftar tiden tillsammans med dig.
+            </p>
+            <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <BookingButton className="site-button site-button-dark min-h-12 px-7">
+                Boka tid <ArrowRight aria-hidden="true" className="size-4" />
+              </BookingButton>
+              <Link
+                href="/kontakt"
+                className="inline-flex min-h-11 items-center font-sans text-sm font-semibold underline underline-offset-4"
               >
-                Öppna i kartan{' '}
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </a>
+                Kontakta oss
+              </Link>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
-import Link from 'next/link';
+import { BookingButton } from '@/components/public/booking-provider';
 import {
   ArrowRight,
   BadgeCheck,
@@ -50,25 +50,27 @@ export default function AboutPage() {
         </div>
       </header>
       <section className="site-container">
-        <div className="relative aspect-[16/8.5] min-h-[25rem] overflow-hidden rounded-soft bg-steel">
-          <Image
-            src="/images/workshop-team.png"
-            alt="Två mekaniker arbetar tillsammans med en bil"
-            fill
-            priority
-            sizes="(max-width: 1280px) 100vw, 1280px"
-            className="object-cover"
-          />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-steel/90 to-transparent p-7 pt-24 text-white sm:p-10 sm:pt-32">
+        <figure className="relative overflow-hidden rounded-soft bg-steel">
+          <div className="relative aspect-[4/3] sm:aspect-[16/8.5]">
+            <Image
+              src="/images/workshop-team.png"
+              alt="Två mekaniker arbetar tillsammans med en bil"
+              fill
+              loading="eager"
+              sizes="(max-width: 1280px) 100vw, 1280px"
+              className="object-cover object-[72%_center] sm:object-center"
+            />
+          </div>
+          <figcaption className="p-5 text-white sm:absolute sm:inset-x-0 sm:bottom-0 sm:bg-gradient-to-t sm:from-steel/90 sm:to-transparent sm:p-10 sm:pt-32">
             <p className="max-w-xl text-lg leading-relaxed">
               Vi byggde verkstaden vi själva ville lämna bilen till: kunnig,
               okomplicerad och noggrann.
             </p>
-          </div>
-        </div>
+          </figcaption>
+        </figure>
       </section>
       <section className="site-section">
-        <div className="site-container grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="site-container grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
           <div>
             <p className="section-kicker">Vår idé</p>
             <h2 className="section-title">
@@ -87,13 +89,13 @@ export default function AboutPage() {
             </p>
           </div>
         </div>
-        <div className="site-container mt-16 grid gap-5 md:grid-cols-3">
+        <div className="site-container mt-10 grid gap-5 md:grid-cols-3 lg:mt-16">
           {values.map((value, index) => {
             const Icon = value.icon;
             return (
               <article
                 key={value.title}
-                className="rounded-soft bg-concrete-2 p-7 sm:p-9"
+                className="min-w-0 rounded-soft bg-concrete-2 p-6 xl:p-9"
               >
                 <div className="flex items-center justify-between">
                   <Icon aria-hidden="true" className="size-7 text-signal" />
@@ -101,7 +103,7 @@ export default function AboutPage() {
                     0{String(index + 1)}
                   </span>
                 </div>
-                <h3 className="type-display mt-16 text-2xl font-bold">
+                <h3 className="type-display mt-6 text-2xl font-bold lg:mt-12">
                   {value.title}
                 </h3>
                 <p className="mt-4 leading-relaxed text-steel/70">
@@ -112,7 +114,7 @@ export default function AboutPage() {
           })}
         </div>
       </section>
-      <section className="bg-signal py-16 text-white sm:py-20">
+      <section className="bg-signal py-12 text-white lg:py-20">
         <div className="site-container flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-center">
           <div>
             <p className="font-sans text-sm font-semibold text-white/70">
@@ -122,9 +124,9 @@ export default function AboutPage() {
               Låt oss titta på bilen.
             </h2>
           </div>
-          <Link href="/boka" className="site-button site-button-hivis shrink-0">
+          <BookingButton className="site-button site-button-hivis shrink-0">
             Boka tid <ArrowRight aria-hidden="true" className="size-4" />
-          </Link>
+          </BookingButton>
         </div>
       </section>
     </main>

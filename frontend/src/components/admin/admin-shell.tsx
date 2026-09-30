@@ -465,7 +465,7 @@ export function AdminShell({
             href="/admin"
             className="mb-6 flex min-h-11 items-center gap-3 rounded-soft max-[1099px]:justify-center"
           >
-            <BrandMark className="size-11" />
+            <BrandMark size="compact" />
             <span className="nav-label min-w-0 max-[1099px]:sr-only">
               <span className="type-display block text-lg font-semibold">
                 Mome
@@ -491,9 +491,9 @@ export function AdminShell({
           <header className="z-30 flex min-h-16 shrink-0 items-center gap-2 border-b border-border bg-card px-3 sm:gap-3 sm:px-4">
             <Link
               href="/admin"
-              className="flex size-11 shrink-0 items-center justify-center rounded-soft md:hidden"
+              className="flex size-14 shrink-0 items-center justify-center rounded-full md:hidden"
             >
-              <BrandMark className="size-9" />
+              <BrandMark size="compact" />
               <span className="sr-only">Mome verkstad, till översikten</span>
             </Link>
 

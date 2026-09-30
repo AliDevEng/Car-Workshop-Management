@@ -30,7 +30,7 @@ export default async function ContactPage() {
           </p>
         </div>
       </header>
-      <section className="site-container pb-24 sm:pb-32">
+      <section className="site-container pb-12 sm:pb-16 lg:pb-24">
         <div className="grid overflow-hidden rounded-soft bg-steel lg:grid-cols-[1.05fr_0.95fr]">
           <div className="p-7 text-white sm:p-12">
             <h2 className="type-display text-3xl font-bold sm:text-4xl">

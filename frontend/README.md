@@ -47,8 +47,10 @@ Iteration IDs are stable, so F13 intentionally precedes F12 acceptance.
 ### Public site
 
 - Swedish service, about, contact and privacy pages
-- Registration-number vehicle lookup
-- Public booking-request flow with recovery and anti-spam handling
+- Shared booking overlay opened by every public booking button, with service
+  preselection, in-place confirmation, recovery and anti-spam handling
+- Direct `/boka` links remain available; the homepage does not call the
+  vehicle-lookup API
 - Responsive, low-JavaScript pages with server-rendered metadata
 
 ### Admin panel
@@ -136,6 +138,10 @@ pnpm --filter frontend dev
 
 Open <http://localhost:3000>. Development rewrites keep browser calls on the
 same relative `/api` path used in production.
+
+TanStack Query Devtools are hidden by default so their floating button does
+not cover the admin logo or navigation. Set `NEXT_PUBLIC_QUERY_DEVTOOLS=true`
+before starting the frontend when you need query debugging.
 
 ## 🧰 Commands
 

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { SiteFooter } from '@/components/public/site-footer';
 import { SiteHeader } from '@/components/public/site-header';
+import { BookingProvider } from '@/components/public/booking-provider';
 import {
   getTelephoneHref,
   getWorkshopInfo,
@@ -45,21 +46,26 @@ export default async function PublicLayout({
   };
 
   return (
-    <div className="public-scope min-h-screen bg-concrete font-body-public text-steel">
-      <a href="#main-content" className="skip-link">
-        Hoppa till innehållet
-      </a>
-      <SiteHeader
-        name={info.workshop.name}
-        phone={info.workshop.phone}
-        phoneHref={getTelephoneHref(info.workshop.phone)}
-      />
-      {children}
-      <SiteFooter info={info} />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serialiseJsonLd(localBusiness) }}
-      />
-    </div>
+    <BookingProvider
+      workshopPhone={info.workshop.phone}
+      telephoneHref={getTelephoneHref(info.workshop.phone)}
+    >
+      <div className="public-scope min-h-screen bg-concrete font-body-public text-steel">
+        <a href="#main-content" className="skip-link">
+          Hoppa till innehållet
+        </a>
+        <SiteHeader
+          name={info.workshop.name}
+          phone={info.workshop.phone}
+          phoneHref={getTelephoneHref(info.workshop.phone)}
+        />
+        {children}
+        <SiteFooter info={info} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serialiseJsonLd(localBusiness) }}
+        />
+      </div>
+    </BookingProvider>
   );
 }

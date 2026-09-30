@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
+import { BookingButton } from '@/components/public/booking-provider';
 import {
   ArrowLeft,
   ArrowRight,
@@ -81,7 +82,7 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
               <p className="mt-10 font-sans text-sm font-semibold text-hivis">
                 Specialistområde
               </p>
-              <h1 className="type-display mt-5 max-w-5xl text-[clamp(3.4rem,8vw,7.5rem)] leading-[0.88] font-bold tracking-[-0.045em]">
+              <h1 className="service-detail-title type-display mt-5 max-w-5xl font-bold tracking-[-0.045em]">
                 {service.name}
               </h1>
               <p className="mt-6 max-w-2xl text-xl leading-relaxed text-concrete/75">
@@ -89,33 +90,25 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
               </p>
             </div>
             <div className="service-detail-visual">
-              {['18%', '50%', '82%'].map((objectPosition, index) => (
-                <div
-                  className="service-detail-visual-panel"
-                  key={objectPosition}
-                >
-                  <Image
-                    src={service.image.src}
-                    alt={index === 0 ? service.image.alt : ''}
-                    fill
-                    loading="eager"
-                    fetchPriority={index === 0 ? 'high' : 'auto'}
-                    quality={60}
-                    sizes="(max-width: 639px) 45vw, (max-width: 1023px) 100vw, 44vw"
-                    className="object-cover"
-                    style={{ objectPosition: `${objectPosition} center` }}
-                  />
-                </div>
-              ))}
+              <Image
+                src={service.image.src}
+                alt={service.image.alt}
+                fill
+                loading="eager"
+                fetchPriority="high"
+                quality={60}
+                sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 92vw, (max-width: 1439px) 40vw, 560px"
+                className="object-cover"
+              />
               <div className="hero-visual-overlay" />
             </div>
           </div>
         </header>
         <section className="site-section">
-          <div className="site-container grid gap-14 lg:grid-cols-[1fr_0.7fr]">
+          <div className="site-container grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)] lg:gap-14">
             <div>
               <p className="section-kicker">Om tjänsten</p>
-              <h2 className="section-title max-w-3xl">
+              <h2 className="type-display max-w-3xl text-[clamp(2rem,4vw,3.75rem)] leading-[1.05] font-bold tracking-[-0.035em]">
                 Ett metodiskt jobb, tydligt redovisat.
               </h2>
               <p className="mt-6 max-w-3xl text-xl leading-relaxed text-steel/75">
@@ -167,13 +160,13 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
                 Slutpriset beror på bilmodell och vad kontrollen visar. Vi
                 stämmer alltid av innan vi gör mer.
               </p>
-              <Link
-                href={`/boka?tjanst=${service.slug}`}
+              <BookingButton
+                selectedServiceSlug={service.slug}
                 className="site-button site-button-primary w-full"
               >
                 Boka {service.name.toLowerCase()}{' '}
                 <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
+              </BookingButton>
             </aside>
           </div>
         </section>

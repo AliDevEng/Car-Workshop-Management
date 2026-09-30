@@ -1,6 +1,7 @@
 import { Phone } from 'lucide-react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/public/brand-mark';
+import { BookingButton } from '@/components/public/booking-provider';
 import { MobileNav } from '@/components/public/mobile-nav';
 import { PublicNavLink } from '@/components/public/public-nav-link';
 
@@ -22,19 +23,19 @@ export function SiteHeader({
 }) {
   return (
     <header className="site-header">
-      <div className="site-container flex h-[76px] min-w-0 items-center justify-between gap-3 sm:gap-6">
+      <div className="site-container flex h-20 min-w-0 items-center justify-between gap-3 sm:h-22 sm:gap-6">
         <Link
           href="/"
-          className="group flex min-w-0 items-center gap-2.5 font-sans text-lg font-bold tracking-[-0.02em] sm:gap-3"
+          className="group flex min-w-0 items-center gap-2.5 font-sans text-lg font-bold tracking-[-0.02em] sm:gap-3 sm:text-xl"
           aria-label={`${name}, startsida`}
         >
-          <BrandMark className="size-11 sm:size-12" />
+          <BrandMark />
           <span className="truncate max-sm:text-base">{name}</span>
         </Link>
 
         <nav
           aria-label="Huvudmeny"
-          className="hidden items-center gap-8 lg:flex"
+          className="hidden items-stretch gap-8 self-stretch lg:flex"
         >
           {navigation.map((item) => (
             <PublicNavLink
@@ -49,13 +50,13 @@ export function SiteHeader({
         </nav>
 
         <div className="hidden items-center gap-3 sm:flex">
-          <a className="site-phone-link" href={phoneHref}>
+          <a className="site-phone-link hidden md:inline-flex" href={phoneHref}>
             <Phone aria-hidden="true" className="size-4" />
             {phone}
           </a>
-          <Link href="/boka" className="site-button site-button-primary">
+          <BookingButton className="site-button site-button-primary">
             Boka tid
-          </Link>
+          </BookingButton>
         </div>
 
         <MobileNav items={navigation} phone={phone} phoneHref={phoneHref} />

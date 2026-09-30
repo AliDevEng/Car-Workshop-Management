@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { BookingButton } from '@/components/public/booking-provider';
 import { ArrowRight } from 'lucide-react';
 import { ServiceCard } from '@/components/public/service-card';
 import { services } from '@/lib/public/services';
@@ -16,7 +16,7 @@ export default function ServicesPage() {
     <main id="main-content">
       <header className="page-hero">
         <div className="site-container">
-          <p className="hero-kicker text-steel/70 before:bg-signal">Tjänster</p>
+          <p className="section-kicker">Tjänster</p>
           <h1 className="page-title max-w-5xl">
             Allt bilen behöver. Inget den inte behöver.
           </h1>
@@ -26,13 +26,13 @@ export default function ServicesPage() {
           </p>
         </div>
       </header>
-      <section className="site-container pb-24 sm:pb-32">
+      <section className="site-container pb-12 sm:pb-16 lg:pb-24">
         <div className="grid gap-5 md:grid-cols-2">
           {services.map((service, index) => (
             <ServiceCard key={service.slug} service={service} index={index} />
           ))}
         </div>
-        <div className="mt-16 flex flex-col items-start justify-between gap-8 rounded-soft bg-steel p-8 text-white sm:flex-row sm:items-center sm:p-12">
+        <div className="mt-10 flex flex-col items-start justify-between gap-6 rounded-soft bg-steel p-6 text-white sm:p-8 lg:mt-16 lg:flex-row lg:items-center lg:p-12">
           <div>
             <h2 className="type-display text-3xl font-bold sm:text-4xl">
               Osäker på vad bilen behöver?
@@ -42,9 +42,12 @@ export default function ServicesPage() {
               orsaken.
             </p>
           </div>
-          <Link href="/boka" className="site-button site-button-hivis shrink-0">
+          <BookingButton
+            selectedServiceSlug="felsokning"
+            className="site-button site-button-hivis shrink-0"
+          >
             Boka felsökning <ArrowRight aria-hidden="true" className="size-4" />
-          </Link>
+          </BookingButton>
         </div>
       </section>
     </main>
