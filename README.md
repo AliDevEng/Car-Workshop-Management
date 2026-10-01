@@ -115,9 +115,14 @@ short public overview.
 
 ### Current snapshot
 
-As of **2026-09-28**:
+As of **2026-10-01**:
 
-- Backend: **93/96 milestones**, with **12/15 iterations done**.
+- Backend: **93/96 milestones**, with **12/15 iterations done**. Every
+  remaining backend item now needs something other than code: a contracted
+  vehicle-data provider, a GitHub repository owner, or a production VPS. The
+  2026-10-01 review moved the daily vehicle-lookup spend count into the
+  database, so a restart can no longer reset it, and built the
+  provider-independent half of the real provider.
 - Hardening pass **H2** (2026-09-28) fixed seven API defects and six
   frontend ones found by driving the running stack across phone, tablet and
   desktop — among them a partial article update that silently reset VAT. No

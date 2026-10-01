@@ -82,6 +82,33 @@ gaps on input H1 had not reached, header edits on locked work orders, quotes
 that could be sent already expired, and a `Promise.all` race in the nightly
 stock job. No milestone count changes.
 
+**Development backlog review — 2026-10-01.** Every unticked box in this file
+was checked against the code. Excluding repository settings and the
+production VPS (B0.9.3, B13.6), what remained was the real vehicle-data
+provider and the spend ceiling it depends on:
+
+- **H1.13 fixed.** The daily ceilings are counted in a
+  `VehicleDataCallCounter` table instead of process memory, so a restart no
+  longer refills a budget of real money.
+- **B10.5.1 and B10.5.3 done.** The provider-independent HTTP client and the
+  credential rules are built.
+- **B10.5.2 and B10.5.4 remain, blocked on a provider contract.** The mapping
+  needs the provider's API documentation, and the contract test can only run
+  after the mapping exists. Its file is already written.
+- **H1.16 and H1.17 ticked.** Both were already resolved, H1.17 by B14.
+
+No milestone count changes: B10.5 stays open until all four of its tasks pass.
+After this review, every remaining unticked backend box needs something other
+than code: a provider contract (B10.5), a GitHub repository owner (B0.9.3), a
+production VPS (B13.6), or a frontend step (H1.12, owned by F12.1.7).
+
+Verification, 2026-10-01, Node 22.21.1, PostgreSQL 16 in Docker, Windows 11:
+`pnpm check` is clean. That covers typecheck, `eslint --max-warnings 0` and
+**1 390 tests**: 349 shared, 203 frontend, and 838 backend plus 2 opt-in skips
+(the search benchmark and the new provider contract test). `type-coverage` is
+**99.60 %**. Migration `20260930235131_h1_13_vehicle_data_call_counter` is
+additive (one new table) and applies cleanly to the development database.
+
 Entry points, schema, migrations and test configuration are implemented as of
 2026-09-08. B0.9 remains open because branch protection is a repository setting
 that cannot be applied from the working tree, and because the workflow has not
@@ -3238,13 +3265,52 @@ and the daily ceiling is proven to stop the 201st call.
 
 ### B10.5 Real provider
 
-- [ ] **B10.5.1** HTTP client with timeout, one retry with jitter, and no retry
-      on 4xx
-- [ ] **B10.5.2** Mapping to `VehicleDataResult` isolated in one file
-- [ ] **B10.5.3** Credentials from env only; never logged, never sent to the
-      frontend
+**Partly built 2026-10-01: the provider-independent half.** No provider has
+been contracted and no API documentation exists, so the response shape is
+unknown. Writing a mapping against a guessed shape would invent a contract
+(CLAUDE.md), and the human chose to build everything that does not depend on it.
+Adding a provider is now one file: its `buildRequest` and `mapResponse`, passed
+to `createHttpVehicleDataProvider`, plus a branch in `index.ts`. Until that file
+exists, `createVehicleDataProvider` still refuses any non-`mock` value at boot.
+
+- [x] **B10.5.1** HTTP client with timeout, one retry with jitter, and no retry
+      on 4xx — `integrations/vehicle-data/http-client.ts`. A 4-second timeout
+      per attempt also covers a body that trickles in. Exactly one retry, and
+      only for a timeout, a dropped connection or a `5xx`; it waits 50–150 % of
+      300 ms. A `4xx` (including `429`) is returned to the provider and never
+      retried, because each attempt may be billed. A `2xx` whose body is not
+      JSON is a failure; a `4xx` error page is tolerated as `body: null`.
+      `http-client.test.ts` drives the real `fetch` against a local server
+      (13 tests). A mutation check, retrying `4xx` and following redirects,
+      fails four of them.
+- [ ] **B10.5.2** Mapping to `VehicleDataResult` isolated in one file.
+      **Blocked on the provider's API documentation.** The seam is built:
+      `VehicleDataResponseMapper` in `http-provider.ts` is the one function
+      that file must export. Whatever it returns is parsed again against the
+      shared schema, which strips undeclared fields, so a careless mapper still
+      cannot leak owner data (B10.4.2). An answer about a different plate than
+      the one requested is refused rather than cached on the wrong car.
+      `http-provider.test.ts` covers both, plus `404` → "no such vehicle" and
+      every other `4xx` → a failure the breaker counts.
+- [x] **B10.5.3** Credentials from env only; never logged, never sent to the
+      frontend. The key's only source is `VEHICLE_DATA_API_KEY` in `Env`,
+      already required at boot for any non-`mock` provider. It goes in a
+      header that `buildRequest` sets, never in the URL. Redirects are **not
+      followed** (`redirect: 'manual'`): `fetch` strips `Authorization` on a
+      cross-origin redirect but not a custom API-key header, so following one
+      could hand the key to another host. Error messages name the failure
+      (`timed out`, `network error (ECONNREFUSED)`, `answered 503`) and never
+      the URL or a header, which a test asserts. Nothing in the outbound path
+      logs. The key cannot reach the frontend because responses are the
+      allow-listed `VehicleDataResult`.
 - [ ] **B10.5.4** Contract test runnable manually against the real API, excluded
-      from CI
+      from CI. **Written, not yet runnable:**
+      `tests/vehicle-data-provider.contract.test.ts` is skipped unless
+      `RUN_VEHICLE_DATA_CONTRACT=1` (the same opt-in pattern as the search
+      benchmark). It reads the root `.env`, makes exactly one billed call for
+      `VEHICLE_DATA_CONTRACT_PLATE`, and checks the mapped result. It can only
+      pass once B10.5.2 exists; tick this when it has been run against the
+      real API.
 
 <a id="b10-6"></a>
 
@@ -3265,8 +3331,11 @@ and the daily ceiling is proven to stop the 201st call.
 </details>
 
 - [ ] **Iteration 11 Done** — all milestones and the Definition of Done pass.
-      Blocked on B10.5 (Phase 6); the Phase 3 subset's own Definition of Done
-      (zero real API calls, the 201st call proven blocked) is met in full.
+      Blocked on B10.5.2 and B10.5.4, which both need a contracted provider.
+      B10.5.1 and B10.5.3 are done (2026-10-01). The Phase 3 subset's own
+      Definition of Done (zero real API calls, the 201st call proven blocked)
+      is met in full, and the 201st-call proof now holds across a restart
+      (H1.13).
 
 **Verification:** 2026-09-14, on Node 22.21.1, PostgreSQL 16.15 (Debian),
 Windows 11.
@@ -3313,7 +3382,8 @@ line named before today. Both existed, pointing two different ways — `PROJECT_
 settles it, and CLAUDE.md is explicit that the spec wins over a README
 whenever the two disagree.
 
-**Completed on:** 2026-09-14 (Phase 3 subset; B10.5 remains for Phase 6)
+**Completed on:** 2026-09-14 (Phase 3 subset); B10.5.1 and B10.5.3 on
+2026-10-01. B10.5.2 and B10.5.4 remain, blocked on a provider contract.
 
 ---
 
@@ -4513,14 +4583,15 @@ regression tests rather than descriptions.
 Two of the original twenty were genuine open questions, not defects — CLAUDE.md
 asks to ask rather than guess at either. Decided 2026-09-17.
 
-- [ ] **H1.16 — A work-order line's `vatRateBps` stays unconstrained (0–10000)
+- [x] **H1.16 — A work-order line's `vatRateBps` stays unconstrained (0–10000)
       at the API**, though the frontend select is capped to the four Swedish
       rates. §3.3 stores the rate per line precisely so a future rate change
       does not rewrite history; constraining the API to the same four values
       was considered and declined on that reasoning — an arbitrary rate is
       arguably legitimate, and the UI already prevents the ordinary mistake.
-      No code change.
-- [ ] **H1.17 — There is still no route to create a booking directly for a
+      No code change. **Closed 2026-10-01 as a recorded decision**; ticked so
+      that the unticked boxes in this file are only work still to do.
+- [x] **H1.17 — There is still no route to create a booking directly for a
       phone-in customer.** Bookings only exist via
       `POST /api/booking-requests/:id/confirm`; §1.2 says customers phone in,
       so a walk-in needs a fabricated request today. Confirmed as a real,
@@ -4530,7 +4601,8 @@ asks to ask rather than guess at either. Decided 2026-09-17.
       `POST /api/bookings` endpoint mirroring `confirmBookingRequest`'s
       validation (customer/vehicle match-or-create, the same exclusion-
       constraint conflict handling as B5.4.5) without a `BookingRequest` in
-      between.
+      between. **Built as [Iteration 15 (B14)](#b14), done 2026-09-23**; ticked
+      2026-10-01.
 
 ### Checked and found correct
 

@@ -19,7 +19,7 @@ aligned with the frontend.
 | Remaining area | Progress | Blocker or next step |
 |---|---:|---|
 | [B0 — Foundation](IMPLEMENTATION_PLAN.md#b0) | 9/10 | Run CI on a pull request and configure branch protection |
-| [B10 — Vehicle data](IMPLEMENTATION_PLAN.md#b10) | 5/6 | Connect the contracted real provider |
+| [B10 — Vehicle data](IMPLEMENTATION_PLAN.md#b10) | 5/6 | HTTP client and credential rules built (B10.5.1, B10.5.3); the response mapping and contract run need a contracted provider (B10.5.2, B10.5.4) |
 | [B13 — Release readiness](IMPLEMENTATION_PLAN.md#b13) | 5/6 | Verify the provider and production VPS |
 
 See the plan's [status table](IMPLEMENTATION_PLAN.md#status) for the complete

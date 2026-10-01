@@ -95,9 +95,10 @@ describe('createDailyCounter (§6.1, §7.1, B10.3.1, H1.13)', () => {
     );
 
     expect(verdicts.filter(Boolean)).toHaveLength(10);
-    const row = await harness.app.prisma.vehicleDataCallCounter.findUniqueOrThrow(
-      { where: { key: 'public' } },
-    );
+    const row =
+      await harness.app.prisma.vehicleDataCallCounter.findUniqueOrThrow({
+        where: { key: 'public' },
+      });
     expect(row.count).toBe(30);
   });
 });
