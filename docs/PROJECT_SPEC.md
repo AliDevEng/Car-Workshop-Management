@@ -547,6 +547,12 @@ exists.
 `ARTICLE_NUMBER` | `FREE_TEXT`), `iconKey?`, `sortOrder`, `isActive`.
 Configured through the admin UI (§7.2).
 
+**VehicleDataCallCounter** — `key` (`staff` | `public`, primary key),
+`windowStartsAt`, `count`. The running count behind §7.1's two daily ceilings:
+a rolling 24-hour window per key, incremented by one atomic upsert. The limits
+themselves stay in `Setting`. *Added 2026-10-01 (decision log, H1.13):* a count
+in process memory let every restart refill a budget denominated in real money.
+
 **Setting** — key/value store for workshop name, address, org number, opening
 hours, default hourly rate, quote validity days. Typed accessors in
 `backend/src/config/settings.ts`; no raw string lookups in feature code.
@@ -938,7 +944,9 @@ Operational rules, all enforced in the provider wrapper rather than in callers:
 - Cache TTL: 30 days. Inspection dates change a few times a year at most.
 - A manual "hämta på nytt" button exists for staff and is itself rate-limited.
 - A daily call ceiling from `Setting`; when exceeded, lookups fall back to cache
-  and the UI says so plainly.
+  and the UI says so plainly. Calls already spent are counted in the database
+  (`VehicleDataCallCounter`, §4.2), never in process memory, so a restart
+  cannot refill the budget.
 - Circuit breaker: after 5 consecutive failures, stop calling for 10 minutes and
   serve cache. A provider outage must not take the booking form down.
 - Provider credentials never reach the frontend. The frontend calls

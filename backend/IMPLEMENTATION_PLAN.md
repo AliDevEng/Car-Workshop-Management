@@ -71,6 +71,8 @@ regex was a specification error, now corrected; `vatRateBps` stays
 unconstrained at the API; a phone-in booking route is real but new scope,
 recorded as backlog). It changes no milestone count — nothing in it was in
 anyone's checklist, which is exactly why none of it had been found.
+**H1.13 was fixed on 2026-10-01:** the daily ceiling is now counted in the
+database. H1.12, the page CSP, remains with F12.1.7.
 
 **[Hardening pass H2](#hardening-pass-h2-2026-09-28) — 7/7 findings fixed,
 2026-09-28.** The same method as H1, repeated against the current stack. Its
@@ -4488,11 +4490,23 @@ regression tests rather than descriptions.
       "common and completely ineffective mistake", half-executed. **Owned by
       F12.1.7, still unticked**, so it is reported rather than built here:
       jumping a planned step is what CLAUDE.md asks not to do.
-- [ ] **H1.13 — The vehicle-data daily ceiling is in-process memory.** A
+- [x] **H1.13 — The vehicle-data daily ceiling is in-process memory.** A
       restart or a redeploy refills a budget denominated in real money (§6.1,
       §7.1). Harmless today — `VEHICLE_DATA_PROVIDER` is `mock`, and mock calls
       cost nothing — and it becomes real the day **B10.5** goes live, so it
       belongs to that iteration's design rather than to a patch here.
+      **Fixed 2026-10-01, ahead of B10.5 going live.** The count now lives in
+      a `VehicleDataCallCounter` table (migration
+      `20260930235131_h1_13_vehicle_data_call_counter`). A table rather than a
+      reserved `Setting` row was chosen with the human. One `INSERT … ON
+      CONFLICT DO UPDATE` both increments and rolls the 24-hour window, so it
+      cannot race. `tests/vehicle-data-daily-counter.test.ts` replaces the old
+      in-memory unit test and adds the two cases that matter here: a second
+      counter over the same database (what a restart builds) inherits the
+      spent budget, and 30 concurrent calls against a ceiling of 10 get exactly
+      10 approvals. The circuit breaker stays in memory on purpose: forgetting
+      it costs at most five more failed calls, not money. See `DECISIONS.md`
+      and `PROJECT_SPEC.md` §4.2 and §7.1.
 
 ### Decided after consulting the human, not built
 

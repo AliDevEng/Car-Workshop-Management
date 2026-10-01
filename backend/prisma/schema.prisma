@@ -1173,6 +1173,21 @@ model VehicleDataSnapshot {
   @@index([vehicleId, fetchedAt])
 }
 
+/// The two daily provider-spend ceilings' running counts (§6.1, §7.1,
+/// B10.3.1, H1.13). One row per key (`staff`, `public`), a rolling 24-hour
+/// window from the first call in it.
+///
+/// A table rather than process memory because the ceiling is denominated in
+/// real money: a restart or a redeploy must not refill it. The limit itself is
+/// not stored here — it stays in `Setting`, read fresh on every call — only
+/// the count of calls already spent against it.
+model VehicleDataCallCounter {
+  key            String   @id
+  windowStartsAt DateTime @db.Timestamptz(3)
+  count          Int
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+}
+
 /// A partner webshop's deep link, configured as data rather than a constant
 /// so a redesign is fixed in thirty seconds without a deploy (§7.2, B10.6.1).
 model PartnerLink {

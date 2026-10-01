@@ -22,8 +22,9 @@ import { get, patch, post } from './helpers/work-orders.js';
  * B10.1–B10.4 — the vehicle-data provider, its cache, and the public lookup
  * (PROJECT_SPEC.md §6.1, §7.1).
  *
- * Each `describe` builds its own app: the circuit breaker and the daily
- * counters are process-wide state created once at registration, so sharing a
+ * Each `describe` builds its own app and database: the circuit breaker is
+ * process-wide state created once at registration and the daily counters are
+ * durable rows in that database (H1.13), so sharing a
  * harness across tests that deliberately exhaust a ceiling or trip the
  * breaker would make the later tests measure the earlier ones' leftovers.
  */
@@ -249,7 +250,7 @@ describe('the public lookup, its cache and its allow-list (B10.2, B10.4)', () =>
 
 /**
  * Isolated on its own harness: the daily counter is cumulative across every
- * call an app instance ever makes, so a test that lowers the ceiling mid-way
+ * call made against one database, so a test that lowers the ceiling mid-way
  * must not share a harness with a test that already spent part of the budget.
  */
 describe('B10.2.4 — a second lookup within the TTL makes no provider call', () => {

@@ -47,7 +47,7 @@ const FORM_TOKEN_REJECTED =
 
 export function registerVehicleDataRoutes(app: FastifyInstance): void {
   const routes = app.withTypeProvider<ZodTypeProvider>();
-  const runtime = createVehicleDataRuntime(app.env);
+  const runtime = createVehicleDataRuntime(app.env, app.prisma);
   const publicIpLimiter = createAttemptLimiter({
     max: PUBLIC_LOOKUPS_PER_IP,
     windowMs: PUBLIC_LOOKUPS_PER_IP_WINDOW_MS,

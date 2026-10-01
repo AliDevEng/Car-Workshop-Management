@@ -70,10 +70,14 @@ export type VehicleDataRuntime = {
 /**
  * Builds the provider, the circuit breaker and the daily-ceiling counter
  * once, at app-build time — the same lifetime as `createBookingRequestLimiters`,
- * because the breaker and the counter are process-wide state shared by every
- * request, not something a handler recreates per call.
+ * because the breaker is process-wide state shared by every request, not
+ * something a handler recreates per call. The counter's state is in the
+ * database (H1.13); only its handle is built here.
  */
-export function createVehicleDataRuntime(env: Env): VehicleDataRuntime {
+export function createVehicleDataRuntime(
+  env: Env,
+  db: Database,
+): VehicleDataRuntime {
   return {
     provider: createVehicleDataProvider(env),
     // §7.1: five consecutive failures open it for ten minutes.
@@ -81,7 +85,7 @@ export function createVehicleDataRuntime(env: Env): VehicleDataRuntime {
       failureThreshold: 5,
       openDurationMs: 10 * 60 * 1000,
     }),
-    counter: createDailyCounter(),
+    counter: createDailyCounter(db),
   };
 }
 
@@ -272,7 +276,10 @@ export async function lookupVehicleDataPublic(
 
   const settings = await getOperationalSettings(db);
   if (
-    !runtime.counter.consume('public', settings.vehicleLookupDailyLimitPublic)
+    !(await runtime.counter.consume(
+      'public',
+      settings.vehicleLookupDailyLimitPublic,
+    ))
   ) {
     return degradedResponse(
       registrationNumber,
@@ -359,7 +366,10 @@ export async function refreshVehicleData(
 
   const settings = await getOperationalSettings(db);
   if (
-    !runtime.counter.consume('staff', settings.vehicleLookupDailyLimitStaff)
+    !(await runtime.counter.consume(
+      'staff',
+      settings.vehicleLookupDailyLimitStaff,
+    ))
   ) {
     throw new RateLimitError(REFRESH_LIMIT_REACHED);
   }
