@@ -20,6 +20,35 @@ allowBuilds:
   protobufjs: false
   ssh2: false
 
+# Transitive dependencies that CI's `pnpm audit --audit-level high` rejects and
+# that no direct dependency has released a bump for yet (PROJECT_SPEC.md §5.4).
+# Each entry is an advisory, not a preference: remove it once the package above
+# it resolves a patched version on its own. The selector only lifts versions
+# below the patched one, so a dependency that moves on its own is left alone.
+overrides:
+  # GHSA-m9gg-hp2v-232j — reaches us through testcontainers → dockerode.
+  '@grpc/grpc-js@<1.14.5': 1.14.6
+  # GHSA-qhr7-859c-m2p7 and GHSA-6j4f-fj2g-mc7p. Three majors are in the tree
+  # at once, under eslint, typescript-eslint, type-coverage and shadcn.
+  brace-expansion@1: 1.1.21
+  brace-expansion@2: 2.1.7
+  brace-expansion@5: 5.0.12
+  # GHSA-jqcg-44mw-7w3h — the shadcn CLI bundles an MCP server on express.
+  'proxy-addr@<2.0.8': 2.0.8
+  # GHSA-68fv-2mgg-jv7q — every postcss in the tree, plus magicast.
+  'source-map-js@<1.2.2': 1.2.2
+  # GHSA-587h-7wmj-h5pm — vitest 5.0.5 still resolves a vulnerable vite.
+  'vite@<8.2.4': 8.2.4
+
+# GHSA-vfj7-8cjw-p6xm (braces ≤3.0.3) has no patched release at all: 3.0.3 is
+# the newest version published. It arrives only through development tooling —
+# fast-glob under the ESLint plugins, type-coverage and the shadcn CLI — so it
+# never reaches the running application or a container image. Revisit when
+# braces publishes a fix; this is the only advisory CI is told to pass over.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
+
 # pnpm 12 holds back packages published very recently as a supply-chain
 # precaution.
 minimumReleaseAgeExclude:

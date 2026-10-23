@@ -96,7 +96,14 @@ export const workshopDetailsSchema = z.object({
   // Missing on settings saved before the workshop added its second number.
   // Normalise that older shape to `null` so the output is JSON-safe and the
   // rest of the application has one stable contract.
-  secondaryPhone: phoneSchema.optional().transform((phone) => phone ?? null),
+  //
+  // `.nullable().default(null)` rather than `.optional().transform()`: this
+  // schema is also a Fastify response schema, and `fastify-type-provider-zod`
+  // serialises a response by *encoding* it. A `.transform()` only runs one way,
+  // so encoding one throws `ZodEncodeError` and every route that returns
+  // workshop details answers 500. A default is bidirectional and gives the same
+  // `string | null` output.
+  secondaryPhone: phoneSchema.nullable().default(null),
   email: emailSchema,
 });
 export type WorkshopDetails = z.infer<typeof workshopDetailsSchema>;
