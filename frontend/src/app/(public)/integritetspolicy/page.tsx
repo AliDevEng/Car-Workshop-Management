@@ -5,7 +5,7 @@ import { getWorkshopInfo } from '@/lib/public/workshop';
 export const metadata: Metadata = {
   title: 'Integritetspolicy',
   description:
-    'Så behandlar Mome Bilservice personuppgifter vid kontakt och bokning.',
+    'Så behandlar M&R AUTOMOTIVE personuppgifter vid kontakt och bokning.',
   alternates: { canonical: '/integritetspolicy' },
 };
 

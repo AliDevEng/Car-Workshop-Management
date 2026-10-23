@@ -64,13 +64,14 @@ const SEED_USERS = [
  * fails here rather than at the first `GET /api/public/workshop`.
  */
 const SEED_WORKSHOP = workshopDetailsSchema.parse({
-  name: 'Mome Bilservice',
+  name: 'M&R AUTOMOTIVE',
   orgNumber: '556123-4567',
-  address: 'Industrivägen 12',
-  postalCode: '171 48',
-  city: 'Solna',
-  phone: '08-120 345 67',
-  email: 'info@bilverkstadensolna.se',
+  address: 'Gustavslundsvägen 10',
+  postalCode: '241 39',
+  city: 'Eslöv',
+  phone: '+46 765 79 54 90',
+  secondaryPhone: '+46 737 01 84 04',
+  email: 'info@verkstaden.se',
 });
 
 const SEED_OPENING_HOURS = openingHoursSchema.parse([

@@ -12,11 +12,11 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center px-4 py-8">
       <section className="w-full max-w-sm">
-        <div className="mb-8 flex items-center gap-3">
-          <BrandMark size="feature" />
+        <div className="mb-8">
+          <BrandMark size="feature" surface="light" />
           <div>
             <h1 className="type-display text-2xl font-semibold">Logga in</h1>
-            <p className="text-sm text-muted-foreground">Mome Bilservice</p>
+            <p className="text-sm text-muted-foreground">M&amp;R AUTOMOTIVE</p>
           </div>
         </div>
         <Suspense fallback={null}>

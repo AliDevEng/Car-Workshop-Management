@@ -5,7 +5,7 @@ test.describe('public routes', () => {
     ['/', 'Din bil. Vårt hantverk.'],
     ['/tjanster', 'Allt bilen behöver. Inget den inte behöver.'],
     ['/tjanster/bilservice', 'Bilservice'],
-    ['/om-oss', 'Två ägare. Ett löfte: vi står för jobbet.'],
+    ['/om-oss', 'Ett löfte: vi står för jobbet.'],
     ['/kontakt', 'Raka vägen till verkstaden.'],
     ['/integritetspolicy', 'Tydligt om dina uppgifter.'],
   ] as const;
@@ -85,6 +85,62 @@ test.describe('public routes', () => {
     await expect(cards.locator('img')).toHaveCount(6);
     for (const image of await cards.locator('img').all()) {
       await expect(image).toHaveAttribute('alt', /.+/);
+    }
+  });
+
+  test('uses the current workshop identity and direct WhatsApp links', async ({
+    page,
+  }) => {
+    await page.goto('/kontakt');
+
+    await expect(
+      page.getByRole('link', { name: 'M&R AUTOMOTIVE, startsida' }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: '+46 765 79 54 90', exact: true }).first(),
+    ).toHaveAttribute('href', 'tel:+46765795490');
+    await expect(
+      page.getByRole('link', { name: '+46 737 01 84 04', exact: true }).first(),
+    ).toHaveAttribute('href', 'tel:+46737018404');
+
+    const primaryWhatsApp = page.getByRole('link', {
+      name: 'Skriv till oss på WhatsApp, +46 765 79 54 90',
+    });
+    const whatsappUrl = new URL(
+      (await primaryWhatsApp.getAttribute('href')) ?? '',
+    );
+    expect(whatsappUrl.origin).toBe('https://wa.me');
+    expect(whatsappUrl.pathname).toBe('/46765795490');
+    expect(whatsappUrl.searchParams.get('text')).toBe(
+      'Hej! Jag har en fråga gällande service och reparation av bil.',
+    );
+  });
+
+  test('brand and WhatsApp action stay inside phone, tablet and desktop views', async ({
+    page,
+  }) => {
+    for (const width of [320, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(1);
+
+      for (const locator of [
+        page.getByRole('link', { name: 'M&R AUTOMOTIVE, startsida' }).first(),
+        page.getByRole('link', {
+          name: 'Skriv till oss på WhatsApp, +46 765 79 54 90',
+        }),
+      ]) {
+        const box = await locator.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box?.x).toBeGreaterThanOrEqual(0);
+        expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
+      }
     }
   });
 

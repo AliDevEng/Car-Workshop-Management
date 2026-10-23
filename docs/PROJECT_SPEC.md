@@ -553,8 +553,8 @@ a rolling 24-hour window per key, incremented by one atomic upsert. The limits
 themselves stay in `Setting`. *Added 2026-10-01 (decision log, H1.13):* a count
 in process memory let every restart refill a budget denominated in real money.
 
-**Setting** — key/value store for workshop name, address, org number, opening
-hours, default hourly rate, quote validity days. Typed accessors in
+**Setting** — key/value store for workshop name, address, org number, phone
+numbers, opening hours, default hourly rate, quote validity days. Typed accessors in
 `backend/src/config/settings.ts`; no raw string lookups in feature code.
 
 ### 4.3 Deletion policy
@@ -697,7 +697,7 @@ Pages, all server-rendered, all copy in Swedish:
 | `/boka` | Booking request form |
 | `/boka/tack` | Confirmation |
 | `/om-oss` | About the workshop and the two owners |
-| `/kontakt` | Address, map, opening hours, phone |
+| `/kontakt` | Address, map, opening hours, phone and WhatsApp |
 | `/integritetspolicy` | Privacy policy (required by §5.5) |
 
 **The hero is a registration-number lookup, not a stock photo.**

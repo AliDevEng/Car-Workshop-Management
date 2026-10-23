@@ -27,8 +27,10 @@ beforeAll(async () => {
 
 describe('B8.3.1 — the document carries everything §6.7 requires', () => {
   it('names the workshop, the customer and the vehicle', () => {
-    expect(text).toContain('Mome Bilservice');
+    expect(text).toContain('M&R AUTOMOTIVE');
     expect(text).toContain('556000-0000');
+    expect(text).toContain('+46 765 79 54 90');
+    expect(text).toContain('+46 737 01 84 04');
     expect(text).toContain('070-123 45 67');
     expect(text).toContain('ABC 12D');
     expect(text).toContain('Volvo V70 (2018)');

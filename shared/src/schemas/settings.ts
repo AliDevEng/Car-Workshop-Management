@@ -93,6 +93,10 @@ export const workshopDetailsSchema = z.object({
     }),
   city: nameSchema,
   phone: phoneSchema,
+  // Missing on settings saved before the workshop added its second number.
+  // Normalise that older shape to `null` so the output is JSON-safe and the
+  // rest of the application has one stable contract.
+  secondaryPhone: phoneSchema.optional().transform((phone) => phone ?? null),
   email: emailSchema,
 });
 export type WorkshopDetails = z.infer<typeof workshopDetailsSchema>;

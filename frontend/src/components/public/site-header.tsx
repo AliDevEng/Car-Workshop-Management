@@ -29,8 +29,7 @@ export function SiteHeader({
           className="group flex min-w-0 items-center gap-2.5 font-sans text-lg font-bold tracking-[-0.02em] sm:gap-3 sm:text-xl"
           aria-label={`${name}, startsida`}
         >
-          <BrandMark />
-          <span className="truncate max-sm:text-base">{name}</span>
+          <BrandMark surface="transparent" />
         </Link>
 
         <nav

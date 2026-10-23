@@ -34,7 +34,7 @@ export async function generateMetadata({
     description: service.shortDescription,
     alternates: { canonical: `/tjanster/${service.slug}` },
     openGraph: {
-      title: `${service.name} | Mome Bilservice`,
+      title: `${service.name} | M&R AUTOMOTIVE`,
       description: service.shortDescription,
       url: `/tjanster/${service.slug}`,
     },
@@ -55,10 +55,10 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
     description: service.description,
     provider: {
       '@type': 'AutoRepair',
-      name: 'Mome Bilservice',
+      name: 'M&R AUTOMOTIVE',
       url: 'https://verkstaden.se',
     },
-    areaServed: { '@type': 'City', name: 'Solna' },
+    areaServed: { '@type': 'City', name: 'Eslöv' },
     offers: {
       '@type': 'Offer',
       description: service.fromPrice,

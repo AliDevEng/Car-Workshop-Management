@@ -3,18 +3,23 @@ import {
   WEEKDAY_LABELS,
   type OpeningHours,
   type PublicWorkshopInfo,
+  type WorkshopDetails,
 } from 'shared';
 import { apiFetchServer } from '@/lib/api/server';
+
+export const WHATSAPP_MESSAGE =
+  'Hej! Jag har en fråga gällande service och reparation av bil.';
 
 export const fallbackWorkshopInfo: PublicWorkshopInfo =
   publicWorkshopInfoSchema.parse({
     workshop: {
-      name: 'Mome Bilservice',
+      name: 'M&R AUTOMOTIVE',
       orgNumber: '556677-8899',
-      address: 'Industrivägen 14',
-      postalCode: '171 48',
-      city: 'Solna',
-      phone: '08-410 245 90',
+      address: 'Gustavslundsvägen 10',
+      postalCode: '241 39',
+      city: 'Eslöv',
+      phone: '+46 765 79 54 90',
+      secondaryPhone: '+46 737 01 84 04',
       email: 'hej@verkstaden.se',
     },
     openingHours: [
@@ -58,6 +63,19 @@ export function getMapUrl(info: PublicWorkshopInfo): string {
 
 export function getTelephoneHref(phone: string): string {
   return `tel:${phone.replaceAll(/[^+\d]/g, '')}`;
+}
+
+export function getWorkshopPhones(
+  workshop: WorkshopDetails,
+): readonly string[] {
+  return workshop.secondaryPhone === null
+    ? [workshop.phone]
+    : [workshop.phone, workshop.secondaryPhone];
+}
+
+export function getWhatsAppUrl(phone: string): string {
+  const internationalNumber = phone.replaceAll(/\D/g, '');
+  return `https://wa.me/${internationalNumber}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 }
 
 export function serialiseJsonLd(value: unknown): string {

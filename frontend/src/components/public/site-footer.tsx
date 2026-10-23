@@ -6,11 +6,13 @@ import {
   formatOpeningHours,
   getMapUrl,
   getTelephoneHref,
+  getWorkshopPhones,
 } from '@/lib/public/workshop';
 
 export function SiteFooter({ info }: { readonly info: PublicWorkshopInfo }) {
   const address = `${info.workshop.address}, ${info.workshop.postalCode} ${info.workshop.city}`;
   const hours = formatOpeningHours(info.openingHours);
+  const phones = getWorkshopPhones(info.workshop);
 
   return (
     <footer className="bg-steel text-concrete-2">
@@ -19,10 +21,10 @@ export function SiteFooter({ info }: { readonly info: PublicWorkshopInfo }) {
           <div className="sm:col-span-2 lg:col-span-1">
             <Link
               href="/"
-              className="inline-flex max-w-full items-center gap-4 font-sans text-xl font-bold sm:text-2xl"
+              className="inline-flex max-w-full items-center"
+              aria-label={`${info.workshop.name}, startsida`}
             >
               <BrandMark size="feature" surface="dark" />
-              <span className="min-w-0 text-balance">{info.workshop.name}</span>
             </Link>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-concrete/75">
               Modern teknik. Gammald hederlighet. Vi tar hand om bilen och
@@ -42,13 +44,16 @@ export function SiteFooter({ info }: { readonly info: PublicWorkshopInfo }) {
                 <span>{address}</span>
                 <ArrowUpRight aria-hidden="true" className="size-3.5" />
               </a>
-              <a
-                className="footer-link"
-                href={getTelephoneHref(info.workshop.phone)}
-              >
-                <Phone aria-hidden="true" className="size-4" />
-                {info.workshop.phone}
-              </a>
+              {phones.map((phone) => (
+                <a
+                  key={phone}
+                  className="footer-link"
+                  href={getTelephoneHref(phone)}
+                >
+                  <Phone aria-hidden="true" className="size-4" />
+                  {phone}
+                </a>
+              ))}
               <a className="footer-link" href={`mailto:${info.workshop.email}`}>
                 <Mail aria-hidden="true" className="size-4" />
                 {info.workshop.email}

@@ -11,7 +11,7 @@ import {
 export const metadata: Metadata = {
   title: 'Om oss',
   description:
-    'Lär känna den oberoende bilverkstaden i Solna som kombinerar personligt ansvar med modern diagnostik.',
+    'Lär känna den oberoende bilverkstaden i Eslöv som kombinerar personligt ansvar med modern diagnostik.',
   alternates: { canonical: '/om-oss' },
 };
 
@@ -40,12 +40,12 @@ export default function AboutPage() {
         <div className="site-container">
           <p className="section-kicker">Om oss</p>
           <h1 className="page-title max-w-6xl">
-            Två ägare. Ett löfte: vi står för jobbet.
+            Ett löfte: vi står för jobbet.
           </h1>
           <p className="page-lead">
-            Mome Bilservice är liten med flit. Det betyder korta beslutsvägar,
-            personligt ansvar och att den som tar emot bilen också förstår vad
-            som händer med den.
+            M&amp;R AUTOMOTIVE är liten med flit. Det betyder korta
+            beslutsvägar, personligt ansvar och att den som tar emot bilen också
+            förstår vad som händer med den.
           </p>
         </div>
       </header>

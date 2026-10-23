@@ -45,12 +45,13 @@ export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
  */
 export const DEFAULT_WORKSHOP_DETAILS: WorkshopDetails =
   workshopDetailsSchema.parse({
-    name: 'Mome Bilservice',
+    name: 'M&R AUTOMOTIVE',
     orgNumber: '556000-0000',
-    address: 'Verkstadsgatan 1',
-    postalCode: '111 22',
-    city: 'Stockholm',
-    phone: '08-000 00 00',
+    address: 'Gustavslundsvägen 10',
+    postalCode: '241 39',
+    city: 'Eslöv',
+    phone: '+46 765 79 54 90',
+    secondaryPhone: '+46 737 01 84 04',
     email: 'info@verkstaden.se',
   });
 
@@ -209,10 +210,16 @@ export async function updateSettings(
       );
     }
     if (input.operational !== undefined) {
-      await writeGroup(tx, SETTING_KEYS.operational, actorId, input.operational, {
-        expectedUpdatedAt: expected.operational,
-        label: 'Driftsinställningarna',
-      });
+      await writeGroup(
+        tx,
+        SETTING_KEYS.operational,
+        actorId,
+        input.operational,
+        {
+          expectedUpdatedAt: expected.operational,
+          label: 'Driftsinställningarna',
+        },
+      );
     }
 
     const after = await getSettings(tx);

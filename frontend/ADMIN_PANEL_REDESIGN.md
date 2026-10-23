@@ -538,7 +538,7 @@ cards and repeated colored icons. Color should be noticeable at the whole-screen
 level while long-form reading and editing stay comfortable.
 
 The screenshot is a visual reference, not a template to reproduce literally.
-Preserve Mome's identity and Swedish workshop content. The image's logo, English
+Preserve M&R AUTOMOTIVE's identity and Swedish workshop content. The image's logo, English
 labels, traffic sources, money figures and mail/gallery/map sections are not
 product requirements. Its very faint text and tiny controls are not target sizes.
 The screenshot is attached in the conversation; no image file has been added to

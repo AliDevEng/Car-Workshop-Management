@@ -7,7 +7,7 @@ import { services } from '@/lib/public/services';
 export const metadata: Metadata = {
   title: 'Tjänster',
   description:
-    'Bilservice, felsökning, bromsar, däck, AC och avancerade mekaniska reparationer i Solna.',
+    'Bilservice, felsökning, bromsar, däck, AC och avancerade mekaniska reparationer i Eslöv.',
   alternates: { canonical: '/tjanster' },
 };
 

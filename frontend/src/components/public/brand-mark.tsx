@@ -1,25 +1,33 @@
 import Image from 'next/image';
-import logo from '../../../public/images/Mome-bilservice-Logo1.png';
+import logoBlack from '../../../public/images/MR Verkstad_Logo_Svart.png';
+import logoTransparent from '../../../public/images/MR Verkstad_Logo_Transparent.png';
+import logoWhite from '../../../public/images/MR Verkstad_Logo_Vit.png';
 import { cn } from '@/lib/utils';
 
 const markSizes = {
-  compact: { className: 'size-14', sizes: '48px' },
+  compact: { className: 'h-12 w-16', sizes: '64px' },
   navigation: {
-    className: 'size-16 sm:size-18',
-    sizes: '(min-width: 640px) 64px, 56px',
+    className: 'h-16 w-36 sm:h-[4.5rem] sm:w-40',
+    sizes: '(min-width: 640px) 160px, 144px',
   },
   feature: {
-    className: 'size-24 sm:size-28',
-    sizes: '(min-width: 640px) 104px, 88px',
+    className: 'h-32 w-64 sm:h-36 sm:w-72',
+    sizes: '(min-width: 640px) 288px, 256px',
   },
+} as const;
+
+const logos = {
+  dark: logoBlack,
+  light: logoWhite,
+  transparent: logoTransparent,
 } as const;
 
 export function BrandMark({
   size = 'navigation',
-  surface = 'light',
+  surface = 'transparent',
 }: {
   readonly size?: keyof typeof markSizes;
-  readonly surface?: 'light' | 'dark';
+  readonly surface?: keyof typeof logos;
 }) {
   const dimensions = markSizes[size];
 
@@ -27,20 +35,20 @@ export function BrandMark({
     <span
       aria-hidden="true"
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full p-1 ring-1',
+        'inline-flex shrink-0 items-center justify-center overflow-hidden',
         dimensions.className,
-        surface === 'light'
-          ? 'bg-white shadow-sm ring-steel/15'
-          : 'bg-transparent ring-white/30',
       )}
     >
       <Image
-        src={logo}
+        src={logos[surface]}
         alt=""
         loading="eager"
         quality={75}
         sizes={dimensions.sizes}
-        className="size-full rounded-full object-contain"
+        className={cn(
+          'size-full',
+          size === 'compact' ? 'object-contain' : 'object-cover',
+        )}
       />
     </span>
   );

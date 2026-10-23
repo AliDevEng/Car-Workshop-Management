@@ -2,9 +2,11 @@ import type { ReactNode } from 'react';
 import { SiteFooter } from '@/components/public/site-footer';
 import { SiteHeader } from '@/components/public/site-header';
 import { BookingProvider } from '@/components/public/booking-provider';
+import { WhatsAppButton } from '@/components/public/whatsapp-button';
 import {
   getTelephoneHref,
   getWorkshopInfo,
+  getWorkshopPhones,
   serialiseJsonLd,
 } from '@/lib/public/workshop';
 
@@ -14,12 +16,13 @@ export default async function PublicLayout({
   children: ReactNode;
 }) {
   const info = await getWorkshopInfo();
+  const phones = getWorkshopPhones(info.workshop);
   const localBusiness = {
     '@context': 'https://schema.org',
     '@type': 'AutoRepair',
     name: info.workshop.name,
     url: 'https://verkstaden.se',
-    telephone: info.workshop.phone,
+    telephone: phones,
     email: info.workshop.email,
     image: 'https://verkstaden.se/images/workshop-team.png',
     priceRange: '$$',
@@ -29,11 +32,6 @@ export default async function PublicLayout({
       postalCode: info.workshop.postalCode,
       addressLocality: info.workshop.city,
       addressCountry: 'SE',
-    },
-    geo: {
-      '@type': 'GeoCoordinates',
-      latitude: 59.358,
-      longitude: 18.0,
     },
     openingHoursSpecification: info.openingHours
       .filter((day) => day.opensAt !== null && day.closesAt !== null)
@@ -61,6 +59,7 @@ export default async function PublicLayout({
         />
         {children}
         <SiteFooter info={info} />
+        <WhatsAppButton phone={info.workshop.phone} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: serialiseJsonLd(localBusiness) }}

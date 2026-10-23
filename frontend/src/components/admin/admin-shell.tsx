@@ -465,13 +465,13 @@ export function AdminShell({
             href="/admin"
             className="mb-6 flex min-h-11 items-center gap-3 rounded-soft max-[1099px]:justify-center"
           >
-            <BrandMark size="compact" />
+            <BrandMark size="compact" surface="transparent" />
             <span className="nav-label min-w-0 max-[1099px]:sr-only">
               <span className="type-display block text-lg font-semibold">
-                Mome
+                M&amp;R
               </span>
               <span className="block text-xs text-muted-foreground">
-                Verkstad
+                Automotive
               </span>
             </span>
           </Link>
@@ -493,8 +493,10 @@ export function AdminShell({
               href="/admin"
               className="flex size-14 shrink-0 items-center justify-center rounded-full md:hidden"
             >
-              <BrandMark size="compact" />
-              <span className="sr-only">Mome verkstad, till översikten</span>
+              <BrandMark size="compact" surface="transparent" />
+              <span className="sr-only">
+                M&amp;R Automotive, till översikten
+              </span>
             </Link>
 
             <GlobalSearch />

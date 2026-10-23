@@ -44,9 +44,9 @@ const processSteps = [
 ] as const;
 
 export const metadata: Metadata = {
-  title: 'Bilverkstad i Solna',
+  title: 'Bilverkstad i Eslöv',
   description:
-    'Bilservice, felsökning och avancerade reparationer i Solna. Skicka en bokningsförfrågan så hjälper vi dig att hitta en tid som passar.',
+    'Bilservice, felsökning och avancerade reparationer i Eslöv. Skicka en bokningsförfrågan så hjälper vi dig att hitta en tid som passar.',
   alternates: { canonical: '/' },
 };
 

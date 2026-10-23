@@ -38,7 +38,8 @@ describe('settings reads', () => {
 
     const info = publicWorkshopInfoSchema.parse(jsonBody(response));
     expect(info.openingHours).toHaveLength(7);
-    expect(info.workshop.name).toBeTypeOf('string');
+    expect(info.workshop.name).toBe('M&R AUTOMOTIVE');
+    expect(info.workshop.secondaryPhone).toBe('+46 737 01 84 04');
   });
 
   it('does not expose operational settings on the public route', async () => {
@@ -68,9 +69,11 @@ describe('settings reads', () => {
     const response = await supertest(harness.app.server)
       .get('/api/public/workshop')
       .expect(200);
-    expect(
-      publicWorkshopInfoSchema.parse(jsonBody(response)).workshop.name,
-    ).toBe('Test Verkstad AB');
+    const workshop = publicWorkshopInfoSchema.parse(
+      jsonBody(response),
+    ).workshop;
+    expect(workshop.name).toBe('Test Verkstad AB');
+    expect(workshop.secondaryPhone).toBeNull();
   });
 
   it('reads stored opening hours and operational settings back', async () => {

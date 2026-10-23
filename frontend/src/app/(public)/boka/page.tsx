@@ -8,7 +8,7 @@ import { getTelephoneHref, getWorkshopInfo } from '@/lib/public/workshop';
 
 export const metadata: Metadata = {
   title: 'Boka tid',
-  description: 'Skicka en bokningsförfrågan till Mome Bilservice.',
+  description: 'Skicka en bokningsförfrågan till M&R AUTOMOTIVE.',
   robots: { index: false, follow: true },
 };
 

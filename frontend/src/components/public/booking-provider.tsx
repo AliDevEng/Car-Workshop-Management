@@ -79,7 +79,7 @@ export function BookingProvider({
             onInteractOutside={(event) => event.preventDefault()}
           >
             <div className="booking-dialog-header">
-              <p className="section-kicker">Mome Bilservice</p>
+              <p className="section-kicker">M&amp;R AUTOMOTIVE</p>
               <Dialog.Title
                 ref={titleRef}
                 tabIndex={-1}

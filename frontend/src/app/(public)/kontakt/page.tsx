@@ -1,22 +1,25 @@
 import type { Metadata } from 'next';
-import { Clock3, Mail, MapPin, Phone } from 'lucide-react';
+import { Clock3, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import {
   formatOpeningHours,
   getMapUrl,
   getTelephoneHref,
   getWorkshopInfo,
+  getWorkshopPhones,
+  getWhatsAppUrl,
 } from '@/lib/public/workshop';
 
 export const metadata: Metadata = {
   title: 'Kontakt',
   description:
-    'Kontakta Mome Bilservice i Solna. Här hittar du telefon, e-post, adress, karta och aktuella öppettider.',
+    'Kontakta M&R AUTOMOTIVE i Eslöv. Här hittar du telefon, WhatsApp, e-post, adress, karta och aktuella öppettider.',
   alternates: { canonical: '/kontakt' },
 };
 
 export default async function ContactPage() {
   const info = await getWorkshopInfo();
   const hours = formatOpeningHours(info.openingHours);
+  const phones = getWorkshopPhones(info.workshop);
 
   return (
     <main id="main-content">
@@ -26,7 +29,7 @@ export default async function ContactPage() {
           <h1 className="page-title max-w-5xl">Raka vägen till verkstaden.</h1>
           <p className="page-lead">
             Ring om det är bråttom. Boka digitalt när det passar. Du hittar oss
-            enkelt från hela Solna och norra Stockholm.
+            enkelt i Eslöv, mitt i Skåne.
           </p>
         </div>
       </header>
@@ -37,13 +40,29 @@ export default async function ContactPage() {
               Prata med oss
             </h2>
             <div className="mt-10 grid gap-8 sm:grid-cols-2">
-              <ContactItem icon={Phone} label="Telefon">
-                <a
-                  className="underline underline-offset-4"
-                  href={getTelephoneHref(info.workshop.phone)}
-                >
-                  {info.workshop.phone}
-                </a>
+              <ContactItem icon={Phone} label="Telefon och WhatsApp">
+                <div className="grid gap-3">
+                  {phones.map((phone) => (
+                    <div key={phone} className="grid justify-items-start gap-1">
+                      <a
+                        className="underline underline-offset-4"
+                        href={getTelephoneHref(phone)}
+                      >
+                        {phone}
+                      </a>
+                      <a
+                        className="inline-flex min-h-11 items-center gap-2 font-sans text-sm font-semibold text-hivis underline underline-offset-4"
+                        href={getWhatsAppUrl(phone)}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`Skriv till ${phone} på WhatsApp`}
+                      >
+                        <MessageCircle aria-hidden="true" className="size-4" />
+                        Skriv på WhatsApp
+                      </a>
+                    </div>
+                  ))}
+                </div>
               </ContactItem>
               <ContactItem icon={Mail} label="E-post">
                 {/*

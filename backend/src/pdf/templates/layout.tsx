@@ -26,6 +26,7 @@ export type DocumentHeaderProps = {
 
 export function DocumentHeader(props: DocumentHeaderProps): ReactNode {
   const { workshop, title, number, meta } = props;
+  const phones = formatWorkshopPhones(workshop);
 
   return (
     <View>
@@ -36,7 +37,7 @@ export function DocumentHeader(props: DocumentHeaderProps): ReactNode {
           <Text style={styles.label}>
             {workshop.postalCode} {workshop.city}
           </Text>
-          <Text style={styles.label}>{workshop.phone}</Text>
+          <Text style={styles.label}>{phones}</Text>
           <Text style={styles.label}>{workshop.email}</Text>
           <Text style={styles.label}>Org.nr {workshop.orgNumber}</Text>
         </View>
@@ -70,11 +71,12 @@ export type DocumentFooterProps = {
  */
 export function DocumentFooter(props: DocumentFooterProps): ReactNode {
   const { workshop } = props;
+  const phones = formatWorkshopPhones(workshop);
 
   return (
     <View style={styles.footer} fixed>
       <Text>
-        {workshop.name} · Org.nr {workshop.orgNumber} · {workshop.phone}
+        {workshop.name} · Org.nr {workshop.orgNumber} · {phones}
       </Text>
       <Text
         render={({ pageNumber, totalPages }) =>
@@ -83,6 +85,10 @@ export function DocumentFooter(props: DocumentFooterProps): ReactNode {
       />
     </View>
   );
+}
+
+function formatWorkshopPhones(workshop: WorkshopDetails): string {
+  return [workshop.phone, workshop.secondaryPhone].filter(Boolean).join(' · ');
 }
 
 // --- Labelled blocks ---------------------------------------------------------
