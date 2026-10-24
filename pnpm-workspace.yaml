@@ -26,6 +26,8 @@ allowBuilds:
 # it resolves a patched version on its own. The selector only lifts versions
 # below the patched one, so a dependency that moves on its own is left alone.
 overrides:
+  # GHSA-27r3-jxmh-p828 — shadcn's MCP server uses express → body-parser.
+  'body-parser@>=2.0.0 <2.4.0': 2.4.0
   # GHSA-m9gg-hp2v-232j — reaches us through testcontainers → dockerode.
   '@grpc/grpc-js@<1.14.5': 1.14.6
   # GHSA-qhr7-859c-m2p7 and GHSA-6j4f-fj2g-mc7p. Three majors are in the tree
@@ -37,6 +39,9 @@ overrides:
   'proxy-addr@<2.0.8': 2.0.8
   # GHSA-68fv-2mgg-jv7q — every postcss in the tree, plus magicast.
   'source-map-js@<1.2.2': 1.2.2
+  # GHSA-xjj6-f33q-929c — shadcn, its registry and dotenvx use undici 7.
+  # Leave the already-patched undici 8 under testcontainers unchanged.
+  'undici@>=7.18.0 <7.30.1': 7.30.1
   # GHSA-587h-7wmj-h5pm — vitest 5.0.5 still resolves a vulnerable vite.
   'vite@<8.2.4': 8.2.4
 

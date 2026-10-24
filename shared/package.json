@@ -25,7 +25,7 @@
     "date-fns": "4.4.0",
     "date-fns-tz": "3.2.0",
     "decimal.js": "10.6.0",
-    "zod": "4.5.4"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "tsup": "8.5.1",
