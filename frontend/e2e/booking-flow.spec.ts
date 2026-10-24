@@ -279,4 +279,22 @@ test.describe('public booking flow', () => {
     await submitBooking(page);
     await expect(page).toHaveURL(/\/boka\/tack$/);
   });
+
+  test('direct booking links reveal validation errors without losing entered text', async ({
+    page,
+  }) => {
+    await mockToken(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/boka');
+    await page.getByLabel('Meddelande').fill('Kontrollera bromsarna.');
+    await submitBooking(page);
+    await expect(page.getByLabel('Namn')).toBeFocused();
+    await expect(page.getByLabel('Namn')).toBeInViewport();
+    await expect(
+      page.getByRole('alert').getByRole('link', { name: /^Telefon:/ }),
+    ).toBeVisible();
+    await expect(page.getByLabel('Meddelande')).toHaveValue(
+      'Kontrollera bromsarna.',
+    );
+  });
 });

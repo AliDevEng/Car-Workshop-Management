@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { lazy, Suspense, useState, type FormEvent } from 'react';
 import type { VehicleLookupResponse } from 'shared';
 import { usePublicFormToken } from '@/lib/public/use-public-form-token';
+import { BOOKING_ACTION_LABEL } from '@/lib/public/booking-copy';
 
 const VehicleLookupResult = lazy(() =>
   import('./vehicle-lookup-result').then((module) => ({
@@ -28,14 +29,14 @@ async function getErrorState(error: unknown): Promise<LookupState> {
       status: 'error',
       kind: 'rate-limit',
       message:
-        'Du har gjort flera sökningar på kort tid. Boka ändå, eller försök igen om en stund.',
+        'Du har gjort flera sökningar på kort tid. Skicka en bokningsförfrågan eller försök söka igen om en stund.',
     };
   }
   return {
     status: 'error',
     kind: 'unavailable',
     message:
-      'Biluppgifterna är tillfälligt otillgängliga. Du kan fortfarande boka tid – vi kontrollerar bilen tillsammans med dig.',
+      'Biluppgifterna är tillfälligt otillgängliga. Du kan fortfarande skicka en bokningsförfrågan. Vi kontrollerar bilen tillsammans med dig.',
   };
 }
 
@@ -132,7 +133,7 @@ export function VehicleLookup() {
           </button>
         </div>
         <p id="lookup-help" className="mt-3 text-sm text-white/65">
-          Se biluppgifter först. Bestäm sedan om du vill boka.
+          Se biluppgifter först. Skicka sedan en bokningsförfrågan om du vill.
         </p>
       </form>
 
@@ -164,7 +165,7 @@ export function VehicleLookup() {
               href="/boka"
               className="site-button site-button-dark shrink-0"
             >
-              Boka ändå
+              {BOOKING_ACTION_LABEL}
             </Link>
           </div>
         ) : null}

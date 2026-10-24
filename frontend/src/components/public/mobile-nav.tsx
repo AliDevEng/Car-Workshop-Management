@@ -5,6 +5,7 @@ import { BookingButton } from '@/components/public/booking-provider';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { PublicNavLink } from '@/components/public/public-nav-link';
+import { BOOKING_ACTION_LABEL } from '@/lib/public/booking-copy';
 
 export interface MobileNavItem {
   readonly href: string;
@@ -104,7 +105,7 @@ export function MobileNav({
             className="site-button site-button-hivis"
             onClick={close}
           >
-            Boka tid
+            {BOOKING_ACTION_LABEL}
           </BookingButton>
         </div>
       </div>

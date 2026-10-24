@@ -14,6 +14,7 @@ import {
   type VehicleLookupResponse,
 } from 'shared';
 import { formatDate } from '@/lib/format';
+import { BOOKING_ACTION_LABEL } from '@/lib/public/booking-copy';
 
 export function VehicleLookupResult({
   result,
@@ -34,15 +35,15 @@ export function VehicleLookupResult({
           </p>
           <p className="mt-1 text-sm text-steel/75">
             {limitReached
-              ? 'Vi har nått dagens gräns, men du kan fortfarande boka. Vi kontrollerar bilen tillsammans med dig.'
-              : 'Boka ändå så kontrollerar vi uppgifterna med dig.'}
+              ? 'Vi har nått dagens gräns, men du kan fortfarande skicka en bokningsförfrågan. Vi kontrollerar bilen tillsammans med dig.'
+              : 'Skicka en bokningsförfrågan så kontrollerar vi uppgifterna med dig.'}
           </p>
         </div>
         <Link
           href={bookingHref}
           className="site-button site-button-dark shrink-0"
         >
-          Boka ändå
+          {BOOKING_ACTION_LABEL}
         </Link>
       </div>
     );
@@ -54,15 +55,15 @@ export function VehicleLookupResult({
         <div>
           <p className="font-sans font-bold">Vi hittade ingen bil</p>
           <p className="mt-1 text-sm text-steel/75">
-            Kontrollera numret eller boka ändå. Även ovanliga och personliga
-            skyltar är välkomna.
+            Kontrollera numret eller skicka en bokningsförfrågan. Även ovanliga
+            och personliga skyltar är välkomna.
           </p>
         </div>
         <Link
           href={bookingHref}
           className="site-button site-button-dark shrink-0"
         >
-          Boka ändå
+          {BOOKING_ACTION_LABEL}
         </Link>
       </div>
     );
@@ -132,7 +133,8 @@ export function VehicleLookupResult({
           href={bookingHref}
           className="site-button site-button-primary w-full sm:w-auto"
         >
-          Boka tid för {formatRegNrForDisplay(result.registrationNumber)}
+          {BOOKING_ACTION_LABEL} för{' '}
+          {formatRegNrForDisplay(result.registrationNumber)}
           <ArrowRight aria-hidden="true" className="size-4" />
         </Link>
       </div>

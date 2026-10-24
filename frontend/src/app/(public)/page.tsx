@@ -6,6 +6,10 @@ import { BookingButton } from '@/components/public/booking-provider';
 import { ServiceCard } from '@/components/public/service-card';
 import { services } from '@/lib/public/services';
 import { getWorkshopInfo } from '@/lib/public/workshop';
+import {
+  BOOKING_ACTION_LABEL,
+  BOOKING_EXPLANATION,
+} from '@/lib/public/booking-copy';
 
 const promises = [
   {
@@ -77,13 +81,14 @@ export default async function HomePage() {
                 Service eller något som inte känns rätt? Berätta vad du behöver
                 hjälp med, så tar vi det därifrån.
               </p>
-              <div className="mt-5 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="mt-5 flex flex-col items-start gap-3">
                 <BookingButton className="site-button site-button-hivis min-h-12 w-full sm:w-auto sm:shrink-0">
-                  Boka nu <ArrowRight aria-hidden="true" className="size-4" />
+                  {BOOKING_ACTION_LABEL}{' '}
+                  <ArrowRight aria-hidden="true" className="size-4" />
                 </BookingButton>
-                <span className="text-sm leading-relaxed text-concrete/65">
-                  Vi bekräftar alltid tiden med dig.
-                </span>
+                <p className="text-sm leading-relaxed text-concrete/65">
+                  {BOOKING_EXPLANATION}
+                </p>
               </div>
             </div>
           </div>
@@ -204,12 +209,12 @@ export default async function HomePage() {
           </div>
           <div className="lg:border-l lg:border-steel/25 lg:pl-8 xl:pl-12">
             <p className="max-w-xl text-lg leading-relaxed text-steel/80 lg:max-w-md">
-              Berätta vad bilen behöver. Vi hör av oss med nästa steg och
-              bekräftar tiden tillsammans med dig.
+              Berätta vad bilen behöver. {BOOKING_EXPLANATION}
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2">
               <BookingButton className="site-button site-button-dark min-h-12 px-7">
-                Boka tid <ArrowRight aria-hidden="true" className="size-4" />
+                {BOOKING_ACTION_LABEL}{' '}
+                <ArrowRight aria-hidden="true" className="size-4" />
               </BookingButton>
               <Link
                 href="/kontakt"

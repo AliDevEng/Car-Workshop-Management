@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Phone } from 'lucide-react';
 import { getTelephoneHref, getWorkshopInfo } from '@/lib/public/workshop';
+import { BOOKING_CONFIRMATION } from '@/lib/public/booking-copy';
 
 export const metadata: Metadata = {
   title: 'Tack för din förfrågan',
@@ -23,8 +24,8 @@ export default async function BookingThanksPage() {
             Tack. Vi ringer tillbaka.
           </h1>
           <p className="mt-7 max-w-2xl text-xl leading-relaxed text-concrete/70">
-            Vi går igenom din förfrågan och återkommer normalt samma arbetsdag.
-            Tiden är bokad först när vi har bekräftat den med dig.
+            {BOOKING_CONFIRMATION} Vi går igenom din förfrågan och återkommer
+            normalt samma arbetsdag.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <a href={telephoneHref} className="site-button site-button-hivis">

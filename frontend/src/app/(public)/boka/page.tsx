@@ -5,9 +5,10 @@ import { normaliseRegNr } from 'shared';
 import { BookingForm } from '@/components/public/booking-form';
 import { services } from '@/lib/public/services';
 import { getTelephoneHref, getWorkshopInfo } from '@/lib/public/workshop';
+import { BOOKING_EXPLANATION } from '@/lib/public/booking-copy';
 
 export const metadata: Metadata = {
-  title: 'Boka tid',
+  title: 'Bokningsförfrågan',
   description: 'Skicka en bokningsförfrågan till M&R AUTOMOTIVE.',
   robots: { index: false, follow: true },
 };
@@ -36,9 +37,7 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
               Berätta vad bilen behöver.
             </h1>
             <p className="mt-7 max-w-2xl text-xl leading-relaxed text-concrete/70">
-              Skicka en förfrågan så ringer vi tillbaka, går igenom jobbet och
-              bekräftar tiden tillsammans. Det här är ingen automatisk
-              kalenderbokning.
+              {BOOKING_EXPLANATION}
             </p>
           </div>
           <div className="rounded-soft border border-white/15 bg-white/8 p-6">
@@ -80,7 +79,7 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
             </div>
             <ol className="grid gap-4">
               {[
-                'Du skickar bilen, kontaktuppgifter och önskemål.',
+                'Du skickar en förfrågan med uppgifter om bilen, dina kontaktuppgifter och önskemål.',
                 'Vi kontrollerar jobbet och ringer tillbaka.',
                 'Tiden blir bokad först när vi har bekräftat den.',
               ].map((step, index) => (

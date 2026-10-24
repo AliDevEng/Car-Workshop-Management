@@ -1343,6 +1343,35 @@ recovery.
 | Verification evidence       | 2026-09-13. `pnpm.cmd --filter frontend typecheck` clean. Scoped ESLint clean for the F3 files (with the existing Next `pages/` notice). `pnpm.cmd --filter frontend build` clean. `pnpm.cmd --filter frontend exec playwright test e2e/booking-flow.spec.ts --reporter=line --timeout=30000` against a running frontend dev server: 6 passed, covering the pre-filled request, honeypot, early/expired token handling, rate-limit fallback, preserved values and 360 px keyboard flow. |
 | Completed on                | 2026-09-13                                             |
 
+**Booking UX follow-up — 2026-10-25**
+
+- Review point 1: validate editable fields before waiting for the form token,
+  show a linked error summary, and focus/scroll to the first invalid field in
+  visual order. The overlay keeps an in-memory draft across closing and client
+  navigation, merges an explicitly selected service, and clears the draft after
+  success or a full reload. Review also fixed losing an untouched preselected
+  service when reopening through the header.
+- Review point 2: public booking actions consistently say
+  “Skicka bokningsförfrågan” and explain that the workshop calls to agree on a
+  time before the booking is confirmed. The same wording covers the overlay,
+  direct booking page, thank-you page and vehicle-lookup fallback. The longer
+  explanation sits below the home-page action for readable tablet wrapping.
+- Browser evidence: `pnpm.cmd exec playwright test e2e/booking-overlay.spec.ts
+  e2e/booking-flow.spec.ts e2e/public-site.spec.ts --workers=1 --reporter=line`
+  from `frontend`: **33 passed** with mocked public API responses. Coverage
+  includes local/server errors, token failures, recovery, draft lifecycle,
+  service preselection, confirmation, keyboard use and responsive controls at
+  widths from 320 to 1440 px. Review corrected a test navigation race exposed
+  by the shared button label; an earlier concurrent run also hit development
+  server timeouts. Visual review covered desktop, tablet and mobile.
+- Quality gates: workspace typecheck and lint passed; lint retains the existing
+  Next `pages/` notice. Shared **349**, frontend **205**, and backend **838**
+  tests passed (backend **2 skipped**). The root `pnpm.cmd check` initially
+  stopped at sandbox Docker access; the backend suite passed when rerun with
+  approved Docker access. The remaining type-coverage gate passed at **99.60%**.
+  `pnpm.cmd --filter frontend build` also passed, including TypeScript and
+  production page generation.
+
 ---
 
 <a id="f4"></a>

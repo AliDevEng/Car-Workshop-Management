@@ -3,6 +3,10 @@ import { BookingButton } from '@/components/public/booking-provider';
 import { ArrowRight } from 'lucide-react';
 import { ServiceCard } from '@/components/public/service-card';
 import { services } from '@/lib/public/services';
+import {
+  BOOKING_ACTION_LABEL,
+  BOOKING_EXPLANATION,
+} from '@/lib/public/booking-copy';
 
 export const metadata: Metadata = {
   title: 'Tjänster',
@@ -39,14 +43,15 @@ export default function ServicesPage() {
             </h2>
             <p className="mt-3 max-w-2xl text-concrete/70">
               Berätta vad du ser, hör eller känner. Vi börjar med att ta reda på
-              orsaken.
+              orsaken. {BOOKING_EXPLANATION}
             </p>
           </div>
           <BookingButton
             selectedServiceSlug="felsokning"
             className="site-button site-button-hivis shrink-0"
           >
-            Boka felsökning <ArrowRight aria-hidden="true" className="size-4" />
+            {BOOKING_ACTION_LABEL}{' '}
+            <ArrowRight aria-hidden="true" className="size-4" />
           </BookingButton>
         </div>
       </section>

@@ -12,6 +12,12 @@ import {
   type ReactNode,
 } from 'react';
 import { services } from '@/lib/public/services';
+import {
+  BOOKING_ACTION_LABEL,
+  BOOKING_CONFIRMATION,
+  BOOKING_EXPLANATION,
+} from '@/lib/public/booking-copy';
+import type { BookingFormDraft } from './booking-form';
 
 const BookingForm = lazy(() =>
   import('./booking-form').then((module) => ({ default: module.BookingForm })),
@@ -33,6 +39,7 @@ export function BookingProvider({
   const [service, setService] = useState<string | undefined>();
   const [received, setReceived] = useState(false);
   const [pending, setPending] = useState(false);
+  const [draft, setDraft] = useState<BookingFormDraft>();
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -40,7 +47,21 @@ export function BookingProvider({
 
   function openBooking(trigger: HTMLButtonElement, selectedService?: string) {
     triggerRef.current = trigger;
-    setService(selectedService);
+    setService((current) => selectedService ?? current);
+    // A service-specific action adds its context without discarding another
+    // selected service or the visitor's contact details from this visit.
+    if (services.some((item) => item.slug === selectedService)) {
+      setDraft((current) =>
+        current === undefined ||
+        selectedService === undefined ||
+        current.serviceTypeIds.includes(selectedService)
+          ? current
+          : {
+              ...current,
+              serviceTypeIds: [...current.serviceTypeIds, selectedService],
+            },
+      );
+    }
     setReceived(false);
     setOpen(true);
   }
@@ -85,14 +106,10 @@ export function BookingProvider({
                 tabIndex={-1}
                 className="booking-dialog-title"
               >
-                {received
-                  ? 'Tack. Vi ringer tillbaka.'
-                  : 'Boka en tid som passar dig.'}
+                {received ? 'Tack. Vi ringer tillbaka.' : BOOKING_ACTION_LABEL}
               </Dialog.Title>
               <Dialog.Description className="mt-3 max-w-xl text-base leading-relaxed text-steel/70">
-                {received
-                  ? 'Din förfrågan är skickad. Tiden är bokad först när vi har bekräftat den med dig.'
-                  : 'Berätta lite om dig och bilen. Vi hör av oss och bekräftar tiden tillsammans med dig.'}
+                {received ? BOOKING_CONFIRMATION : BOOKING_EXPLANATION}
               </Dialog.Description>
               <Dialog.Close
                 className="booking-dialog-close"
@@ -137,6 +154,8 @@ export function BookingProvider({
                   <BookingForm
                     idPrefix="booking-dialog"
                     actionsContainer={actionsContainer}
+                    {...(draft === undefined ? {} : { initialDraft: draft })}
+                    onDraftChange={setDraft}
                     defaultRegistrationNumber=""
                     selectedServiceSlug={service}
                     services={services}
@@ -144,6 +163,8 @@ export function BookingProvider({
                     telephoneHref={telephoneHref}
                     onPendingChange={setPending}
                     onSuccess={() => {
+                      setDraft(undefined);
+                      setService(undefined);
                       setReceived(true);
                       titleRef.current?.focus();
                     }}

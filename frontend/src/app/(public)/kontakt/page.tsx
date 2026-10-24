@@ -28,8 +28,8 @@ export default async function ContactPage() {
           <p className="section-kicker">Kontakt</p>
           <h1 className="page-title max-w-5xl">Raka vägen till verkstaden.</h1>
           <p className="page-lead">
-            Ring om det är bråttom. Boka digitalt när det passar. Du hittar oss
-            enkelt i Eslöv, mitt i Skåne.
+            Ring om det är bråttom. Skicka en bokningsförfrågan när det passar.
+            Du hittar oss enkelt i Eslöv, mitt i Skåne.
           </p>
         </div>
       </header>

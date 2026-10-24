@@ -4,6 +4,7 @@ import { BrandMark } from '@/components/public/brand-mark';
 import { BookingButton } from '@/components/public/booking-provider';
 import { MobileNav } from '@/components/public/mobile-nav';
 import { PublicNavLink } from '@/components/public/public-nav-link';
+import { BOOKING_ACTION_LABEL } from '@/lib/public/booking-copy';
 
 const navigation = [
   { href: '/', label: 'Start' },
@@ -54,7 +55,7 @@ export function SiteHeader({
             {phone}
           </a>
           <BookingButton className="site-button site-button-primary">
-            Boka tid
+            {BOOKING_ACTION_LABEL}
           </BookingButton>
         </div>
 

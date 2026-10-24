@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Loader2, Phone, RotateCw } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm, type UseFormSetError } from 'react-hook-form';
 import {
   REQUESTED_TIME_OF_DAY_LABELS,
@@ -27,8 +27,12 @@ const fieldErrorDetailSchema = z.object({
 });
 
 const fieldErrorDetailsSchema = z.array(fieldErrorDetailSchema);
+const bookingDetailsSchema = publicBookingRequestInputSchema.omit({
+  formToken: true,
+});
 
-type BookingFormValues = {
+/** An in-memory draft only; never includes a form token. */
+export type BookingFormDraft = {
   website: '';
   regNr?: string;
   customerName: string;
@@ -39,7 +43,35 @@ type BookingFormValues = {
   serviceTypeIds: string[];
   message?: string;
 };
-type BookingFormField = keyof BookingFormValues;
+type BookingFormField = keyof BookingFormDraft;
+
+const visibleFields = [
+  { name: 'customerName', suffix: 'customer-name', label: 'Namn' },
+  { name: 'phone', suffix: 'phone', label: 'Telefon' },
+  { name: 'email', suffix: 'email', label: 'E-post' },
+  { name: 'regNr', suffix: 'regnr', label: 'Registreringsnummer' },
+  { name: 'requestedDate', suffix: 'date', label: 'Önskad dag' },
+  { name: 'requestedTimeOfDay', suffix: 'time', label: 'Tid på dagen' },
+  { name: 'serviceTypeIds', suffix: 'services', label: 'Vad gäller ärendet?' },
+  { name: 'message', suffix: 'message', label: 'Meddelande' },
+] as const satisfies readonly {
+  name: BookingFormField;
+  suffix: string;
+  label: string;
+}[];
+
+type FieldErrorLink = {
+  readonly id: string;
+  readonly label: string;
+  readonly message: string;
+};
+
+type ErrorVariant = 'general' | 'rate-limit' | 'token' | 'validation';
+
+function revealField(element: HTMLElement | null): void {
+  element?.focus({ preventScroll: true });
+  element?.scrollIntoView({ block: 'center', behavior: 'instant' });
+}
 
 const fieldNames: ReadonlySet<string> = new Set<BookingFormField>([
   'website',
@@ -58,7 +90,7 @@ type FormStatus =
   | { readonly kind: 'submitting' }
   | {
       readonly kind: 'error';
-      readonly variant: 'general' | 'rate-limit' | 'token';
+      readonly variant: ErrorVariant;
       readonly message: string;
       readonly requestId?: string;
     };
@@ -72,7 +104,7 @@ function isBookingFormField(value: string): value is BookingFormField {
   return fieldNames.has(value);
 }
 
-function normaliseForSubmit(values: BookingFormValues, formToken: string) {
+function normaliseForSubmit(values: BookingFormDraft) {
   const regNr = optionalText(values.regNr);
   const email = optionalText(values.email);
   const requestedDate = optionalText(values.requestedDate);
@@ -82,7 +114,6 @@ function normaliseForSubmit(values: BookingFormValues, formToken: string) {
 
   return {
     website: values.website,
-    formToken,
     ...(regNr === undefined ? {} : { regNr }),
     customerName: values.customerName,
     phone: values.phone,
@@ -96,7 +127,7 @@ function normaliseForSubmit(values: BookingFormValues, formToken: string) {
 
 function mapFieldErrors(
   details: unknown,
-  setError: UseFormSetError<BookingFormValues>,
+  setError: UseFormSetError<BookingFormDraft>,
 ): boolean {
   const parsed = fieldErrorDetailsSchema.safeParse(details);
   if (!parsed.success) {
@@ -122,7 +153,7 @@ function hasFormTokenError(details: unknown): boolean {
 }
 
 function formErrorStatus(
-  variant: 'general' | 'rate-limit' | 'token',
+  variant: ErrorVariant,
   message: string,
   requestId: string | undefined,
 ): FormStatus {
@@ -149,6 +180,8 @@ export interface BookingFormProps {
   readonly actionsContainer?: HTMLElement | null;
   readonly onSuccess?: () => void;
   readonly onPendingChange?: (pending: boolean) => void;
+  readonly initialDraft?: BookingFormDraft;
+  readonly onDraftChange?: (draft: BookingFormDraft) => void;
   readonly defaultRegistrationNumber: string;
   readonly selectedServiceSlug: string | undefined;
   readonly services: readonly Service[];
@@ -161,6 +194,8 @@ export function BookingForm({
   actionsContainer,
   onSuccess,
   onPendingChange,
+  initialDraft,
+  onDraftChange,
   defaultRegistrationNumber,
   selectedServiceSlug,
   services,
@@ -170,14 +205,17 @@ export function BookingForm({
   const router = useRouter();
   const token = usePublicFormToken({ purpose: 'booking' });
   const [status, setStatus] = useState<FormStatus>({ kind: 'idle' });
+  const formRef = useRef<HTMLFormElement>(null);
 
   const {
     control,
+    clearErrors,
     formState: { errors, isSubmitting },
     handleSubmit,
     register,
     setError,
-  } = useForm<BookingFormValues>({
+    subscribe,
+  } = useForm<BookingFormDraft>({
     defaultValues: {
       website: '',
       regNr: defaultRegistrationNumber,
@@ -185,40 +223,74 @@ export function BookingForm({
       phone: '',
       requestedTimeOfDay: '',
       serviceTypeIds: getInitialServiceIds(services, selectedServiceSlug),
+      ...initialDraft,
     },
   });
 
-  async function submit(values: BookingFormValues) {
+  useEffect(() => {
+    if (onDraftChange === undefined) return;
+    return subscribe({
+      formState: { values: true },
+      callback: ({ values }) => {
+        onDraftChange({
+          ...values,
+          serviceTypeIds: [...values.serviceTypeIds],
+        });
+      },
+    });
+  }, [subscribe, onDraftChange]);
+
+  // Run after the errors have rendered, in visual field order. In particular,
+  // a schema's regNr-first order must not skip the name at the top of the form.
+  useEffect(() => {
+    if (status.kind !== 'error') return;
+    const form = formRef.current;
+    revealField(
+      (status.variant === 'validation'
+        ? form?.querySelector<HTMLElement>('[aria-invalid="true"]')
+        : null) ??
+        form?.querySelector<HTMLElement>('[role="alert"]') ??
+        null,
+    );
+  }, [status]);
+
+  async function submit(values: BookingFormDraft) {
+    clearErrors();
+    // Validate editable fields before requesting/waiting for the anti-spam
+    // token, so a service outage cannot hide a missing name or phone number.
+    const payload = bookingDetailsSchema.safeParse(normaliseForSubmit(values));
+    if (!payload.success) {
+      for (const issue of payload.error.issues) {
+        const path = issue.path[0];
+        if (typeof path === 'string' && isBookingFormField(path)) {
+          setError(path, {
+            message:
+              path === 'phone' && values.phone.trim() === ''
+                ? 'Ange ditt telefonnummer.'
+                : issue.message,
+          });
+        }
+      }
+      setStatus({
+        kind: 'error',
+        variant: 'validation',
+        message: 'Kontrollera uppgifterna och försök igen.',
+      });
+      return;
+    }
+
     setStatus({ kind: 'submitting' });
     onPendingChange?.(true);
 
     try {
       const formToken = await token.getToken();
-      const payload = publicBookingRequestInputSchema.safeParse(
-        normaliseForSubmit(values, formToken),
-      );
-
-      if (!payload.success) {
-        for (const issue of payload.error.issues) {
-          const path = issue.path[0];
-          if (typeof path === 'string' && isBookingFormField(path)) {
-            setError(path, { message: issue.message });
-          }
-        }
-        setStatus({
-          kind: 'error',
-          variant: 'general',
-          message: 'Kontrollera uppgifterna och försök igen.',
-        });
-        return;
-      }
 
       await apiFetch(
         '/public/booking-requests',
         publicBookingRequestResponseSchema,
         {
           method: 'POST',
-          body: payload.data,
+          body: { ...payload.data, formToken },
         },
       );
 
@@ -240,7 +312,7 @@ export function BookingForm({
         if (error.code === 'VALIDATION_FAILED' && (mapped || tokenError)) {
           setStatus(
             formErrorStatus(
-              tokenError ? 'token' : 'general',
+              tokenError ? 'token' : 'validation',
               error.message,
               error.requestId,
             ),
@@ -263,6 +335,12 @@ export function BookingForm({
 
   const pending = isSubmitting || status.kind === 'submitting';
   const tokenUnavailable = token.status === 'error';
+  const fieldErrors: FieldErrorLink[] = visibleFields.flatMap((field) => {
+    const message = errors[field.name]?.message;
+    return message === undefined
+      ? []
+      : [{ id: `${idPrefix}-${field.suffix}`, label: field.label, message }];
+  });
 
   const actions = (
     <div className="booking-form-actions flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -296,11 +374,30 @@ export function BookingForm({
 
   return (
     <form
+      ref={formRef}
       id={`${idPrefix}-form`}
       className="booking-form @container grid gap-7"
       onSubmit={(event) => void handleSubmit(submit)(event)}
       noValidate
     >
+      {tokenUnavailable || status.kind === 'error' ? (
+        <BookingAlert
+          variant={status.kind === 'error' ? status.variant : 'token'}
+          message={
+            status.kind === 'error'
+              ? status.message
+              : 'Formuläret kunde inte hämta säkerhetstoken. Försök igen eller ring oss.'
+          }
+          fieldErrors={fieldErrors}
+          requestId={status.kind === 'error' ? status.requestId : undefined}
+          telephoneHref={telephoneHref}
+          workshopPhone={workshopPhone}
+          onRefreshToken={() =>
+            void token.refreshToken().catch(() => undefined)
+          }
+        />
+      ) : null}
+
       <div className="absolute left-[-100vw] top-auto h-px w-px overflow-hidden">
         <label htmlFor={`${idPrefix}-website`}>Webbplats</label>
         <input
@@ -463,7 +560,17 @@ export function BookingForm({
         </BookingTextField>
       </div>
 
-      <fieldset className="grid gap-3">
+      <fieldset
+        id={`${idPrefix}-services`}
+        tabIndex={-1}
+        aria-invalid={errors.serviceTypeIds === undefined ? undefined : true}
+        aria-describedby={
+          errors.serviceTypeIds === undefined
+            ? undefined
+            : `${idPrefix}-services-error`
+        }
+        className="grid gap-3"
+      >
         <legend className="font-sans text-sm font-bold">
           Vad gäller ärendet?
         </legend>
@@ -490,7 +597,10 @@ export function BookingForm({
           ))}
         </div>
         {errors.serviceTypeIds?.message === undefined ? null : (
-          <p className="font-sans text-sm text-oxide">
+          <p
+            id={`${idPrefix}-services-error`}
+            className="font-sans text-sm text-oxide"
+          >
             {errors.serviceTypeIds.message}
           </p>
         )}
@@ -515,23 +625,6 @@ export function BookingForm({
           }
         />
       </BookingTextField>
-
-      {tokenUnavailable || status.kind === 'error' ? (
-        <BookingAlert
-          variant={status.kind === 'error' ? status.variant : 'token'}
-          message={
-            status.kind === 'error'
-              ? status.message
-              : 'Formuläret kunde inte hämta säkerhetstoken. Försök igen eller ring oss.'
-          }
-          requestId={status.kind === 'error' ? status.requestId : undefined}
-          telephoneHref={telephoneHref}
-          workshopPhone={workshopPhone}
-          onRefreshToken={() =>
-            void token.refreshToken().catch(() => undefined)
-          }
-        />
-      ) : null}
 
       {actionsContainer ? createPortal(actions, actionsContainer) : actions}
     </form>
@@ -578,22 +671,26 @@ function BookingTextField({
 function BookingAlert({
   variant,
   message,
+  fieldErrors,
   requestId,
   telephoneHref,
   workshopPhone,
   onRefreshToken,
 }: {
-  readonly variant: 'general' | 'rate-limit' | 'token';
+  readonly variant: ErrorVariant;
   readonly message: string;
+  readonly fieldErrors: readonly FieldErrorLink[];
   readonly requestId: string | undefined;
   readonly telephoneHref: string;
   readonly workshopPhone: string;
   readonly onRefreshToken: () => void;
 }) {
   const isToken = variant === 'token';
+  const hasFieldErrors = variant === 'validation' && fieldErrors.length > 0;
   return (
     <div
       role="alert"
+      tabIndex={-1}
       className="grid gap-4 rounded-soft border border-oxide/25 bg-[#fff7ed] p-5 text-steel sm:grid-cols-[1fr_auto] sm:items-center"
     >
       <div className="flex gap-3">
@@ -607,11 +704,33 @@ function BookingAlert({
               ? 'För många försök'
               : isToken
                 ? 'Formuläret behöver uppdateras'
-                : 'Förfrågan kunde inte skickas'}
+                : variant === 'validation'
+                  ? 'Kontrollera de markerade fälten'
+                  : 'Förfrågan kunde inte skickas'}
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-steel/75">
-            {message}
-          </p>
+          {hasFieldErrors ? null : (
+            <p className="mt-1 text-sm leading-relaxed text-steel/75">
+              {message}
+            </p>
+          )}
+          {fieldErrors.length === 0 ? null : (
+            <ul className="mt-3 grid gap-1 text-sm">
+              {fieldErrors.map((field) => (
+                <li key={field.id}>
+                  <a
+                    href={`#${field.id}`}
+                    className="inline-flex min-h-11 items-center underline underline-offset-4"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      revealField(document.getElementById(field.id));
+                    }}
+                  >
+                    {field.label}: {field.message}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
           {requestId === undefined ? null : (
             <p className="mt-2 font-sans text-xs text-steel/50">
               Referens: {requestId}
@@ -619,20 +738,22 @@ function BookingAlert({
           )}
         </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {isToken ? (
-          <button
-            type="button"
-            className="site-button site-button-dark"
-            onClick={onRefreshToken}
-          >
-            <RotateCw aria-hidden="true" className="size-4" /> Hämta nytt
-          </button>
-        ) : null}
-        <a href={telephoneHref} className="site-button site-button-outline">
-          <Phone aria-hidden="true" className="size-4" /> Ring {workshopPhone}
-        </a>
-      </div>
+      {hasFieldErrors ? null : (
+        <div className="flex flex-wrap gap-2">
+          {isToken ? (
+            <button
+              type="button"
+              className="site-button site-button-dark"
+              onClick={onRefreshToken}
+            >
+              <RotateCw aria-hidden="true" className="size-4" /> Hämta nytt
+            </button>
+          ) : null}
+          <a href={telephoneHref} className="site-button site-button-outline">
+            <Phone aria-hidden="true" className="size-4" /> Ring {workshopPhone}
+          </a>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,8 @@
 import type { Metadata } from 'next';
+import {
+  BOOKING_ACTION_LABEL,
+  BOOKING_EXPLANATION,
+} from '@/lib/public/booking-copy';
 import Image from 'next/image';
 import Link from 'next/link';
 import { BookingButton } from '@/components/public/booking-provider';
@@ -164,9 +168,12 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
                 selectedServiceSlug={service.slug}
                 className="site-button site-button-primary w-full"
               >
-                Boka {service.name.toLowerCase()}{' '}
+                {BOOKING_ACTION_LABEL}
                 <ArrowRight aria-hidden="true" className="size-4" />
               </BookingButton>
+              <p className="mt-3 text-sm leading-relaxed text-steel/70">
+                {BOOKING_EXPLANATION}
+              </p>
             </aside>
           </div>
         </section>

@@ -119,7 +119,7 @@ test.describe('public routes', () => {
   test('brand and WhatsApp action stay inside phone, tablet and desktop views', async ({
     page,
   }) => {
-    for (const width of [320, 768, 1024, 1440]) {
+    for (const width of [320, 390, 640, 768, 1024, 1280, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/');
 
@@ -129,6 +129,29 @@ test.describe('public routes', () => {
           document.documentElement.clientWidth,
       );
       expect(overflow).toBeLessThanOrEqual(1);
+
+      const headerControls = page.locator(
+        '.site-header a, .site-header button, .site-header summary',
+      );
+      const visibleBoxes = [];
+      for (const control of await headerControls.all()) {
+        if (!(await control.isVisible())) continue;
+        const box = await control.boundingBox();
+        expect(box).not.toBeNull();
+        if (box === null) continue;
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+        for (const previous of visibleBoxes) {
+          const overlapX =
+            Math.min(previous.x + previous.width, box.x + box.width) -
+            Math.max(previous.x, box.x);
+          const overlapY =
+            Math.min(previous.y + previous.height, box.y + box.height) -
+            Math.max(previous.y, box.y);
+          expect(overlapX <= 1 || overlapY <= 1).toBe(true);
+        }
+        visibleBoxes.push(box);
+      }
 
       for (const locator of [
         page.getByRole('link', { name: 'M&R AUTOMOTIVE, startsida' }).first(),

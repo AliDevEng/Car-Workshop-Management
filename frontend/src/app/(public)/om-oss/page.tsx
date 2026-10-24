@@ -2,6 +2,10 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { BookingButton } from '@/components/public/booking-provider';
 import {
+  BOOKING_ACTION_LABEL,
+  BOOKING_EXPLANATION,
+} from '@/lib/public/booking-copy';
+import {
   ArrowRight,
   BadgeCheck,
   HeartHandshake,
@@ -123,9 +127,13 @@ export default function AboutPage() {
             <h2 className="type-display mt-3 text-3xl font-bold sm:text-5xl">
               Låt oss titta på bilen.
             </h2>
+            <p className="mt-4 max-w-xl leading-relaxed text-white/80">
+              {BOOKING_EXPLANATION}
+            </p>
           </div>
           <BookingButton className="site-button site-button-hivis shrink-0">
-            Boka tid <ArrowRight aria-hidden="true" className="size-4" />
+            {BOOKING_ACTION_LABEL}{' '}
+            <ArrowRight aria-hidden="true" className="size-4" />
           </BookingButton>
         </div>
       </section>
